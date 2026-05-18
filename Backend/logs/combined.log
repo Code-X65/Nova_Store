@@ -1,0 +1,28 @@
+{"level":"info","message":"New user registered: omoloyeamoss65@gmail.com","service":"nova-store-backend","timestamp":"2026-05-03T16:17:16.162Z"}
+{"level":"info","message":"User logged in successfully: omoloyeamoss65@gmail.com","service":"nova-store-backend","timestamp":"2026-05-03T16:22:08.738Z"}
+{"level":"info","message":"User logged out and session revoked","service":"nova-store-backend","timestamp":"2026-05-03T16:24:14.811Z"}
+{"level":"warn","message":"Failed login attempt for email: omoloyeamoss65@gmail.com","service":"nova-store-backend","timestamp":"2026-05-03T16:32:35.465Z"}
+{"level":"info","message":"User logged in successfully: omoloyeamoss65@gmail.com","service":"nova-store-backend","timestamp":"2026-05-03T16:32:46.044Z"}
+{"level":"info","message":"Password reset successful for user_id: f0d71444-748c-442b-a215-20f4c907a476","service":"nova-store-backend","timestamp":"2026-05-03T16:37:48.450Z"}
+{"level":"info","message":"New user registered: testuser_1778360702177_802@example.com","service":"nova-store-backend","timestamp":"2026-05-09T21:05:08.888Z"}
+{"level":"info","message":"New user registered: onboard_1778360702155_764@example.com","service":"nova-store-backend","timestamp":"2026-05-09T21:05:09.458Z"}
+{"level":"info","message":"New user registered: onboard_1778360787437_620@example.com","service":"nova-store-backend","timestamp":"2026-05-09T21:06:36.569Z"}
+{"level":"info","message":"New user registered: testuser_1778360787424_416@example.com","service":"nova-store-backend","timestamp":"2026-05-09T21:06:36.603Z"}
+{"level":"info","message":"User logged in successfully: test@example.com","service":"nova-store-backend","timestamp":"2026-05-18T09:34:46.243Z"}
+{"level":"info","message":"User logged in successfully: test@example.com","service":"nova-store-backend","timestamp":"2026-05-18T09:38:16.001Z"}
+{"level":"info","message":"User logged in successfully: test@example.com","service":"nova-store-backend","timestamp":"2026-05-18T09:44:00.466Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:26:18.884Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:26:44.849Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:28:56.478Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:30:16.413Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:34:03.356Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:34:54.804Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:35:44.298Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:36:57.980Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:38:01.405Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:39:42.615Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:40:30.679Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:41:36.314Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:42:16.748Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:43:34.281Z"}
+{"level":"info","message":"[NotifyQueue] Worker started — polling every 5 s","service":"nova-store-backend","timestamp":"2026-05-18T15:44:42.094Z"}

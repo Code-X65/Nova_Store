@@ -1,0 +1,158 @@
+const supabase = require('../config/supabase');
+
+class AnalyticsModel {
+  async getDashboardSummary(from, to) {
+    // Basic sums
+    const { data: salesData, error: salesError } = await supabase
+      .from('orders')
+      .select('total_amount, status')
+      .gte('created_at', from)
+      .lte('created_at', to);
+
+    if (salesError) throw salesError;
+
+    let totalSales = 0;
+    let totalOrders = salesData.length;
+    let pending = 0, shipped = 0, delivered = 0;
+
+    salesData.forEach(o => {
+      if (['delivered', 'shipped', 'processing'].includes(o.status)) {
+        totalSales += Number(o.total_amount) || 0;
+      }
+      if (o.status === 'pending') pending++;
+      if (o.status === 'shipped') shipped++;
+      if (o.status === 'delivered') delivered++;
+    });
+
+    const averageOrderValue = totalOrders > 0 ? (totalSales / totalOrders) : 0;
+
+    // Users
+    const { count: totalCustomers, error: usersError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+
+    if (usersError) throw usersError;
+
+    const { count: newCustomers, error: newUsersError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', from)
+      .lte('created_at', to);
+
+    if (newUsersError) throw newUsersError;
+
+    return {
+      totalSales,
+      totalOrders,
+      averageOrderValue,
+      totalCustomers,
+      newCustomersThisPeriod: newCustomers,
+      ordersPending: pending,
+      ordersShipped: shipped,
+      ordersDelivered: delivered
+    };
+  }
+
+  async getSalesSummary(from, to, groupBy) {
+    const { data, error } = await supabase.rpc('get_sales_summary', {
+      start_date: from,
+      end_date: to,
+      group_period: groupBy
+    });
+
+    if (error) throw error;
+    return data;
+  }
+
+  async getBestSellers(from, to, limit, sortBy, categoryId) {
+    const { data, error } = await supabase.rpc('get_best_sellers', {
+      start_date: from,
+      end_date: to,
+      top_limit: limit,
+      sort_by: sortBy,
+      cat_id: categoryId || null
+    });
+
+    if (error) throw error;
+    return data;
+  }
+
+  async getUserGrowth(from, to, groupBy) {
+    const { data, error } = await supabase.rpc('get_user_growth', {
+      start_date: from,
+      end_date: to,
+      group_period: groupBy
+    });
+
+    if (error) throw error;
+    return data;
+  }
+
+  async getOrderStatusBreakdown(from, to) {
+    // Simple count by status
+    const { data, error } = await supabase
+      .from('orders')
+      .select('status')
+      .gte('created_at', from)
+      .lte('created_at', to);
+
+    if (error) throw error;
+
+    const breakdown = {};
+    data.forEach(o => {
+      breakdown[o.status] = (breakdown[o.status] || 0) + 1;
+    });
+
+    return breakdown;
+  }
+
+  async getPaymentProviderStats(from, to) {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('provider, status, amount')
+      .gte('created_at', from)
+      .lte('created_at', to);
+
+    if (error) throw error;
+
+    const stats = {};
+    let totalSuccess = 0;
+    let totalCount = data.length;
+
+    data.forEach(p => {
+      if (!stats[p.provider]) {
+        stats[p.provider] = { provider: p.provider, successCount: 0, failedCount: 0, totalAmount: 0 };
+      }
+      if (p.status === 'completed' || p.status === 'successful') {
+        stats[p.provider].successCount++;
+        stats[p.provider].totalAmount += Number(p.amount) || 0;
+        totalSuccess++;
+      } else {
+        stats[p.provider].failedCount++;
+      }
+    });
+
+    return {
+      byProvider: Object.values(stats),
+      successRate: totalCount > 0 ? (totalSuccess / totalCount) * 100 : 0
+    };
+  }
+
+  async getInventoryAlerts(limit) {
+    // Top out of stock or low stock
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, name, stock_quantity')
+      .order('stock_quantity', { ascending: true })
+      .limit(limit);
+
+    if (error) throw error;
+
+    return {
+      lowStockProducts: data.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 10), // Threshold = 10
+      outOfStockProducts: data.filter(p => p.stock_quantity === 0)
+    };
+  }
+}
+
+module.exports = new AnalyticsModel();

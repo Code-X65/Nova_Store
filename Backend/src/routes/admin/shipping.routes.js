@@ -1,0 +1,108 @@
+const express = require('express');
+const router = express.Router();
+const shippingAdminController = require('../../controllers/admin/shipping.admin.controller');
+const { protect } = require('../../middlewares/auth.middleware');
+const { hasPermission } = require('../../middlewares/permission.middleware');
+const joi = require('joi');
+
+const validateRequest = (schema) => (req, res, next) => {
+  const { error } = schema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ success: false, error: error.details[0].message });
+  }
+  next();
+};
+
+const zoneSchema = joi.object({
+  name: joi.string().required(),
+  countries: joi.array().items(joi.string()).min(1).required(),
+  states: joi.array().items(joi.string()).optional(),
+  is_active: joi.boolean().optional()
+});
+
+const rateSchema = joi.object({
+  zone_id: joi.string().uuid().required(),
+  name: joi.string().required(),
+  min_weight: joi.number().min(0).optional(),
+  max_weight: joi.number().min(0).allow(null).optional(),
+  min_order_amount: joi.number().min(0).optional(),
+  rate: joi.number().min(0).required(),
+  estimated_days_min: joi.number().min(0).optional(),
+  estimated_days_max: joi.number().min(0).optional(),
+  is_active: joi.boolean().optional()
+});
+
+// Protect all admin routes
+router.use(protect);
+// Optional: router.use(hasPermission('shipping:write')); // depending on your RBAC
+
+/**
+ * @swagger
+ * tags:
+ *   name: Admin Shipping
+ *   description: Admin management of shipping zones and rates
+ */
+
+/**
+ * @swagger
+ * /admin/shipping/zones:
+ *   get:
+ *     summary: List all shipping zones
+ *     tags: [Admin Shipping]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of zones
+ *   post:
+ *     summary: Create a new shipping zone
+ *     tags: [Admin Shipping]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Created zone
+ */
+router.get('/zones', shippingAdminController.getZones);
+router.post('/zones', validateRequest(zoneSchema), shippingAdminController.createZone);
+
+/**
+ * @swagger
+ * /admin/shipping/zones/{id}:
+ *   put:
+ *     summary: Update a shipping zone
+ *     tags: [Admin Shipping]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Updated zone
+ *   delete:
+ *     summary: Delete a shipping zone
+ *     tags: [Admin Shipping]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Zone deleted
+ */
+router.put('/zones/:id', shippingAdminController.updateZone);
+router.delete('/zones/:id', shippingAdminController.deleteZone);
+
+// Rates
+router.get('/rates', shippingAdminController.getRates);
+router.post('/rates', validateRequest(rateSchema), shippingAdminController.createRate);
+router.put('/rates/:id', shippingAdminController.updateRate);
+router.delete('/rates/:id', shippingAdminController.deleteRate);
+
+module.exports = router;
