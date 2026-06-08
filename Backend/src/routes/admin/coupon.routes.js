@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminCouponController = require('../../controllers/admin/coupon.admin.controller');
-const { protect } = require('../../middlewares/auth.middleware');
+const requireAdmin = require('../../middlewares/require-admin.middleware');
 const { hasPermission } = require('../../middlewares/permission.middleware');
 const joi = require('joi');
 
@@ -41,7 +41,7 @@ const bulkSchema = joi.object({
   minOrderAmount: joi.number().min(0).optional()
 });
 
-router.use(protect);
+router.use(requireAdmin);
 // router.use(hasPermission('coupon:write')); // Optional RBAC
 
 /**

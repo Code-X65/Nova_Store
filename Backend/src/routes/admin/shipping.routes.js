@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const shippingAdminController = require('../../controllers/admin/shipping.admin.controller');
-const { protect } = require('../../middlewares/auth.middleware');
+const requireAdmin = require('../../middlewares/require-admin.middleware');
 const { hasPermission } = require('../../middlewares/permission.middleware');
 const joi = require('joi');
 
@@ -33,7 +33,7 @@ const rateSchema = joi.object({
 });
 
 // Protect all admin routes
-router.use(protect);
+router.use(requireAdmin);
 // Optional: router.use(hasPermission('shipping:write')); // depending on your RBAC
 
 /**

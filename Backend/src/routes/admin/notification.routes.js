@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminNotificationController = require('../../controllers/admin/notification.admin.controller');
-const { protect } = require('../../middlewares/auth.middleware');
+const requireAdmin = require('../../middlewares/require-admin.middleware');
 const { hasPermission } = require('../../middlewares/permission.middleware');
 const joi = require('joi');
 
@@ -40,7 +40,7 @@ const broadcastSchema = joi.object({
   filter: joi.object().optional()
 });
 
-router.use(protect);
+router.use(requireAdmin);
 
 /**
  * @swagger

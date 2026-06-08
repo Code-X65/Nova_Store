@@ -42,76 +42,92 @@ class CouponService {
     return await CouponModel.findUserHistory(userId);
   }
 
-  async validateAndApplyCoupon(userId, cartId, code, cartTotal = null, customerEmail = null) {
-    const coupon = await CouponModel.findByCode(code);
-    if (!coupon) throw new ErrorResponse('Invalid coupon code', 400);
+   async validateAndApplyCoupon(userId, cartId, code, cartTotal = null, customerEmail = null) {
+     const coupon = await CouponModel.findByCode(code);
+     if (!coupon) throw new ErrorResponse('Invalid coupon code', 400);
 
-    const now = new Date();
-    if (coupon.starts_at && new Date(coupon.starts_at) > now) throw new ErrorResponse('Coupon not yet active', 400);
-    if (coupon.expires_at && new Date(coupon.expires_at) < now) throw new ErrorResponse('Coupon expired', 400);
-    if (coupon.usage_limit && coupon.used_count >= coupon.usage_limit) throw new ErrorResponse('Coupon usage limit reached', 400);
+     const now = new Date();
+     if (coupon.starts_at && new Date(coupon.starts_at) > now) throw new ErrorResponse('Coupon not yet active', 400);
+     if (coupon.expires_at && new Date(coupon.expires_at) < now) throw new ErrorResponse('Coupon expired', 400);
+     if (coupon.usage_limit && coupon.used_count >= coupon.usage_limit) throw new ErrorResponse('Coupon usage limit reached', 400);
 
-    if (userId) {
-      // Check per customer limit
-      if (coupon.per_customer_limit) {
-        const { data: isValid, error } = await supabase.rpc('is_coupon_valid_for_user', {
-          p_coupon_id: coupon.id,
-          p_user_id: userId,
-          p_cart_total: cartTotal || 0
-        });
+     // Determine customer identifier for per-customer limit checks
+     let customerIdentifier = null;
+     let identifierType = null; // 'userId' or 'customerEmail'
+     
+     if (userId) {
+       customerIdentifier = userId;
+       identifierType = 'userId';
+     } else if (customerEmail) {
+       customerIdentifier = customerEmail.toLowerCase().trim();
+       identifierType = 'customerEmail';
+     }
+     // If neither is provided, we cannot enforce per-customer limits, but we should still proceed
+     // with other validations (this maintains backward compatibility for guest checkouts without email)
 
-        if (error) throw new ErrorResponse('Error validating coupon eligibility', 500);
-        if (!isValid) throw new ErrorResponse('You are not eligible for this coupon or usage limit reached', 400);
-      } else {
-        // Fallback for legacy (just check if used once if no limit specified but previously logic applied)
-        const userUsage = await CouponModel.checkUserUsage(userId, coupon.id);
-        if (userUsage) throw new ErrorResponse('You have already used this coupon', 400);
-      }
-    } else if (customerEmail) {
-      // Guest coupon abuse check
-      if (coupon.per_customer_limit) {
-        const { data: guestOrders, error: guestOrdersError } = await supabase
-          .from('orders')
-          .select('id')
-          .eq('customer_email', customerEmail.toLowerCase().trim())
-          .eq('coupon_id', coupon.id)
-          .not('status', 'eq', 'cancelled')
-          .not('payment_status', 'eq', 'failed');
+     if (userId) {
+       // Check per customer limit for registered users
+       if (coupon.per_customer_limit) {
+         const { data: isValid, error } = await supabase.rpc('is_coupon_valid_for_user', {
+           p_coupon_id: coupon.id,
+           p_user_id: userId,
+           p_cart_total: cartTotal || 0
+         });
 
-        if (guestOrdersError) throw new ErrorResponse('Error validating coupon eligibility', 500);
-        if (guestOrders && guestOrders.length >= coupon.per_customer_limit) {
-          throw new ErrorResponse('You are not eligible for this coupon or usage limit reached', 400);
-        }
-      }
-    }
+         if (error) throw new ErrorResponse('Error validating coupon eligibility', 500);
+         if (!isValid) throw new ErrorResponse('You are not eligible for this coupon or usage limit reached', 400);
+       } else {
+         // Fallback for legacy (just check if used once if no limit specified but previously logic applied)
+         const userUsage = await CouponModel.checkUserUsage(userId, coupon.id);
+         if (userUsage) throw new ErrorResponse('You have already used this coupon', 400);
+       }
+     } else if (customerEmail) {
+       // Guest coupon abuse check using email
+       if (coupon.per_customer_limit) {
+         const { data: guestOrders, error: guestOrdersError } = await supabase
+           .from('orders')
+           .select('id')
+           .eq('customer_email', customerEmail)
+           .eq('coupon_id', coupon.id)
+           .not('status', 'eq', 'cancelled')
+           .not('payment_status', 'eq', 'failed');
 
-    // Get cart total if not provided
-    let actualCartTotal = cartTotal;
-    if (actualCartTotal === null) {
-      const cart = await CartService.getOrCreateCart(userId, null);
-      actualCartTotal = cart.subtotal;
-    }
+         if (guestOrdersError) throw new ErrorResponse('Error validating coupon eligibility', 500);
+         if (guestOrders && guestOrders.length >= coupon.per_customer_limit) {
+           throw new ErrorResponse('You are not eligible for this coupon or usage limit reached', 400);
+         }
+       }
+     }
+     // Note: If neither userId nor customerEmail is provided, we skip per-customer limit checks
+     // but continue with other validations (min_order_amount, etc.)
 
-    if (coupon.min_order_amount && actualCartTotal < coupon.min_order_amount) {
-      throw new ErrorResponse(`Minimum order amount for this coupon is ${coupon.min_order_amount}`, 400);
-    }
+     // Get cart total if not provided
+     let actualCartTotal = cartTotal;
+     if (actualCartTotal === null) {
+       const cart = await CartService.getOrCreateCart(userId, null);
+       actualCartTotal = cart.subtotal;
+     }
 
-    let discount = 0;
-    if (coupon.type === 'percentage') {
-      discount = (actualCartTotal * coupon.value) / 100;
-      if (coupon.max_discount && discount > coupon.max_discount) {
-        discount = coupon.max_discount;
-      }
-    } else {
-      discount = coupon.value;
-    }
+     if (coupon.min_order_amount && actualCartTotal < coupon.min_order_amount) {
+       throw new ErrorResponse(`Minimum order amount for this coupon is ${coupon.min_order_amount}`, 400);
+     }
 
-    return {
-      coupon,
-      discount: parseFloat(discount.toFixed(2)),
-      newTotal: parseFloat((actualCartTotal - discount).toFixed(2))
-    };
-  }
+     let discount = 0;
+     if (coupon.type === 'percentage') {
+       discount = (actualCartTotal * coupon.value) / 100;
+       if (coupon.max_discount && discount > coupon.max_discount) {
+         discount = coupon.max_discount;
+       }
+     } else {
+       discount = coupon.value;
+     }
+
+     return {
+       coupon,
+       discount: parseFloat(discount.toFixed(2)),
+       newTotal: parseFloat((actualCartTotal - discount).toFixed(2))
+     };
+   }
 
   /**
    * Record coupon usage after a successful order.

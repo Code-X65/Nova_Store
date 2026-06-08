@@ -18,9 +18,13 @@ class SMSService {
   async send(to, message) {
     try {
       if (!this.client) {
-        const errorMsg = 'Twilio provider credentials missing. SMS not sent.';
-        logger.error(errorMsg);
-        throw new Error(errorMsg);
+        if (process.env.NODE_ENV !== 'production') {
+          logger.warn(`Twilio client not initialized. Falling back to stub SMS in ${process.env.NODE_ENV || 'development'} environment.`);
+          return { success: true, messageId: `stub-sms-${Date.now()}` };
+        }
+        
+        logger.error('Cannot send SMS in production environment: Twilio provider credentials missing in production');
+        return { success: false, error: 'Twilio provider credentials missing in production' };
       }
 
       logger.info(`Sending SMS via Twilio to ${to}`);

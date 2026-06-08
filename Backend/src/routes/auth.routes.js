@@ -2,9 +2,9 @@ const express = require('express');
 const Joi = require('joi');
 const authController = require('../controllers/auth.controller');
 const validate = require('../middlewares/validate.middleware');
-
 const { protect } = require('../middlewares/auth.middleware');
 const { hasPermission } = require('../middlewares/permission.middleware');
+const AuditService = require('../services/audit.service');
 
 const router = express.Router();
 
@@ -29,8 +29,23 @@ const registerSchema = {
         'string.pattern.base': 'Password must contain at least one lowercase letter, one uppercase letter, one number and one special character',
         'any.required': 'Password is required'
       }),
+    confirmPassword: Joi.string()
+      .valid(Joi.ref('password'))
+      .required()
+      .messages({ 'any.only': 'Passwords do not match' }),
     firstName: Joi.string().min(2).max(50).required(),
-    lastName: Joi.string().min(2).max(50).required()
+    lastName: Joi.string().min(2).max(50).required(),
+    phoneNumber: Joi.string().pattern(/^\+?\d{7,15}$/).required(),
+    phoneCountryCode: Joi.string().pattern(/^\+?\d{1,4}$/).required(),
+    homeAddress: Joi.object({
+      street: Joi.string().max(200).required(),
+      city: Joi.string().max(100).required(),
+      state: Joi.string().max(100).required(),
+      postalCode: Joi.string().max(20).required(),
+      country: Joi.string().max(100).required()
+    }).required(),
+    referralSource: Joi.string().valid('facebook','instagram','twitter','tiktok','friend','colleague','google','other').optional(),
+    referredByCode: Joi.string().alphanum().length(12).optional()
   })
 };
 
@@ -38,6 +53,41 @@ const loginSchema = {
   body: Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().required()
+  })
+};
+
+const adminRegisterSchema = {
+  body: Joi.object({
+    email: Joi.string().email().required().messages({
+      'string.email': 'Please provide a valid email address',
+      'any.required': 'Email is required'
+    }),
+    password: Joi.string()
+      .min(12)
+      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/)
+      .required()
+      .messages({
+        'string.min': 'Password must be at least 12 characters long',
+        'string.pattern.base': 'Password must contain at least one lowercase letter, one uppercase letter, one number and one special character',
+        'any.required': 'Password is required'
+      }),
+    confirmPassword: Joi.string()
+      .valid(Joi.ref('password'))
+      .required()
+      .messages({ 'any.only': 'Passwords do not match' }),
+    firstName: Joi.string().min(2).max(50).required(),
+    lastName: Joi.string().min(2).max(50).required(),
+    phoneNumber: Joi.string().pattern(/^\+?\d{7,15}$/).required(),
+    phoneCountryCode: Joi.string().pattern(/^\+?\d{1,4}$/).required(),
+    homeAddress: Joi.object({
+      street: Joi.string().max(200).required(),
+      city: Joi.string().max(100).required(),
+      state: Joi.string().max(100).required(),
+      postalCode: Joi.string().max(20).required(),
+      country: Joi.string().max(100).required()
+    }).required(),
+    department: Joi.string().max(100).required(),
+    accessLevel: Joi.string().valid('super_admin', 'admin', 'staff').default('admin')
   })
 };
 
@@ -67,6 +117,21 @@ const resetPasswordSchema = {
   })
 };
 
+const sendPhoneOtpSchema = {
+  body: Joi.object({
+    userId: Joi.string().guid({ version: 'uuidv4' }).required(),
+    phoneNumber: Joi.string().pattern(/^\+?\d{7,15}$/).required(),
+    phoneCountryCode: Joi.string().pattern(/^\+?\d{1,4}$/).required()
+  })
+};
+
+const verifyPhoneSchema = {
+  body: Joi.object({
+    userId: Joi.string().guid({ version: 'uuidv4' }).required(),
+    otp: Joi.string().length(6).pattern(/^\d{6}$/).required()
+  })
+};
+
 /**
  * @swagger
  * tags:
@@ -88,43 +153,176 @@ const resetPasswordSchema = {
  *             type: object
  *             required:
  *               - email
- *               - password
- *               - firstName
- *               - lastName
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: user@example.com
- *               password:
- *                 type: string
- *                 format: password
- *                 example: SecurePass123!
- *                 description: Must be 12+ chars, include upper, lower, number, and special char.
- *               firstName:
- *                 type: string
- *                 example: John
- *               lastName:
- *                 type: string
- *                 example: Doe
- *     responses:
- *       201:
- *         description: Registration successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *       400:
- *         description: Validation error or Email already exists
- *       429:
- *         description: Too many requests
- */
+*               - password
+*               - confirmPassword
+*               - firstName
+*               - lastName
+*               - phoneNumber
+*               - phoneCountryCode
+*               - homeAddress
+*             properties:
+*               email:
+*                 type: string
+*                 format: email
+*                 example: user@example.com
+*               password:
+*                 type: string
+*                 format: password
+*                 example: SecurePass123!
+*                 description: Must be 12+ chars, include upper, lower, number, and special char.
+*               confirmPassword:
+*                 type: string
+*                 format: password
+*                 example: SecurePass123!
+*               firstName:
+*                 type: string
+*                 example: John
+*               lastName:
+*                 type: string
+*                 example: Doe
+*               phoneNumber:
+*                 type: string
+*                 example: +234801234567
+*               phoneCountryCode:
+*                 type: string
+*                 example: +234
+*               homeAddress:
+*                 type: object
+*                 properties:
+*                   street:
+*                     type: string
+*                   city:
+*                     type: string
+*                   state:
+*                     type: string
+*                   postalCode:
+*                     type: string
+*                   country:
+*                     type: string
+*               referralSource:
+*                 type: string
+*                 enum: [facebook, instagram, twitter, tiktok, friend, colleague, google, other]
+*               referredByCode:
+*                 type: string
+*                 pattern: ^[A-Z0-9]{12}$
+*                 example: NOVA-XYZ123
+*     responses:
+*       201:
+*         description: Registration successful
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 success:
+*                   type: boolean
+*                 message:
+*                   type: string
+*                 data:
+*                   type: object
+*                   properties:
+*                     userId:
+*                       type: string
+*       400:
+*         description: Validation error or Email already exists
+*       409:
+*         description: Email or phone number already registered
+*       429:
+*         description: Too many requests
+*/
 router.post('/register', validate(registerSchema), authController.register);
+
+/**
+ * @swagger
+ * /auth/send-phone-otp:
+ *   post:
+ *     summary: Send OTP to phone number
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - phoneNumber
+ *               - phoneCountryCode
+ *             properties:
+ *               userId:
+ *                 type: string
+*                 format: uuid
+*               phoneNumber:
+*                 type: string
+*                 example: +234801234567
+*               phoneCountryCode:
+*                 type: string
+*                 example: +234
+*     responses:
+*       200:
+*         description: OTP sent successfully
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 success:
+*                   type: boolean
+*                 message:
+*                   type: string
+*       400:
+*         description: Validation error
+*       500:
+*         description: SMS provider error
+*/
+router.post('/send-phone-otp', validate(sendPhoneOtpSchema), authController.sendPhoneOtp);
+
+/**
+ * @swagger
+ * /auth/verify-phone:
+ *   post:
+ *     summary: Verify phone OTP
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - otp
+ *             properties:
+ *               userId:
+*                 type: string
+*                 format: uuid
+*               otp:
+*                 type: string
+*                 pattern: ^\d{6}$
+*                 example: 123456
+*     responses:
+*       200:
+*         description: Phone verified successfully
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 success:
+*                   type: boolean
+*                 message:
+*                   type: string
+*                 data:
+*                   type: object
+*                   properties:
+*                     isPhoneVerified:
+*                       type: boolean
+*       400:
+*         description: Validation error or invalid/expired OTP
+*       422:
+*         description: Maximum OTP attempts exceeded
+*/
+router.post('/verify-phone', validate(verifyPhoneSchema), authController.verifyPhone);
 
 /**
  * @swagger
@@ -173,31 +371,11 @@ router.post('/register', validate(registerSchema), authController.register);
  */
 router.post('/login', validate(loginSchema), authController.login);
 
-/**
- * @swagger
- * /auth/admin/login:
- *   post:
- *     summary: Admin login
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email: { type: string, format: email }
- *               password: { type: string, format: password }
- *     responses:
- *       200:
- *         description: Admin login successful
- *       403:
- *         description: Not authorized as admin
- */
-router.post('/admin/login', validate(loginSchema), authController.adminLogin);
+// NOTE: Admin login is now handled by POST /api/v1/admin/login (session-cookie based).
+// The route below is intentionally removed.
+
+// NOTE: Admin registration is permanently disabled.
+// New admin accounts must be created via: node src/scripts/create-admin.js <email> <password>
 
 /**
  * @swagger
@@ -315,10 +493,10 @@ router.put('/change-password', protect, validate(changePasswordSchema), authCont
  *               email: { type: string, format: email }
  *     responses:
  *       200:
- *         description: Reset email sent
- *       404:
- *         description: No account found with this email address
- */
+*         description: Reset email sent
+*       404:
+*         description: No account found with this email address
+*/
 router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);
 
 /**
@@ -372,20 +550,20 @@ router.get('/verify-email', authController.verifyEmail);
  * /auth/resend-verification:
  *   post:
  *     summary: Resend verification email
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email]
- *             properties:
- *               email: { type: string, format: email }
- *     responses:
- *       200:
- *         description: Verification email sent
- */
+*     tags: [Authentication]
+*     requestBody:
+*       required: true
+*       content:
+*         application/json:
+*           schema:
+*             type: object
+*             required: [email]
+*             properties:
+*               email: { type: string, format: email }
+*     responses:
+*       200:
+*         description: Verification email sent
+*/
 router.post('/resend-verification', validate(resendVerificationSchema), authController.resendVerification);
 
 /**
@@ -402,52 +580,5 @@ router.post('/resend-verification', validate(resendVerificationSchema), authCont
  */
 router.get('/oauth/status', protect, authController.getOAuthStatus);
 
-/**
- * @swagger
- * /auth/admin/users:
- *   get:
- *     summary: List all users (Admin only)
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema: { type: integer, default: 1 }
- *       - in: query
- *         name: limit
- *         schema: { type: integer, default: 10 }
- *     responses:
- *       200:
- *         description: Paginated list of users
- */
-router.get('/admin/users', protect, hasPermission('user:read'), authController.adminListUsers);
-
-/**
- * @swagger
- * /auth/admin/users/{id}:
- *   patch:
- *     summary: Update user status or role (Admin only)
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               is_active: { type: boolean }
- *               role: { type: string, enum: [USER, ADMIN] }
- *     responses:
- *       200:
- *         description: User updated successfully
- */
-router.patch('/admin/users/:id', protect, hasPermission('user:write'), authController.adminUpdateUserStatus);
 
 module.exports = router;

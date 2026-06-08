@@ -72,28 +72,44 @@ INSERT INTO notification_templates (key, name, subject, text_template, variables
     '["userName","orderNumber"]',
     '{email,inapp}'
   ),
-  (
-    'order_cancelled',
-    'Order Cancelled — {{orderNumber}}',
-    'Order {{orderNumber}} has been cancelled',
-    'Hi {{userName}}, your order {{orderNumber}} has been cancelled. Reason: {{reason}}. Any payment will be refunded within 5–10 business days.',
-    '["userName","orderNumber","reason"]',
-    '{email,inapp}'
-  ),
-  (
-    'password_reset',
-    'Password Reset Request',
-    'Reset your Nova Store password',
-    'Hi {{userName}}, you requested a password reset. Click here to set a new password: {{resetLink}}. This link expires in 1 hour.',
-    '["userName","resetLink"]',
-    '{email}'
-  ),
-  (
-    'email_verification',
-    'Verify Your Email — Nova Store',
-    'Please verify your email address',
-    'Welcome {{userName}}! Click this link to verify your email: {{verificationLink}}. This link expires in 24 hours.',
-    '["userName","verificationLink"]',
-    '{email}'
-  )
-ON CONFLICT (key) DO NOTHING;
+   (
+     'order_cancelled',
+     'Order Cancelled — {{orderNumber}}',
+     'Order {{orderNumber}} has been cancelled',
+     'Hi {{userName}}, your order {{orderNumber}} has been cancelled. Reason: {{reason}}. Any payment will be refunded within 5–10 business days.',
+     '["userName","orderNumber","reason"]',
+     '{email,inapp}'
+   ),
+   (
+     'password_reset',
+     'Password Reset Request',
+     'Reset your Nova Store password',
+     'Hi {{userName}}, you requested a password reset. Click here to set a new password: {{resetLink}}. This link expires in 1 hour.',
+     '["userName","resetLink"]',
+     '{email}'
+   ),
+   (
+     'email_verification',
+     'Verify Your Email — Nova Store',
+     'Please verify your email address',
+     'Welcome {{userName}}! Click this link to verify your email: {{verificationLink}}. This link expires in 24 hours.',
+     '["userName","verificationLink"]',
+     '{email}'
+   ),
+   (
+     'phone_otp',
+     'Phone OTP Verification',
+     'Your Nova Store verification code is: {{otp}}',
+     'Your Nova Store verification code is: {{otp}}. Valid for 10 minutes. Do not share this code.',
+     '["otp"]',
+     '{sms}'
+   ),
+   (
+     'referral_credited',
+     'Referral Credited',
+     '{{referredByName}} joined Nova Store using your referral link!',
+     'Congrats {{referredByName}}! You earned {{points}} loyalty points.',
+     '["referredByName","points"]',
+     '{email,inapp}'
+   )
+ ON CONFLICT (key) DO NOTHING;

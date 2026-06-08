@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const analyticsController = require('../../controllers/admin/analytics.admin.controller');
-const { protect } = require('../../middlewares/auth.middleware');
+const requireAdmin = require('../../middlewares/require-admin.middleware');
 const { hasPermission } = require('../../middlewares/permission.middleware');
 
-router.use(protect);
+router.use(requireAdmin);
 // Optional: router.use(hasPermission('analytics:read'));
 
 /**

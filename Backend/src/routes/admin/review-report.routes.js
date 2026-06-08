@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const reviewAdminController = require('../../controllers/admin/review.admin.controller');
-const { protect } = require('../../middlewares/auth.middleware');
+const requireAdmin = require('../../middlewares/require-admin.middleware');
 const { hasPermission } = require('../../middlewares/permission.middleware');
 const validate = require('../../middlewares/validate.middleware');
 const Joi = require('joi');
@@ -18,7 +18,7 @@ const listSchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).optional()
 });
 
-router.use(protect);
+router.use(requireAdmin);
 
 /**
  * @swagger

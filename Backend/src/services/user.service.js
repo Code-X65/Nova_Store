@@ -6,18 +6,18 @@ const emailService = require('./email.service');
 const logger = require('../utils/logger');
 
 class UserService {
-  async getProfile(userId) {
-    const user = await userModel.findById(userId);
-    if (!user) {
-      const error = new Error('User not found');
-      error.statusCode = 404;
-      throw error;
-    }
-    
-    // Remove sensitive data
-    const { password_hash, ...profile } = user;
-    return profile;
-  }
+   async getProfile(userId) {
+     const user = await userModel.findById(userId);
+     if (!user) {
+       const error = new Error('User not found');
+       error.statusCode = 404;
+       throw error;
+     }
+     
+     // Remove sensitive data
+     const { password_hash, deleted_at, google_id, apple_id, facebook_id, failed_login_attempts, lock_until, ...profile } = user;
+     return profile;
+   }
 
   async updateProfile(userId, updateData) {
     // Only allow specific fields

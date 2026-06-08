@@ -8,6 +8,7 @@ const shippingRateModel = require('../models/shipping-rate.model');
 const NotificationService = require('./notification.service');
 const AuditService = require('./audit.service');
 const InventoryReservationService = require('./inventory-reservation.service');
+const SettingService = require('./setting.service');
 const crypto = require('crypto');
 
 class CheckoutService {
@@ -193,9 +194,17 @@ class CheckoutService {
     return costs[option] || 1500;
   }
 
-  calculateTax(subtotal) {
-    return parseFloat((subtotal * 0.075).toFixed(2)); // 7.5% VAT
-  }
+   async calculateTax(subtotal) {
+     try {
+       const settings = await SettingService.getPublicSettingsStructured();
+       const taxRate = settings.tax?.default_rate || 0.075; // Fallback to 7.5% if not found
+       return parseFloat((subtotal * taxRate).toFixed(2));
+     } catch (error) {
+       // Fallback to hardcoded rate if settings service fails
+       console.warn('Failed to get tax rate from settings, using fallback: 7.5%', error.message);
+       return parseFloat((subtotal * 0.075).toFixed(2));
+     }
+   }
 }
 
 module.exports = new CheckoutService();

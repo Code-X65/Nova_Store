@@ -22,6 +22,17 @@ class RoleModel {
     return data;
   }
 
+  async findByName(name) {
+    const { data, error } = await supabase
+      .from('roles')
+      .select('*, permissions:role_permissions(permissions(*))')
+      .eq('name', name)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  }
+
   async create(roleData) {
     const { data, error } = await supabase
       .from('roles')

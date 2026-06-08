@@ -2,17 +2,27 @@ const permissionModel = require('../models/permission.model');
 const logger = require('../utils/logger');
 
 /**
- * Middleware to check if the user has a specific permission.
- * Supports wildcard '*' for super-admins.
+ * Middleware to check if the admin (session-cookie based) has a specific permission.
+ * For session-authenticated admins (req.admin), permission checks are bypassed,
+ * treating the admin as a super-admin.
+ * Falls back to req.user.id logic for customer-facing RBAC.
  * @param {string} requiredPermission - Permission key (e.g., 'user:read')
  */
 const hasPermission = (requiredPermission) => {
   return async (req, res, next) => {
     try {
+      if (req.admin) {
+        return next();
+      }
+
       const userId = req.user.id;
-      
-      // If we've already attached permissions in 'protect' middleware, use them
-      // Otherwise, fetch them now
+
+      if (!userId) {
+        const error = new Error('Unauthorized');
+        error.statusCode = 401;
+        return next(error);
+      }
+
       const userPermissions = req.user.permissions || await permissionModel.getUserPermissions(userId);
 
       if (userPermissions.includes('*') || userPermissions.includes(requiredPermission)) {
@@ -20,9 +30,9 @@ const hasPermission = (requiredPermission) => {
       }
 
       logger.warn(`Permission denied: User ${userId} attempted to access ${requiredPermission}`);
-      const error = new Error('Forbidden: Insufficient permissions');
-      error.statusCode = 403;
-      return next(error);
+      const forbiddenError = new Error('Forbidden: Insufficient permissions');
+      forbiddenError.statusCode = 403;
+      return next(forbiddenError);
     } catch (error) {
       next(error);
     }
@@ -30,13 +40,27 @@ const hasPermission = (requiredPermission) => {
 };
 
 /**
- * Middleware to check if the user has ANY of the provided permissions.
+ * Middleware to check if the admin (session-cookie based) has ANY of the provided permissions.
+ * For session-authenticated admins (req.admin), permission checks are bypassed,
+ * treating the admin as a super-admin.
+ * Falls back to req.user.id logic for customer-facing RBAC.
  * @param {...string} perms - List of permission keys
  */
 const hasAnyPermission = (...perms) => {
   return async (req, res, next) => {
     try {
+      if (req.admin) {
+        return next();
+      }
+
       const userId = req.user.id;
+
+      if (!userId) {
+        const error = new Error('Unauthorized');
+        error.statusCode = 401;
+        return next(error);
+      }
+
       const userPermissions = req.user.permissions || await permissionModel.getUserPermissions(userId);
 
       const hasAny = perms.some(p => userPermissions.includes(p) || userPermissions.includes('*'));
@@ -45,9 +69,9 @@ const hasAnyPermission = (...perms) => {
         return next();
       }
 
-      const error = new Error('Forbidden: Insufficient permissions');
-      error.statusCode = 403;
-      return next(error);
+      const forbiddenError = new Error('Forbidden: Insufficient permissions');
+      forbiddenError.statusCode = 403;
+      return next(forbiddenError);
     } catch (error) {
       next(error);
     }

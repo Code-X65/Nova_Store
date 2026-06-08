@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const settingAdminController = require('../../controllers/admin/setting.admin.controller');
-const { protect } = require('../../middlewares/auth.middleware');
+const requireAdmin = require('../../middlewares/require-admin.middleware');
 // Optional: const { hasPermission } = require('../../middlewares/permission.middleware');
 
-router.use(protect);
+router.use(requireAdmin);
 
 /**
  * @swagger

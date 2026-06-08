@@ -113,9 +113,12 @@ class ReviewService {
     return true;
   }
 
-  async voteHelpful(userId, reviewId, isHelpful) {
-    const review = await ProductReviewModel.findById(reviewId);
-    if (!review) throw new ErrorResponse('Review not found', 404);
+   async voteHelpful(userId, reviewId, isHelpful) {
+     const review = await ProductReviewModel.findById(reviewId);
+     if (!review) throw new ErrorResponse('Review not found', 404);
+     if (review.user_id === userId) {
+       throw new ErrorResponse('You cannot vote on your own review', 400);
+     }
 
     const existingVote = await ReviewHelpfulnessModel.findVote(reviewId, userId);
 

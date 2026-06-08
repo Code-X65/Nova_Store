@@ -1,3 +1,4 @@
+jest.unmock('../../../src/services/sms.service');
 const smsService = require('../../../src/services/sms.service');
 const logger = require('../../../src/utils/logger');
 const twilio = require('twilio');
