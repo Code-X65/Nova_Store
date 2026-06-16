@@ -19,7 +19,21 @@ const validate = (schema) => (req, res, next) => {
     return next(error);
   }
 
-  Object.assign(req, value);
+  ['params', 'query', 'body'].forEach((key) => {
+    if (value[key]) {
+      try {
+        req[key] = value[key];
+      } catch (e) {
+        // Safe fallback if the property is a read-only getter
+        if (req[key] && typeof req[key] === 'object') {
+          for (const k in value[key]) {
+            req[key][k] = value[key][k];
+          }
+        }
+      }
+    }
+  });
+
   return next();
 };
 

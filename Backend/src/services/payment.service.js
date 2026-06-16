@@ -2,6 +2,7 @@ const OrderModel = require('../models/order.model');
 const PaymentModel = require('../models/payment.model');
 const InventoryService = require('./inventory.service');
 const CartService = require('./cart.service');
+const CouponService = require('./coupon.service');
 const InventoryReservationService = require('./inventory-reservation.service');
 const AuditService = require('./audit.service');
 const crypto = require('crypto');
@@ -124,9 +125,46 @@ class PaymentService {
       orderId = payment.order_id;
       await PaymentModel.updateStatus(payment.id, 'success', rawResponse);
     } else {
-      // Find order by metadata or reference if linked
-      // For simplicity, let's assume we can find the order
-      // This part needs careful mapping
+      // No pre-existing payments row — typical for Stripe webhooks when the frontend
+      // redirects directly to Stripe Checkout without calling our initialize endpoint.
+      // Retrieve the Stripe session to extract the internal checkoutSessionId stored
+      // in metadata, then locate the order and create the payments record.
+      if (provider === 'stripe') {
+        try {
+          const stripeSession = await stripeClient.checkout.sessions.retrieve(reference);
+          const internalSessionId = stripeSession?.metadata?.checkoutSessionId;
+
+          if (!internalSessionId) {
+            console.error(`[Payment] Stripe session ${reference} has no checkoutSessionId metadata.`);
+            return;
+          }
+
+          const matchedOrder = await OrderModel.findByCheckoutSessionId(internalSessionId);
+          if (!matchedOrder) {
+            console.error(`[Payment] No order found for checkoutSessionId ${internalSessionId}.`);
+            return;
+          }
+
+          orderId = matchedOrder.id;
+
+          // Persist the payments row so future webhook retries hit the fast path above
+          await PaymentModel.create({
+            order_id: orderId,
+            reference,
+            provider: 'stripe',
+            amount: matchedOrder.total_amount,
+            currency: 'NGN',
+            status: 'success',
+            raw_response: rawResponse,
+          });
+        } catch (lookupErr) {
+          console.error('[Payment] Failed to resolve Stripe order from webhook:', lookupErr.message);
+          return;
+        }
+      } else {
+        console.error(`[Payment] No payment record found for reference ${reference} (${provider}).`);
+        return;
+      }
     }
 
     // 2. Update Order Status
@@ -151,20 +189,134 @@ class PaymentService {
       // 5. Clear Cart
       await CartService.clearCart(order.user_id, null);
 
-      // Record Coupon Usage
+      // Record Coupon Usage — delegated to CouponService (single source of truth)
       if (order.coupon_id) {
         try {
-          const CouponModel = require('../models/coupon.model');
-          await CouponModel.incrementUsage(order.coupon_id);
-          if (order.user_id) {
-            await CouponModel.logUserUsage(order.user_id, order.coupon_id);
-          }
+          await CouponService.recordCouponUsage(order.user_id, order.coupon_id);
         } catch (couponErr) {
           console.error(`Failed to record coupon usage for order ${orderId}:`, couponErr.message);
         }
       }
 
       // Send Confirmation Email (TODO)
+    }
+  }
+
+  /**
+   * Initialize a Stripe Checkout Session.
+   * Creates a pending `payments` row keyed on the Stripe session ID so that
+   * the incoming webhook can be resolved idempotently via PaymentModel.findByReference.
+   *
+   * @param {string}  userId            - Authenticated user's ID
+   * @param {string}  email             - Customer email for the Stripe session
+   * @param {number}  amount            - Total in major currency units (e.g. NGN)
+   * @param {string}  checkoutSessionId - Internal UUID from createCheckoutSession
+   * @param {string}  orderId           - Order ID to associate the payment with
+   * @returns {{ sessionId: string, url: string }}
+   */
+  async initializeStripe(userId, email, amount, checkoutSessionId, orderId) {
+    try {
+      const session = await stripeClient.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'payment',
+        customer_email: email,
+        line_items: [{
+          price_data: {
+            currency: (process.env.CURRENCY || 'ngn').toLowerCase(),
+            product_data: { name: 'Nova Store Order' },
+            unit_amount: Math.round(amount * 100), // Stripe expects minor units
+          },
+          quantity: 1,
+        }],
+        // Embed our internal IDs in metadata so the webhook can resolve the order
+        // even when no pending payments row was created before the session completed.
+        metadata: { checkoutSessionId, orderId, userId: String(userId) },
+        success_url: `${process.env.CLIENT_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url:  `${process.env.CLIENT_URL}/checkout/cancel`,
+      });
+
+      // Persist a pending payment row so the webhook lookup (findByReference) hits
+      // the fast idempotent path instead of the slower metadata-resolve fallback.
+      await PaymentModel.create({
+        order_id: orderId,
+        reference: session.id,
+        provider: 'stripe',
+        amount,
+        currency: (process.env.CURRENCY || 'NGN').toUpperCase(),
+        status: 'pending',
+      });
+
+      return { sessionId: session.id, url: session.url };
+    } catch (error) {
+      console.error('Stripe Init Error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Refund a successful payment via the gateway (Stripe or Paystack).
+   * @param {string} orderId
+   * @param {number} refundAmount - Amount to refund
+   * @param {string} reason       - Reason for refund
+   */
+  async refundPayment(orderId, refundAmount, reason) {
+    try {
+      const payment = await PaymentModel.findSuccessfulByOrderId(orderId);
+      if (!payment) {
+        throw new Error(`No successful payment record found for order ${orderId}`);
+      }
+
+      let rawResponse = null;
+
+      if (payment.provider === 'stripe') {
+        const session = await stripeClient.checkout.sessions.retrieve(payment.reference);
+        const paymentIntentId = session.payment_intent;
+        if (!paymentIntentId) {
+          throw new Error(`No payment intent found on Stripe session ${payment.reference}`);
+        }
+
+        const refund = await stripeClient.refunds.create({
+          payment_intent: paymentIntentId,
+          amount: Math.round(refundAmount * 100),
+        });
+        rawResponse = refund;
+      } else if (payment.provider === 'paystack') {
+        const response = await fetch('https://api.paystack.co/refund', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            transaction: payment.reference,
+            amount: Math.round(refundAmount * 100),
+            customer_note: reason || 'Refund for returned items'
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || 'Paystack refund failed');
+        }
+        rawResponse = result.data;
+      } else {
+        throw new Error(`Unsupported payment provider for refunds: ${payment.provider}`);
+      }
+
+      await PaymentModel.updateStatus(payment.id, 'refunded', rawResponse);
+
+      // Audit log the refund
+      AuditService.log(null, 'payment.refunded', 'order', orderId, null, {
+        paymentId: payment.id,
+        refundAmount,
+        provider: payment.provider,
+        reason
+      });
+
+      return { success: true, refundAmount };
+    } catch (error) {
+      console.error(`[Payment] Refund failed for order ${orderId}:`, error.message);
+      throw error;
     }
   }
 

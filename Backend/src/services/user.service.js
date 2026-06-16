@@ -148,7 +148,7 @@ class UserService {
   }
 
   async deleteAccount(userId) {
-    // Soft delete / anonymize
+    // Soft delete / anonymize user
     const updates = {
       email: `deleted_${userId}@novastore.com`,
       first_name: 'Deleted',
@@ -160,7 +160,41 @@ class UserService {
     };
     
     await userModel.update(userId, updates);
-    logger.info(`User account soft-deleted: ${userId}`);
+
+    // 2. Anonymize PII in related order records
+    const { error: orderError } = await supabase
+      .from('orders')
+      .update({
+        customer_email: `deleted_${userId}@novastore.com`,
+        customer_phone: 'Anonymized',
+        shipping_address: { address_line_1: 'Anonymized', city: 'Anonymized', state: 'Anonymized', country: 'Anonymized', postal_code: '0000' }
+      })
+      .eq('user_id', userId);
+
+    if (orderError) {
+      logger.error(`[GDPR Cleanup] Failed to anonymize orders for user ${userId}: ${orderError.message}`);
+    }
+
+    // 3. Purge notifications and settings
+    const { error: notifError } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId);
+
+    if (notifError) {
+      logger.error(`[GDPR Cleanup] Failed to delete notifications for user ${userId}: ${notifError.message}`);
+    }
+
+    const { error: settingsError } = await supabase
+      .from('notification_settings')
+      .delete()
+      .eq('user_id', userId);
+
+    if (settingsError) {
+      logger.error(`[GDPR Cleanup] Failed to delete notification settings for user ${userId}: ${settingsError.message}`);
+    }
+    
+    logger.info(`User account soft-deleted and PII anonymized: ${userId}`);
     return true;
   }
 }

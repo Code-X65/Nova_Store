@@ -1,4 +1,4 @@
-const { SessionModel } = require('../models/session.model');
+const sessionModel = require('../models/session.model');
 const TokenModel = require('../models/token.model');
 const supabase = require('../config/supabase');
 const logger = require('../utils/logger');

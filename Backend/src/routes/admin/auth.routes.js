@@ -12,7 +12,7 @@ const requireAdmin = require('../../middlewares/require-admin.middleware');
 
 /**
  * @swagger
- * /api/v1/admin/login:
+ * /admin/login:
  *   post:
  *     summary: Admin login
  *     tags: [Admin Auth]
@@ -32,7 +32,34 @@ const requireAdmin = require('../../middlewares/require-admin.middleware');
  *                 format: password
  *     responses:
  *       200:
- *         description: Login successful, session cookie set
+ *         description: Login successful — session cookie set and access token returned
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Login successful.
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       example: admin@novastore.com
+ *                     accessToken:
+ *                       type: string
+ *                       description: Short-lived JWT for Bearer-auth on admin API endpoints
+ *                     tokenType:
+ *                       type: string
+ *                       example: Bearer
+ *                     expiresIn:
+ *                       type: string
+ *                       example: 8h
  *       400:
  *         description: Missing email or password
  *       401:
@@ -44,7 +71,7 @@ router.post('/login', adminAuthController.login);
 
 /**
  * @swagger
- * /api/v1/admin/logout:
+ * /admin/logout:
  *   post:
  *     summary: Admin logout
  *     tags: [Admin Auth]
@@ -56,7 +83,7 @@ router.post('/logout', adminAuthController.logout);
 
 /**
  * @swagger
- * /api/v1/admin/verify:
+ * /admin/verify:
  *   get:
  *     summary: Verify active admin session
  *     tags: [Admin Auth]

@@ -74,6 +74,6 @@ router.delete('/:sessionId', adminSessionController.revokeSession);
  *       500:
  *         description: Internal server error
  */
-router.delete('/', adminSessionController.revokeAllAdminSessions);
+router.delete('/', adminSessionController.revokeAllSessions);
 
 module.exports = router;

@@ -43,7 +43,7 @@ BEGIN
         p.name AS product_name,
         c.name AS category_name,
         COALESCE(SUM(oi.quantity), 0)::BIGINT AS quantity_sold,
-        COALESCE(SUM(oi.price * oi.quantity), 0) AS revenue
+        COALESCE(SUM(oi.unit_price * oi.quantity), 0) AS revenue
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.id
     JOIN products p ON oi.product_id = p.id
@@ -53,7 +53,7 @@ BEGIN
     AND (cat_id IS NULL OR p.category_id = cat_id)
     GROUP BY p.id, p.name, c.name
     ORDER BY 
-        CASE WHEN sort_by = 'revenue' THEN COALESCE(SUM(oi.price * oi.quantity), 0) END DESC,
+        CASE WHEN sort_by = 'revenue' THEN COALESCE(SUM(oi.unit_price * oi.quantity), 0) END DESC,
         CASE WHEN sort_by = 'quantity' THEN COALESCE(SUM(oi.quantity), 0) END DESC
     LIMIT top_limit;
 END;

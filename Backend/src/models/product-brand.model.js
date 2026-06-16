@@ -28,6 +28,18 @@ class ProductBrandModel {
     return data;
   }
 
+  async findBySlug(slug) {
+    const { data, error } = await supabase
+      .from('product_brands')
+      .select('*')
+      .eq('slug', slug)
+      .is('deleted_at', null)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  }
+
   async create(brandData) {
     const { data, error } = await supabase
       .from('product_brands')

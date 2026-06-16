@@ -20,7 +20,7 @@ module.exports = {
     // Session settings
     session: {
       accessTokenExpiresIn: '15m', // Same as regular users
-      refreshTokenExpiresIn: '30d', // Same as regular users
+      refreshTokenExpiresIn: '8h', // Shorter refresh token for admins (8 hours)
       // Could implement shorter sessions for admins if needed
     }
   }

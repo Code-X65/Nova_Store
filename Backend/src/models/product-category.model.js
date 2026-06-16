@@ -34,13 +34,19 @@ class ProductCategoryModel {
   async findBySlug(slug) {
     const { data, error } = await supabase
       .from('product_categories')
-      .select('*')
+      .select('*, parent:parent_id(*)')
       .eq('slug', slug)
       .is('deleted_at', null)
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
     return data;
+  }
+
+  async findByParentSlug(parentSlug) {
+    const parent = await this.findBySlug(parentSlug);
+    if (!parent) return [];
+    return this.findAll({ parentId: parent.id, activeOnly: true });
   }
 
   async create(categoryData) {
@@ -54,10 +60,26 @@ class ProductCategoryModel {
     return data;
   }
 
-  async update(id, updateData) {
+  async createMany(categoriesData) {
     const { data, error } = await supabase
       .from('product_categories')
-      .update({ ...updateData, updated_at: new Date().toISOString() })
+      .insert(categoriesData)
+      .select();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async update(id, updateData) {
+    const { parentId, ...rest } = updateData;
+    const mappedUpdate = { ...rest };
+    if (parentId !== undefined) {
+      mappedUpdate.parent_id = parentId;
+    }
+
+    const { data, error } = await supabase
+      .from('product_categories')
+      .update({ ...mappedUpdate, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();

@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  # Nova Store Backend App
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: nova-store-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - ./Backend/.env
+    depends_on:
+      - redis
+    restart: always
+
+  # Redis Cache & Background Queue
+  redis:
+    image: redis:7-alpine
+    container_name: nova-store-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  redis_data:
+    driver: local

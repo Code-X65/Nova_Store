@@ -23,7 +23,7 @@ const bulkSchema = joi.object({
 });
 
 router.use(requireAdmin);
-// Optional: router.use(hasPermission('review:write')); // Admin check
+router.use(hasPermission('review:write'));
 
 /**
  * @swagger
@@ -34,7 +34,7 @@ router.use(requireAdmin);
 
 /**
  * @swagger
- * /api/v1/admin/reviews:
+ * /admin/reviews:
  *   get:
  *     summary: List all reviews globally (with filters)
  *     tags: [Admin Reviews]
@@ -48,7 +48,7 @@ router.get('/', reviewAdminController.getAllReviews);
 
 /**
  * @swagger
- * /api/v1/admin/reviews/{id}:
+ * /admin/reviews/{id}:
  *   patch:
  *     summary: Moderate a review (approve/hide/pending)
  *     tags: [Admin Reviews]
@@ -81,7 +81,7 @@ router.delete('/:id', reviewAdminController.deleteReview);
 
 /**
  * @swagger
- * /api/v1/admin/reviews/bulk-action:
+ * /admin/reviews/bulk-action:
  *   post:
  *     summary: Perform bulk moderation actions
  *     tags: [Admin Reviews]

@@ -1,8 +1,10 @@
 const adminAuthService = require('../../services/admin-auth.service');
+const jwt = require('jsonwebtoken');
 
 /**
  * POST /api/v1/admin/login
- * Authenticates the admin with email + password, creates a session cookie.
+ * Authenticates the admin with email + password, creates a session cookie
+ * AND returns a signed JWT access token for use with Bearer-auth protected routes.
  */
 const login = async (req, res, next) => {
   try {
@@ -13,7 +15,8 @@ const login = async (req, res, next) => {
     }
 
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
-    const admin = await adminAuthService.login(email, password, ip);
+    const userAgent = req.headers['user-agent'];
+    const admin = await adminAuthService.login(email, password, ip, userAgent);
 
     // Regenerate session to prevent session-fixation attacks
     req.session.regenerate((err) => {
@@ -23,20 +26,39 @@ const login = async (req, res, next) => {
       req.session.save((saveErr) => {
         if (saveErr) return next(saveErr);
 
+        // Generate a short-lived JWT access token for Bearer-auth endpoints
+        const accessToken = jwt.sign(
+          { id: admin.id, email: admin.email, role: 'admin' },
+          process.env.JWT_ACCESS_SECRET,
+          { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '8h' }
+        );
+
         return res.status(200).json({
           success: true,
           message: 'Login successful.',
-          data: { email: admin.email },
+          data: {
+            email:       admin.email,
+            accessToken,
+            tokenType:   'Bearer',
+            expiresIn:   process.env.JWT_ACCESS_EXPIRES_IN || '8h',
+          },
         });
       });
     });
   } catch (error) {
+    if (error.message === 'Account deactivated') {
+      return res.status(403).json({ success: false, error: 'Your account has been deactivated. Please contact support.' });
+    }
+    if (error.message === 'Account locked') {
+      return res.status(403).json({ success: false, error: 'Admin account is locked due to multiple failed login attempts. Try again later.' });
+    }
     if (error.message === 'Invalid credentials') {
       return res.status(401).json({ success: false, error: 'Invalid credentials.' });
     }
     next(error);
   }
 };
+
 
 /**
  * POST /api/v1/admin/logout

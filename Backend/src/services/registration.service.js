@@ -30,35 +30,14 @@ class RegistrationService {
    * @returns {Promise<UUID|null>} user ID of referrer, or null if not found/invalid
    */
   async resolveReferralCode(code) {
-    // TODO: Implement referral code lookup
-    // For now, we assume there is a referral_code column in users table or a separate table
-    // Since the plan says: users.referred_by and users.referral_source are to be added
-    // and the referral code is resolved to user.id, we need to know how referral codes are stored.
-    // The plan does not specify a referral code table or column. It says:
-    //   referredByCode: Joi.string().alphanum().length(12).optional(),
-    // and then in the behavior: "referredByCode: ... (resolved to user.id if provided)"
-    //
-    // We need to know how to resolve a referral code to a user ID.
-    // Since the plan does not specify, we will assume that the referral code is stored in the users table
-    // as a column (e.g., referral_code) and is unique.
-    //
-    // However, the plan only adds:
-    //   ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by UUID;
-    //   ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_source TEXT;
-    //
-    // It does not add a referral_code column. So how is the code resolved?
-    //
-    // Looking at the plan again: under "Self-Referral Protection", it says:
-    //   1. Look up the code → referrer_user_id
-    //
-    // This implies there is a way to look up a user by referral code.
-    //
-    // Since the plan does not specify the implementation of referral codes, we will leave this as a stub
-    // and note that the frontend must have a way to generate and store referral codes.
-    //
-    // For the purpose of this task, we will return null (no referral) and log a warning.
-    logger.warn('Referral code resolution not implemented. Returning null for code:', code);
-    return null;
+    if (!code) return null;
+    try {
+      const referrer = await userModel.findByReferralCode(code);
+      return referrer ? referrer.id : null;
+    } catch (err) {
+      logger.error(`Error resolving referral code ${code}:`, err);
+      return null;
+    }
   }
 
   /**
@@ -78,17 +57,19 @@ class RegistrationService {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     // Store the token
-    await phoneVerificationModel.createPhoneVerificationToken(userId, hashedOtp, phoneNumber, expiresAt.toISOString());
+    await phoneVerificationModel.createPhoneVerificationToken(userId, otp, phoneNumber, expiresAt.toISOString());
 
     // Send SMS via Twilio
     const message = `Your Nova Store verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`;
     try {
-      await smsService.sendSms(phoneNumber, message);
+      const smsResult = await smsService.send(phoneNumber, message);
+      if (!smsResult.success) {
+        throw new Error(smsResult.error || 'Failed to send SMS');
+      }
     } catch (error) {
       logger.error(`Failed to send SMS OTP to ${phoneNumber}: ${error.message}`);
       // We don't throw here because registration can proceed without SMS (user can retry)
       // But we will log and let the controller handle warning
-      throw error;
     }
 
     return { otp }; // Return the plain OTP for testing? In production, we should not return the OTP.
@@ -153,14 +134,26 @@ class RegistrationService {
    * @returns 
    */
   async handleReferralCredit(toUserId, fromUserId) {
-    // TODO: Implement referral credit logic
-    // This would typically involve:
-    // 1. Granting loyalty points to the referrer (fromUserId)
-    // 2. Sending a notification to the referrer
-    //
-    // For now, we log and do nothing.
-    logger.info(`Referral credit: ${toUserId} was referred by ${fromUserId}`);
-    // TODO: Implement actual credit and notification
+    try {
+      // 1. Grant 500 loyalty points to referrer
+      const referrer = await userModel.findById(fromUserId);
+      if (!referrer) {
+        logger.warn(`Referrer ${fromUserId} not found for awarding credit.`);
+        return;
+      }
+      const newPoints = (referrer.loyalty_points || 0) + 500;
+      await userModel.update(fromUserId, { loyalty_points: newPoints });
+      logger.info(`Awarded 500 loyalty points to referrer ${fromUserId}. New balance: ${newPoints}`);
+
+      // 2. Send notification to the referrer
+      const referred = await userModel.findById(toUserId);
+      const referredByName = referred ? `${referred.first_name} ${referred.last_name}` : 'A new user';
+      
+      await notificationService.sendToUser(fromUserId, 'referral_credited', { referredByName });
+      logger.info(`Sent referral_credited notification to referrer ${fromUserId}`);
+    } catch (err) {
+      logger.error(`Failed to handle referral credit for referral from ${fromUserId} to ${toUserId}:`, err);
+    }
   }
 
   /**
@@ -186,7 +179,15 @@ class RegistrationService {
     }
 
     // Send a new OTP
-    return await this.sendPhoneOTP(userId, user.phone_number);
+    let fullPhoneNumber = user.phone_number;
+    if (user.phone_country_code) {
+      const cleanCode = user.phone_country_code.replace('+', '');
+      const cleanPhone = fullPhoneNumber.replace('+', '');
+      if (!cleanPhone.startsWith(cleanCode)) {
+        fullPhoneNumber = `${cleanCode}${cleanPhone}`;
+      }
+    }
+    return await this.sendPhoneOTP(userId, fullPhoneNumber);
   }
 
   /**
@@ -216,7 +217,7 @@ class RegistrationService {
       }
     }
 
-    // 4. Prepare basic user data for creation (without referral fields)
+    // 4. Prepare basic user data for creation (with referral source)
     const basicUserData = {
       email: body.email,
       password: body.password, // Let the userModel hash the password
@@ -225,22 +226,24 @@ class RegistrationService {
       phone_number: body.phoneNumber || null,
       phone_country_code: body.phoneCountryCode || null,
       home_address: body.homeAddress ? JSON.stringify(body.homeAddress) : null,
+      referral_source: body.referralSource || null,
+      referral_source_other: body.referralSourceOther || null,
       is_email_verified: false,
       is_phone_verified: false,
       is_active: true
     };
 
-    // 5. Create the user
+    // 5. Create the user (generates referral_code inside UserModel)
     const user = await userModel.create(basicUserData);
 
-    // 6. Resolve referral code (if provided) and set referred_by and referral_source
+    // 6. Resolve referral code (if provided) and set referred_by
     if (body.referredByCode) {
       const referrerId = await this.resolveReferralCode(body.referredByCode);
       if (referrerId && referrerId !== user.id) {
         // Prevent self-referral
-        await userModel.update(user.id, { referred_by: referrerId, referral_source: 'code' });
-        // TODO: Handle referral credit (grant points to referrer)
-        // this.handleReferralCredit(user.id, referrerId);
+        await userModel.update(user.id, { referred_by: referrerId });
+        // Handle referral credit (grant points to referrer and send notification)
+        await this.handleReferralCredit(user.id, referrerId);
       } else if (referrerId === user.id) {
         // Self-referral: we do not set referred_by, but we do not fail registration
         logger.warn(`Self-referral attempted by user ${user.id}`);

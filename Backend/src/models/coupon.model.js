@@ -99,7 +99,6 @@ class CouponModel {
 
   async update(id, updateData) {
     if (updateData.code) updateData.code = updateData.code.toUpperCase();
-    updateData.updated_at = new Date().toISOString();
     
     const { data, error } = await supabase
       .from('coupons')

@@ -10,7 +10,7 @@ const logger = require('../utils/logger');
 class NotificationService {
   async sendToUser(userId, templateKey, data = {}, customTitle = null, customMessage = null, opts = {}) {
     // ── Async queue path ──────────────────────────────────────────────────────
-    if (opts.async) {
+    if (opts.async !== false) {
       try {
         await notificationQueue.enqueue({
           userId,

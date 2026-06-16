@@ -23,11 +23,12 @@ async function enqueue(job) {
   const { userId, templateKey, data = {}, delayMs = 0, requestId } = job;
   const deliverAt = Date.now() + delayMs;
 
-  await redisClient
-    .zAdd(QUEUE_KEY, { score: deliverAt, value: JSON.stringify({ userId, templateKey, data, requestId }) })
-    .catch((err) => {
-      logger.error('[NotifyQueue] Failed to enqueue notification:', err.message);
-    });
+  try {
+    await redisClient.zAdd(QUEUE_KEY, { score: deliverAt, value: JSON.stringify({ userId, templateKey, data, requestId }) });
+  } catch (err) {
+    logger.error('[NotifyQueue] Failed to enqueue notification:', err.message);
+    throw err;
+  }
 }
 
 /**
@@ -59,7 +60,7 @@ async function _dequeueBatch() {
       continue;
     }
     try {
-      await NotificationService.sendToUser(job.userId, job.templateKey, job.data);
+      await NotificationService.sendToUser(job.userId, job.templateKey, job.data, null, null, { async: false });
       logger.debug(`[NotifyQueue] Delivered ${job.templateKey} → user ${job.userId}`);
     } catch (err) {
       logger.error(`[NotifyQueue] Failed to deliver ${job.templateKey} → user ${job.userId}:`, err.message);

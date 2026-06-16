@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const settingAdminController = require('../../controllers/admin/setting.admin.controller');
 const requireAdmin = require('../../middlewares/require-admin.middleware');
-// Optional: const { hasPermission } = require('../../middlewares/permission.middleware');
+const { hasPermission } = require('../../middlewares/permission.middleware');
 
 router.use(requireAdmin);
 
@@ -15,7 +15,7 @@ router.use(requireAdmin);
 
 /**
  * @swagger
- * /api/v1/admin/settings:
+ * /admin/settings:
  *   get:
  *     summary: Get all settings (optional group filter)
  *     tags: [Admin Settings]
@@ -29,11 +29,11 @@ router.use(requireAdmin);
  *       200:
  *         description: List of all settings
  */
-router.get('/', settingAdminController.getAllSettings);
+router.get('/', hasPermission('settings:read'), settingAdminController.getAllSettings);
 
 /**
  * @swagger
- * /api/v1/admin/settings/bulk:
+ * /admin/settings/bulk:
  *   patch:
  *     summary: Bulk update settings
  *     tags: [Admin Settings]
@@ -50,11 +50,11 @@ router.get('/', settingAdminController.getAllSettings);
  *       200:
  *         description: Settings updated
  */
-router.patch('/bulk', settingAdminController.bulkUpdate);
+router.patch('/bulk', hasPermission('settings:write'), settingAdminController.bulkUpdate);
 
 /**
  * @swagger
- * /api/v1/admin/settings/test-email:
+ * /admin/settings/test-email:
  *   post:
  *     summary: Send a test email to verify configuration
  *     tags: [Admin Settings]
@@ -72,11 +72,11 @@ router.patch('/bulk', settingAdminController.bulkUpdate);
  *       200:
  *         description: Test email sent
  */
-router.post('/test-email', settingAdminController.testEmail);
+router.post('/test-email', hasPermission('settings:write'), settingAdminController.testEmail);
 
 /**
  * @swagger
- * /api/v1/admin/settings/{key}:
+ * /admin/settings/{key}:
  *   get:
  *     summary: Get single setting by key
  *     tags: [Admin Settings]
@@ -113,12 +113,12 @@ router.post('/test-email', settingAdminController.testEmail);
  *       200:
  *         description: Updated setting
  */
-router.get('/:key', settingAdminController.getSettingByKey);
-router.put('/:key', settingAdminController.updateSetting);
+router.get('/:key', hasPermission('settings:read'), settingAdminController.getSettingByKey);
+router.put('/:key', hasPermission('settings:write'), settingAdminController.updateSetting);
 
 /**
  * @swagger
- * /api/v1/admin/settings/history/{key}:
+ * /admin/settings/history/{key}:
  *   get:
  *     summary: Get setting change history
  *     tags: [Admin Settings]
@@ -133,6 +133,6 @@ router.put('/:key', settingAdminController.updateSetting);
  *       200:
  *         description: Setting history
  */
-router.get('/history/:key', settingAdminController.getSettingHistory);
+router.get('/history/:key', hasPermission('settings:read'), settingAdminController.getSettingHistory);
 
 module.exports = router;

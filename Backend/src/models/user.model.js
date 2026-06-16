@@ -37,11 +37,44 @@ class UserModel {
     return data || null;
   }
 
+  async findByFacebookId(facebookId) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('facebook_id', facebookId)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
+  }
+
+  async findByAppleId(appleId) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('apple_id', appleId)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
+  }
+
   async findById(id) {
     const { data, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', id)
+      .single();
+   
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
+  }
+
+  async findByReferralCode(code) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('referral_code', code.toUpperCase())
       .single();
    
     if (error && error.code !== 'PGRST116') throw error;
@@ -55,6 +88,30 @@ class UserModel {
       hashedPassword = await bcrypt.hash(userData.password, salt);
     }
 
+    // Generate unique referral code if not already provided
+    let referralCode = userData.referral_code;
+    if (!referralCode) {
+      let isUnique = false;
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      while (!isUnique) {
+        referralCode = '';
+        for (let i = 0; i < 12; i++) {
+          referralCode += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        const { data: existingUser, error: findError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('referral_code', referralCode)
+          .single();
+        
+        if (findError && findError.code === 'PGRST116') {
+          isUnique = true;
+        } else if (findError) {
+          throw findError;
+        }
+      }
+    }
+
     const { data, error } = await supabase
       .from('users')
       .insert([{ 
@@ -65,14 +122,18 @@ class UserModel {
         phone_number: userData.phone_number || null,
         phone_country_code: userData.phone_country_code || null,
         home_address: userData.home_address ? JSON.stringify(userData.home_address) : null,
+        referral_code: referralCode,
         referral_source: userData.referral_source || null,
+        referral_source_other: userData.referral_source_other || null,
         referred_by: userData.referred_by || null,
         is_email_verified: false,
         is_phone_verified: userData.is_phone_verified || false,
         failed_login_attempts: 0,
-        admin_failed_login_attempts: 0,
         lock_until: null,
-        admin_lock_until: null
+        google_id: userData.google_id || null,
+        facebook_id: userData.facebook_id || null,
+        apple_id: userData.apple_id || null,
+        avatar_url: userData.avatar_url || null
       }])
       .select()
       .single();

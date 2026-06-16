@@ -11,7 +11,7 @@ const settingPublicController = require('../../controllers/public/setting.public
 
 /**
  * @swagger
- * /api/v1/settings/public:
+ * /settings/public:
  *   get:
  *     summary: Get all public settings (e.g. store info, currency)
  *     tags: [Settings]

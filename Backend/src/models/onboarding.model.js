@@ -109,15 +109,25 @@ class OnboardingModel {
   async complete(userId) {
     const features = await this.calculateFeaturesFromAnswers(userId);
     
+    // Find referral source answer if any
+    const answers = await this.getAnswers(userId);
+    const referralSourceAns = answers.find(a => a.questionKey === 'referral_source');
+    
+    const updateData = {
+      onboarding_status: 'completed',
+      onboarding_completed_at: new Date().toISOString(),
+      features: features
+    };
+
+    if (referralSourceAns) {
+      updateData.referral_source = referralSourceAns.answer;
+    }
+    
     const { data, error } = await supabase
       .from('users')
-      .update({
-        onboarding_status: 'completed',
-        onboarding_completed_at: new Date().toISOString(),
-        features: features
-      })
+      .update(updateData)
       .eq('id', userId)
-      .select('onboarding_status, onboarding_completed_at, features')
+      .select('onboarding_status, onboarding_completed_at, features, referral_source')
       .single();
 
     if (error) throw error;

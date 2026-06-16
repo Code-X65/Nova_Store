@@ -1,4 +1,5 @@
-const supabase = require('../config/supabase');
+const { supabaseAdmin } = require('../config/supabase');
+const supabase = supabaseAdmin;
 const crypto = require('crypto');
 
 class PhoneVerificationModel {
@@ -70,9 +71,18 @@ class PhoneVerificationModel {
    * @returns 
    */
   async incrementAttemptCount(tokenId) {
+    const { data: token, error: fetchError } = await supabase
+      .from('phone_verification_tokens')
+      .select('attempt_count')
+      .eq('id', tokenId)
+      .single();
+
+    if (fetchError) throw fetchError;
+    const newCount = (token.attempt_count || 0) + 1;
+
     const { data, error } = await supabase
       .from('phone_verification_tokens')
-      .update({ attempt_count: supabase.raw('attempt_count + 1') })
+      .update({ attempt_count: newCount })
       .eq('id', tokenId)
       .select()
       .single();

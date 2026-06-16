@@ -12,7 +12,7 @@ const { protect, optionalAuth } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
- * /api/v1/coupons/available:
+ * /coupons/available:
  *   get:
  *     summary: Get all available coupons for the current user
  *     tags: [Coupons]
@@ -26,7 +26,7 @@ router.get('/available', protect, couponController.getAvailableCoupons);
 
 /**
  * @swagger
- * /api/v1/coupons/my:
+ * /coupons/my:
  *   get:
  *     summary: Get coupon usage history for the current user
  *     tags: [Coupons]
@@ -40,7 +40,7 @@ router.get('/my', protect, couponController.getMyCoupons);
 
 /**
  * @swagger
- * /api/v1/coupons/validate:
+ * /coupons/validate:
  *   post:
  *     summary: Validate a coupon code before checkout
  *     tags: [Coupons]

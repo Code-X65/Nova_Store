@@ -1,5 +1,7 @@
 const OrderService = require('../services/order.service');
 const AuditService = require('../services/audit.service');
+const PaymentService = require('../services/payment.service');
+const InvoiceService = require('../services/invoice.service');
 
 class OrderController {
   async getMyOrders(req, res, next) {
@@ -14,6 +16,7 @@ class OrderController {
 
   async getOrderDetails(req, res, next) {
     try {
+      const { id } = req.params;
       const isAdmin = (req.user.role && req.user.role.toUpperCase() === 'ADMIN') || 
                       (req.user.roles && (req.user.roles.includes('admin') || req.user.roles.includes('ADMIN')));
       const order = await OrderService.getOrderDetails(id, req.user.id, isAdmin);
@@ -76,6 +79,15 @@ class OrderController {
       const { id } = req.params;
       const { action, note, refundAmount } = req.body;
       const order = await OrderService.processReturn(id, { action, note, refundAmount }, req.user.id);
+      
+      if (action === 'complete' && refundAmount > 0) {
+        try {
+          await PaymentService.refundPayment(id, refundAmount, note || 'Refund for completed return');
+        } catch (refundErr) {
+          console.error(`[OrderController] Gateway refund failed for order ${id} during return completion:`, refundErr.message);
+        }
+      }
+
       const actionMessages = { approve: 'approved', reject: 'rejected', complete: 'completed' };
       AuditService.log(req, `order.return.${actionMessages[action]}`, 'order', id, null, { action, refundAmount, note });
       res.status(200).json({ success: true, data: { order }, message: `Return ${actionMessages[action]} successfully` });
@@ -126,6 +138,27 @@ class OrderController {
       const order = await OrderService.markDelivered(id, note, req.user.id);
       AuditService.log(req, 'order.delivered', 'order', id);
       res.status(200).json({ success: true, data: { order }, message: 'Order marked as delivered' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getInvoice(req, res, next) {
+    try {
+      const { id } = req.params;
+      const isAdmin = (req.user.role && req.user.role.toUpperCase() === 'ADMIN') || 
+                      (req.user.roles && (req.user.roles.includes('admin') || req.user.roles.includes('ADMIN')));
+      
+      const order = await OrderService.getOrderDetails(id, req.user.id, isAdmin);
+      if (!order) {
+        return res.status(404).json({ success: false, message: 'Order not found' });
+      }
+
+      const pdfBuffer = await InvoiceService.generateInvoicePdf(order, order.items || []);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=invoice-${order.order_number}.pdf`);
+      res.status(200).send(pdfBuffer);
     } catch (error) {
       next(error);
     }

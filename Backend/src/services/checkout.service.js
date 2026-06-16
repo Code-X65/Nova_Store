@@ -10,6 +10,7 @@ const AuditService = require('./audit.service');
 const InventoryReservationService = require('./inventory-reservation.service');
 const SettingService = require('./setting.service');
 const crypto = require('crypto');
+const supabase = require('../config/supabase');
 
 class CheckoutService {
   async validateCheckout(userId, sessionId, cartId, address = null) {
@@ -60,7 +61,7 @@ class CheckoutService {
       cart,
       subtotal: cart.subtotal,
       estimatedShipping,
-      estimatedTax: this.calculateTax(cart.subtotal)
+      estimatedTax: await this.calculateTax(cart.subtotal, address)
     };
   }
 
@@ -87,7 +88,7 @@ class CheckoutService {
 
     // 3. Calculate Final Totals
     const shippingCost = await this.getShippingCost(shippingOption, validation.subtotal);
-    const taxAmount = this.calculateTax(validation.subtotal);
+    const taxAmount = await this.calculateTax(validation.subtotal, address);
     const totalAmount = validation.subtotal + shippingCost + taxAmount - discountAmount;
 
     // 4. Prepare Order Data
@@ -187,22 +188,54 @@ class CheckoutService {
 
     // Fallback to legacy hardcoded options
     const costs = {
-      'standard': 1500,
-      'express': 3500,
+      'standard': Number(process.env.SHIPPING_COST_STANDARD || 1500),
+      'express': Number(process.env.SHIPPING_COST_EXPRESS || 3500),
       'pickup': 0
     };
-    return costs[option] || 1500;
+    return costs[option] || Number(process.env.SHIPPING_COST_STANDARD || 1500);
   }
 
-   async calculateTax(subtotal) {
+   async calculateTax(subtotal, address = null) {
      try {
-       const settings = await SettingService.getPublicSettingsStructured();
-       const taxRate = settings.tax?.default_rate || 0.075; // Fallback to 7.5% if not found
+       let taxRate = null;
+       if (address && address.country) {
+         const { data: rule } = await supabase
+           .from('tax_rules')
+           .select('rate')
+           .eq('country', address.country)
+           .eq('state', address.state || '')
+           .eq('is_active', true)
+           .maybeSingle();
+
+         if (rule) {
+           taxRate = Number(rule.rate);
+         } else if (address.state) {
+           // Fallback to country-wide rule (state is null)
+           const { data: countryRule } = await supabase
+             .from('tax_rules')
+             .select('rate')
+             .eq('country', address.country)
+             .is('state', null)
+             .eq('is_active', true)
+             .maybeSingle();
+
+           if (countryRule) {
+             taxRate = Number(countryRule.rate);
+           }
+         }
+       }
+
+       if (taxRate === null) {
+         const settings = await SettingService.getPublicSettingsStructured();
+         const defaultTaxRate = Number(process.env.DEFAULT_TAX_RATE || 0.075);
+         taxRate = settings.tax?.default_rate !== undefined ? settings.tax.default_rate : defaultTaxRate;
+       }
+
        return parseFloat((subtotal * taxRate).toFixed(2));
      } catch (error) {
-       // Fallback to hardcoded rate if settings service fails
-       console.warn('Failed to get tax rate from settings, using fallback: 7.5%', error.message);
-       return parseFloat((subtotal * 0.075).toFixed(2));
+       const fallbackTaxRate = Number(process.env.DEFAULT_TAX_RATE || 0.075);
+       console.warn(`Failed to calculate tax rate, using fallback: ${fallbackTaxRate * 100}%`, error.message);
+       return parseFloat((subtotal * fallbackTaxRate).toFixed(2));
      }
    }
 }

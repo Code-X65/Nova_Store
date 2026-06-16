@@ -44,8 +44,20 @@ const registerSchema = {
       postalCode: Joi.string().max(20).required(),
       country: Joi.string().max(100).required()
     }).required(),
-    referralSource: Joi.string().valid('facebook','instagram','twitter','tiktok','friend','colleague','google','other').optional(),
-    referredByCode: Joi.string().alphanum().length(12).optional()
+    referralSource: Joi.string()
+      .valid('facebook', 'instagram', 'twitter', 'tiktok', 'friend', 'colleague', 'google', 'other', 'social', 'referral', 'search')
+      .required()
+      .messages({
+        'any.required': 'Referral source is required'
+      }),
+    referralSourceOther: Joi.string()
+      .max(100)
+      .when('referralSource', {
+        is: 'other',
+        then: Joi.required().messages({ 'any.required': 'Please specify the referral source' }),
+        otherwise: Joi.optional()
+      }),
+    referredByCode: Joi.string().alphanum().length(12).optional().allow('', null)
   })
 };
 
@@ -125,10 +137,34 @@ const sendPhoneOtpSchema = {
   })
 };
 
+const resendPhoneOtpSchema = {
+  body: Joi.object({
+    userId: Joi.string().guid({ version: 'uuidv4' }).required()
+  })
+};
+
 const verifyPhoneSchema = {
   body: Joi.object({
     userId: Joi.string().guid({ version: 'uuidv4' }).required(),
     otp: Joi.string().length(6).pattern(/^\d{6}$/).required()
+  })
+};
+
+const setPasswordSchema = {
+  body: Joi.object({
+    password: Joi.string()
+      .min(12)
+      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/)
+      .required()
+      .messages({
+        'string.min': 'Password must be at least 12 characters long',
+        'string.pattern.base': 'Password must contain at least one lowercase letter, one uppercase letter, one number and one special character',
+        'any.required': 'Password is required'
+      }),
+    confirmPassword: Joi.string()
+      .valid(Joi.ref('password'))
+      .required()
+      .messages({ 'any.only': 'Passwords do not match' })
   })
 };
 
@@ -276,6 +312,43 @@ router.post('/register', validate(registerSchema), authController.register);
 *         description: SMS provider error
 */
 router.post('/send-phone-otp', validate(sendPhoneOtpSchema), authController.sendPhoneOtp);
+
+/**
+ * @swagger
+ * /auth/resend-phone-otp:
+ *   post:
+ *     summary: Resend OTP to phone number (invalidates old one)
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: OTP resent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: SMS provider error
+ */
+router.post('/resend-phone-otp', validate(resendPhoneOtpSchema), authController.resendPhoneOtp);
 
 /**
  * @swagger
@@ -427,6 +500,91 @@ router.get('/oauth/google/callback', authController.googleCallback);
 
 /**
  * @swagger
+ * /auth/oauth/facebook:
+ *   get:
+ *     summary: Initiate Facebook OAuth login
+ *     description: |
+ *       Redirects the user to Facebook's OAuth dialog. 
+ *       **Note:** This endpoint should be opened directly in a browser window, not called via an AJAX/fetch request.
+ *     tags: [Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirect to Facebook login page
+ */
+router.get('/oauth/facebook', authController.facebookLogin);
+
+/**
+ * @swagger
+ * /auth/oauth/facebook/callback:
+ *   get:
+ *     summary: Facebook OAuth callback handler
+ *     description: |
+ *       The endpoint Facebook redirects to after successful authentication. 
+ *       It exchanges the authorization code for tokens and redirects to the frontend.
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         schema: { type: string }
+ *         description: The authorization code provided by Facebook.
+ *     responses:
+ *       302:
+ *         description: Redirect to CLIENT_URL with accessToken in the query string
+ */
+router.get('/oauth/facebook/callback', authController.facebookCallback);
+
+/**
+ * @swagger
+ * /auth/oauth/apple:
+ *   get:
+ *     summary: Initiate Apple OAuth login
+ *     description: |
+ *       Redirects the user to Apple's Sign In consent screen. 
+ *       **Note:** This endpoint should be opened directly in a browser window, not called via an AJAX/fetch request.
+ *     tags: [Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirect to Apple login page
+ */
+router.get('/oauth/apple', authController.appleLogin);
+
+/**
+ * @swagger
+ * /auth/oauth/apple/callback:
+ *   post:
+ *     summary: Apple OAuth callback handler
+ *     description: |
+ *       The POST endpoint Apple redirects to (via form_post) after successful authentication. 
+ *       It parses credentials from the request body, verifies the ID token signature natively, and redirects to the frontend.
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 description: The authorization code provided by Apple.
+ *               id_token:
+ *                 type: string
+ *                 description: The identity token (JWT) containing user info.
+ *               state:
+ *                 type: string
+ *                 description: The CSRF protection state string.
+ *               user:
+ *                 type: string
+ *                 description: JSON string representation of the user's name (only returned on first authentication).
+ *     responses:
+ *       302:
+ *         description: Redirect to CLIENT_URL with accessToken in the query string
+ */
+router.post('/oauth/apple/callback', authController.appleCallback);
+
+/**
+ * @swagger
  * /auth/refresh-token:
  *   post:
  *     summary: Refresh access token
@@ -474,6 +632,36 @@ router.post('/refresh-token', authController.refreshToken);
  *         description: Unauthorized or incorrect current password
  */
 router.put('/change-password', protect, validate(changePasswordSchema), authController.changePassword);
+
+/**
+ * @swagger
+ * /auth/set-password:
+ *   post:
+ *     summary: Set initial password for OAuth-only accounts (Authenticated)
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *               - confirmPassword
+ *             properties:
+ *               password: { type: string }
+ *               confirmPassword: { type: string }
+ *     responses:
+ *       200:
+ *         description: Password set successfully
+ *       400:
+ *         description: Validation error or password already set
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/set-password', protect, validate(setPasswordSchema), authController.setPassword);
 
 /**
  * @swagger

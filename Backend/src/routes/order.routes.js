@@ -27,6 +27,25 @@ router.get('/', orderController.getMyOrders);
 
 /**
  * @swagger
+ * /orders/{id}/invoice:
+ *   get:
+ *     summary: Download PDF invoice for an order
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: PDF invoice downloaded successfully
+ */
+router.get('/:id/invoice', orderController.getInvoice);
+
+/**
+ * @swagger
  * /orders/{id}:
  *   get:
  *     summary: Get order details

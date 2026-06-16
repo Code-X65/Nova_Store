@@ -1,5 +1,5 @@
 const supabase = require('../config/supabase');
-const redis = require('../config/redis');
+const { redisClient: redis } = require('../config/redis');
 const ErrorResponse = require('../utils/errorResponse');
 
 class HealthController {

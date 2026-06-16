@@ -11,9 +11,7 @@ const logger = require('../utils/logger');
 const hasPermission = (requiredPermission) => {
   return async (req, res, next) => {
     try {
-      if (req.admin) {
-        return next();
-      }
+
 
       const userId = req.user.id;
 
@@ -49,9 +47,7 @@ const hasPermission = (requiredPermission) => {
 const hasAnyPermission = (...perms) => {
   return async (req, res, next) => {
     try {
-      if (req.admin) {
-        return next();
-      }
+
 
       const userId = req.user.id;
 

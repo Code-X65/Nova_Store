@@ -13,7 +13,7 @@ const reportController = require('../controllers/report.controller');
 
 /**
  * @swagger
- * /api/v1/reviews/product/{productId}:
+ * /reviews/product/{productId}:
  *   get:
  *     summary: Get reviews for a product (public, approved only, sorted newest→helpful)
  *     tags: [Reviews]
@@ -50,6 +50,8 @@ const reportController = require('../controllers/report.controller');
  *         description: Paginated list of product reviews
  */
 
+router.get('/product/:productId', optionalAuth, reviewController.getProductReviews);
+
 /**
  * Required auth for all mutating review actions
  */
@@ -57,7 +59,7 @@ router.use(protect);
 
 /**
  * @swagger
- * /api/v1/reviews:
+ * /reviews:
  *   post:
  *     summary: Add a product review
  *     tags: [Reviews]
@@ -94,7 +96,7 @@ router.post('/', reviewController.addReview);
 
 /**
  * @swagger
- * /api/v1/reports:
+ * /reports:
  *   post:
  *     summary: Flag a review as inappropriate
  *     tags: [Reviews]
@@ -125,7 +127,7 @@ router.post('/reports', reportController.createReport);
 
 /**
  * @swagger
- * /api/v1/reports/me:
+ * /reports/me:
  *   get:
  *     summary: List current user's submitted reports
  *     tags: [Reviews]
@@ -150,7 +152,7 @@ router.get('/reports/me', reportController.getMyReports);
 
 /**
  * @swagger
- * /api/v1/reviews/{id}:
+ * /reviews/{id}:
  *   put:
  *     summary: Update a review
  *     tags: [Reviews]
@@ -209,7 +211,7 @@ router.delete('/:id', reviewController.deleteReview);
 
 /**
  * @swagger
- * /api/v1/reviews/{id}/helpful:
+ * /reviews/{id}/helpful:
  *   post:
  *     summary: Vote on review helpfulness
  *     tags: [Reviews]

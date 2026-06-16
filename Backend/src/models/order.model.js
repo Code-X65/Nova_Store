@@ -134,6 +134,16 @@ class OrderModel {
     if (error) throw error;
     return data;
   }
+  async findByCheckoutSessionId(checkoutSessionId) {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('checkout_session_id', checkoutSessionId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  }
 }
 
 module.exports = new OrderModel();

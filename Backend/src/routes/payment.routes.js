@@ -24,6 +24,51 @@ router.post('/paystack/initialize', protect, paymentController.initializePaystac
 
 /**
  * @swagger
+ * /payments/stripe/initialize:
+ *   post:
+ *     summary: Initialize Stripe Checkout Session
+ *     description: |
+ *       Creates a Stripe Checkout Session and a pending payment record.
+ *       Returns a `url` to redirect the customer to Stripe's hosted payment page.
+ *       The `checkoutSessionId` and `orderId` from `POST /checkout` are required.
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, amount, checkoutSessionId, orderId]
+ *             properties:
+ *               email:     { type: string, format: email }
+ *               amount:    { type: number, example: 15000 }
+ *               checkoutSessionId: { type: string, format: uuid }
+ *               orderId:   { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Stripe session created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     sessionId: { type: string }
+ *                     url:       { type: string }
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/stripe/initialize', protect, paymentController.initializeStripe);
+
+/**
+ * @swagger
  * /payments/paystack/verify/{reference}:
  *   get:
  *     summary: Verify Paystack payment

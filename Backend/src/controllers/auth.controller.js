@@ -25,25 +25,35 @@ class AuthController {
       const { user, tokens } = await authService.login(email, password, ip);
       AuditService.log(req, 'user.login.success', 'user', user.id);
 
-      // Set refresh token in HttpOnly cookie
-      res.cookie('refreshToken', tokens.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-      });
+      req.session.regenerate((err) => {
+        if (err) return next(err);
 
-       res.status(200).json({
-         success: true,
-         message: 'Login successful',
-         accessToken: tokens.accessToken,
-         user: {
-           id: user.id,
-           email: user.email,
-           isVerified: user.is_email_verified,
-           isPhoneVerified: user.is_phone_verified
-         }
-       });
+        req.session.userId = user.id;
+        req.session.role = user.role;
+
+        req.session.save((saveErr) => {
+          if (saveErr) return next(saveErr);
+
+          // Set refresh token in HttpOnly cookie
+          res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+          });
+
+          return res.status(200).json({
+            success: true,
+            message: 'Login successful',
+            user: {
+              id: user.id,
+              email: user.email,
+              isVerified: user.is_email_verified,
+              isPhoneVerified: user.is_phone_verified
+            }
+          });
+        });
+      });
     } catch (error) {
       AuditService.log(req, 'user.login.failed', 'user', null, null, { error: error.message });
       next(error);
@@ -113,15 +123,26 @@ class AuthController {
   async logout(req, res, next) {
     try {
       const { refreshToken } = req.cookies;
-      await authService.logout(refreshToken);
+      if (refreshToken) {
+        await authService.logout(refreshToken);
+      }
       const userId = req.user ? req.user.id : null;
       AuditService.log(req, 'user.logout', 'user', userId);
+      
       res.cookie('refreshToken', 'none', {
         expires: new Date(Date.now() + 10 * 1000),
         httpOnly: true
       });
 
-      res.status(200).json({ success: true, message: 'User logged out successfully' });
+      if (req.session) {
+        req.session.destroy((err) => {
+          if (err) return next(err);
+          res.clearCookie('connect.sid', { path: '/' });
+          return res.status(200).json({ success: true, message: 'User logged out successfully' });
+        });
+      } else {
+        return res.status(200).json({ success: true, message: 'User logged out successfully' });
+      }
     } catch (error) {
       next(error);
     }
@@ -138,10 +159,21 @@ class AuthController {
     }
   }
 
+  async setPassword(req, res, next) {
+    try {
+      const { password } = req.body;
+      await authService.setPassword(req.user.id, password);
+      AuditService.log(req, 'user.password.set', 'user', req.user.id);
+      res.status(200).json({ success: true, message: 'Password set successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async forgotPassword(req, res, next) {
     try {
       await authService.initiatePasswordReset(req.body.email);
-      res.status(200).json({ success: true, message: 'If an account exists, a reset link has been sent' });
+      res.status(200).json({ success: true, message: 'Password reset link has been sent to your email address.' });
     } catch (error) {
       next(error);
     }
@@ -192,17 +224,141 @@ class AuthController {
 
       const { user, tokens } = await authService.googleLogin(code);
       AuditService.log(req, 'user.oauth.google.login', 'user', user.id);
-      // Set refresh token in HttpOnly cookie
-      res.cookie('refreshToken', tokens.refreshToken, {
+
+      req.session.regenerate((err) => {
+        if (err) return next(err);
+
+        req.session.userId = user.id;
+        req.session.role = user.role;
+
+        req.session.save((saveErr) => {
+          if (saveErr) return next(saveErr);
+
+          // Set refresh token in HttpOnly cookie
+          res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000
+          });
+
+          res.redirect(`${process.env.CLIENT_URL}/oauth-success?isEmailVerified=${user.is_email_verified}&isPhoneVerified=${user.is_phone_verified}`);
+        });
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async facebookLogin(req, res, next) {
+    try {
+      const { url, state } = authService.getFacebookAuthUrl();
+      
+      res.cookie('oauth_state', state, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000
+        sameSite: 'Lax',
+        maxAge: 15 * 60 * 1000
       });
 
-       // Redirect to frontend with access token (or success page)
-       // For now, redirect to a success message or the CLIENT_URL
-       res.redirect(`${process.env.CLIENT_URL}/oauth-success?token=${tokens.accessToken}&isEmailVerified=${user.is_email_verified}&isPhoneVerified=${user.is_phone_verified}`);
+      res.redirect(url);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async facebookCallback(req, res, next) {
+    try {
+      const { code, state } = req.query;
+      const storedState = req.cookies.oauth_state;
+
+      if (!state || !storedState || state !== storedState) {
+        const error = new Error('Invalid OAuth state. CSRF protection triggered.');
+        error.statusCode = 403;
+        throw error;
+      }
+
+      res.clearCookie('oauth_state');
+
+      const { user, tokens } = await authService.facebookLogin(code);
+      AuditService.log(req, 'user.oauth.facebook.login', 'user', user.id);
+      
+      req.session.regenerate((err) => {
+        if (err) return next(err);
+
+        req.session.userId = user.id;
+        req.session.role = user.role;
+
+        req.session.save((saveErr) => {
+          if (saveErr) return next(saveErr);
+
+          res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000
+          });
+
+          res.redirect(`${process.env.CLIENT_URL}/oauth-success?isEmailVerified=${user.is_email_verified}&isPhoneVerified=${user.is_phone_verified}`);
+        });
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async appleLogin(req, res, next) {
+    try {
+      const { url, state } = authService.getAppleAuthUrl();
+      
+      res.cookie('oauth_state', state, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Lax',
+        maxAge: 15 * 60 * 1000
+      });
+
+      res.redirect(url);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async appleCallback(req, res, next) {
+    try {
+      const { code, id_token, state, user: userPayload } = req.body;
+      const storedState = req.cookies.oauth_state;
+
+      if (!state || !storedState || state !== storedState) {
+        const error = new Error('Invalid OAuth state. CSRF protection triggered.');
+        error.statusCode = 403;
+        throw error;
+      }
+
+      res.clearCookie('oauth_state');
+
+      const { user, tokens } = await authService.appleLogin(code, id_token, userPayload);
+      AuditService.log(req, 'user.oauth.apple.login', 'user', user.id);
+      
+      req.session.regenerate((err) => {
+        if (err) return next(err);
+
+        req.session.userId = user.id;
+        req.session.role = user.role;
+
+        req.session.save((saveErr) => {
+          if (saveErr) return next(saveErr);
+
+          res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000
+          });
+
+          res.redirect(`${process.env.CLIENT_URL}/oauth-success?isEmailVerified=${user.is_email_verified}&isPhoneVerified=${user.is_phone_verified}`);
+        });
+      });
     } catch (error) {
       next(error);
     }
@@ -247,6 +403,28 @@ class AuthController {
       res.status(200).json({ 
         success: true, 
         message: `OTP sent to ${phoneCountryCode} ${phoneNumber}` 
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resendPhoneOtp(req, res, next) {
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        const error = new Error('userId is required');
+        error.statusCode = 400;
+        throw error;
+      }
+      
+      await registrationService.resendPhoneOTP(userId);
+      
+      AuditService.log(req, 'phone.otp.resent', 'user', userId);
+      res.status(200).json({ 
+        success: true, 
+        message: 'OTP resent successfully' 
       });
     } catch (error) {
       next(error);

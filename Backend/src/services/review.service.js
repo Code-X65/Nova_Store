@@ -195,7 +195,7 @@ class ReviewService {
     let query = supabase
       .from('review_reports')
       .select(
-        '*, review:product_reviews(id, rating, comment, status, product:products(id, name), reporter:users!reporter_id(id, first_name, last_name, email)',
+        '*, review:product_reviews(id, rating, comment, status, product:products(id, name)), reporter:users!reporter_id(id, first_name, last_name, email)',
         { count: 'exact' }
       );
 

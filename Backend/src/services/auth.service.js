@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const userModel = require('../models/user.model');
+const adminModel = require('../models/admin.model');
 const sessionModel = require('../models/session.model');
 const tokenModel = require('../models/token.model');
 const emailService = require('./email.service');
@@ -44,7 +45,25 @@ class AuthService {
      });
 
      const payload = ticket.getPayload();
-     const { sub: googleId, email, given_name: firstName, family_name: lastName, picture: avatarUrl } = payload;
+     const { sub: googleId, email, given_name, family_name, name, picture: avatarUrl } = payload;
+
+     let firstName = given_name;
+     let lastName = family_name;
+
+     if (!firstName) {
+       if (name) {
+         const parts = name.trim().split(/\s+/);
+         firstName = parts[0] || 'Google';
+         lastName = parts.slice(1).join(' ') || 'User';
+       } else {
+         const emailPrefix = email ? email.split('@')[0] : 'Google';
+         firstName = emailPrefix;
+         lastName = 'User';
+       }
+     }
+     if (!lastName) {
+       lastName = 'User';
+     }
 
       let user = await userModel.findByGoogleId(googleId);
 
@@ -69,7 +88,8 @@ class AuthService {
           throw error;
         }
 
-        return await this.generateTokens(user);
+        const authTokens = await this.generateTokens(user);
+        return { user, tokens: authTokens };
       }
 
      // Check if email exists for account linking
@@ -85,8 +105,8 @@ class AuthService {
        // Create new user from Google data
        user = await userModel.create({
          email,
-         firstName,
-         lastName,
+         first_name: firstName,
+         last_name: lastName,
          password: null // OAuth users don't have a password initially
        });
        
@@ -98,7 +118,8 @@ class AuthService {
        });
      }
 
-     return await this.generateTokens(user);
+     const authTokens = await this.generateTokens(user);
+     return { user, tokens: authTokens };
    }
 
     async generateTokens(user) {
@@ -216,8 +237,9 @@ class AuthService {
    }
 
     async adminLogin(email, password, ip = null) {
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@novastore.com';
       // Check if email is exactly the predefined admin email
-      if (email !== 'admin@novastore.com') {
+      if (email !== adminEmail) {
         // Log failed attempt for non-admin email trying to login as admin
         logger.warn(`Non-admin email attempted to login as admin: ${email}`);
         const error = new Error('Invalid email or password');
@@ -225,7 +247,7 @@ class AuthService {
         throw error;
       }
 
-      const user = await userModel.findByEmail(email);
+      const user = await adminModel.findByEmail(email);
       if (!user) {
         // Log failed attempt for non-existent email (security through obscurity)
         logger.warn(`Admin login attempt for non-existent email: ${email}`);
@@ -234,15 +256,7 @@ class AuthService {
         throw error;
       }
 
-      // Check user role first to reject customers trying to log in as admin
-      if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-        logger.warn(`Non-admin attempted to login to admin portal: ${email}`);
-        const error = new Error('Not authorized as admin');
-        error.statusCode = 403;
-        throw error;
-      }
-
-      // Check account status: active, not locked, verified
+      // Check account status: active, not locked
       if (!user.is_active) {
         const error = new Error('Your account has been deactivated. Please contact support.');
         error.statusCode = 403;
@@ -256,16 +270,10 @@ class AuthService {
         throw error;
       }
 
-      if (!user.is_email_verified) {
-        const error = new Error('Please verify your email address before logging in.');
-        error.statusCode = 403;
-        throw error;
-      }
-
-      const isMatch = await userModel.comparePassword(password, user.password_hash);
+      const isMatch = await bcrypt.compare(password, user.password_hash);
       if (!isMatch) {
         // Increment admin failed attempts (locks for 60 min after 3 attempts)
-        await userModel.incrementAdminFailedAttempts(user);
+        await adminModel.incrementFailedAttempts(user);
         logger.warn(`Failed admin login attempt for email: ${email}`);
         const error = new Error('Invalid email or password');
         error.statusCode = 401;
@@ -273,13 +281,17 @@ class AuthService {
       }
 
       // Reset attempts on success
-      if (user.failed_login_attempts > 0 || ip) {
-        await userModel.resetFailedAttempts(user, ip);
+      if (user.failed_login_attempts > 0) {
+        await adminModel.resetFailedAttempts(user);
       }
 
       logger.info(`Admin logged in successfully: ${email}`);
-      const tokens = await this.generateTokens(user);
-      return { user, tokens };
+      
+      // Dynamically attach role: 'ADMIN' to user object so generateTokens configures admin settings correctly
+      user.role = 'ADMIN';
+      
+      const authTokens = await this.generateTokens(user);
+      return { user, tokens: authTokens };
     }
 
    async refreshAccessToken(refreshToken) {
@@ -321,9 +333,9 @@ class AuthService {
          throw new Error('User not found or inactive');
        }
  
-       // Revoke old session and rotate
-       await sessionModel.revoke(hashedRT);
-       return await this.generateTokens(user);
+        // Revoke old session and rotate
+        await sessionModel.revoke(hashedRT);
+        return await this.generateTokens(user);
      } catch (err) {
        const error = new Error('Invalid refresh token');
        error.statusCode = 401;
@@ -380,6 +392,36 @@ class AuthService {
        }
      }
    }
+
+    async setPassword(userId, newPassword) {
+      const user = await userModel.findById(userId);
+      if (!user) {
+        const error = new Error('User not found');
+        error.statusCode = 404;
+        throw error;
+      }
+
+      if (user.password_hash) {
+        const error = new Error('Password has already been set for this account. Please use the change password endpoint instead.');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const salt = await bcrypt.genSalt(12);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+      await userModel.update(userId, { password_hash: hashedPassword });
+
+      // Invalidate all sessions on password change
+      await sessionModel.revokeAllForUser(userId);
+      if (redisClient.isOpen) {
+        const userSessionsSet = `user:sessions:${userId}`;
+        const sessionKeys = await redisClient.sMembers(userSessionsSet);
+        if (sessionKeys.length > 0) {
+          await redisClient.del(sessionKeys);
+          await redisClient.del(userSessionsSet);
+        }
+      }
+    }
 
    async initiatePasswordReset(email) {
      const user = await userModel.findByEmail(email);
@@ -493,6 +535,200 @@ class AuthService {
        facebook: !!user.facebook_id
      };
    }
+
+    getFacebookAuthUrl() {
+      const state = crypto.randomBytes(32).toString('hex');
+      const params = new URLSearchParams({
+        client_id: process.env.FACEBOOK_CLIENT_ID,
+        redirect_uri: process.env.FACEBOOK_REDIRECT_URI,
+        scope: 'email,public_profile',
+        state: state,
+        response_type: 'code'
+      });
+      const url = `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
+      return { url, state };
+    }
+
+    async facebookLogin(code) {
+      const tokenParams = new URLSearchParams({
+        client_id: process.env.FACEBOOK_CLIENT_ID,
+        client_secret: process.env.FACEBOOK_CLIENT_SECRET,
+        redirect_uri: process.env.FACEBOOK_REDIRECT_URI,
+        code: code
+      });
+
+      const tokenResponse = await fetch(`https://graph.facebook.com/v19.0/oauth/access_token?${tokenParams.toString()}`);
+      if (!tokenResponse.ok) {
+        const errData = await tokenResponse.json();
+        throw new Error(errData.error?.message || 'Failed to obtain Facebook access token');
+      }
+      const { access_token } = await tokenResponse.json();
+
+      const profileResponse = await fetch(
+        `https://graph.facebook.com/me?fields=id,email,first_name,last_name,picture&access_token=${access_token}`
+      );
+      if (!profileResponse.ok) {
+        throw new Error('Failed to fetch Facebook profile information');
+      }
+      const profile = await profileResponse.json();
+      const { id: facebookId, email, first_name, last_name, picture } = profile;
+
+      const avatarUrl = picture?.data?.url || null;
+      const firstName = first_name || 'Facebook';
+      const lastName = last_name || 'User';
+
+      let user = await userModel.findByFacebookId(facebookId);
+
+      if (user) {
+        if (!user.is_active) {
+          const error = new Error('Your account has been deactivated. Please contact support.');
+          error.statusCode = 403;
+          throw error;
+        }
+        const authTokens = await this.generateTokens(user);
+        return { user, tokens: authTokens };
+      }
+
+      user = await userModel.findByEmail(email);
+
+      if (user) {
+        user = await userModel.update(user.id, {
+          facebook_id: facebookId,
+          avatar_url: avatarUrl || user.avatar_url
+        });
+      } else {
+        user = await userModel.create({
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          password: null,
+          facebook_id: facebookId,
+          avatar_url: avatarUrl,
+          is_email_verified: true
+        });
+      }
+
+      const authTokens = await this.generateTokens(user);
+      return { user, tokens: authTokens };
+    }
+
+    getAppleAuthUrl() {
+      const state = crypto.randomBytes(32).toString('hex');
+      const params = new URLSearchParams({
+        client_id: process.env.APPLE_CLIENT_ID,
+        redirect_uri: process.env.APPLE_REDIRECT_URI,
+        response_type: 'code id_token',
+        response_mode: 'form_post',
+        scope: 'name email',
+        state: state
+      });
+      const url = `https://appleid.apple.com/auth/authorize?${params.toString()}`;
+      return { url, state };
+    }
+
+    async generateAppleClientSecret() {
+      const privateKey = process.env.APPLE_PRIVATE_KEY;
+      if (!privateKey) {
+        throw new Error('APPLE_PRIVATE_KEY is not configured');
+      }
+
+      const time = Math.floor(Date.now() / 1000);
+      const payload = {
+        iss: process.env.APPLE_TEAM_ID,
+        iat: time,
+        exp: time + (180 * 24 * 60 * 60),
+        aud: 'https://appleid.apple.com',
+        sub: process.env.APPLE_CLIENT_ID
+      };
+
+      return jwt.sign(payload, privateKey, {
+        algorithm: 'ES256',
+        header: {
+          kid: process.env.APPLE_KEY_ID
+        }
+      });
+    }
+
+    async verifyAppleIdToken(idToken) {
+      const decodedHeader = jwt.decode(idToken, { complete: true })?.header;
+      if (!decodedHeader || !decodedHeader.kid) {
+        throw new Error('Invalid Apple ID token header');
+      }
+
+      const response = await fetch('https://appleid.apple.com/auth/keys');
+      if (!response.ok) {
+        throw new Error('Failed to fetch Apple public keys');
+      }
+      const jwks = await response.json();
+      const jwk = jwks.keys.find(k => k.kid === decodedHeader.kid);
+      if (!jwk) {
+        throw new Error('Matching Apple public key not found');
+      }
+
+      const publicKey = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+
+      return jwt.verify(idToken, publicKey, {
+        algorithms: ['RS256'],
+        audience: process.env.APPLE_CLIENT_ID,
+        issuer: 'https://appleid.apple.com'
+      });
+    }
+
+    async appleLogin(code, idToken, userPayload) {
+      const verifiedPayload = await this.verifyAppleIdToken(idToken);
+      const appleId = verifiedPayload.sub;
+      const email = verifiedPayload.email;
+
+      let firstName = 'Apple';
+      let lastName = 'User';
+
+      if (userPayload) {
+        try {
+          const parsedUser = typeof userPayload === 'string' ? JSON.parse(userPayload) : userPayload;
+          if (parsedUser.name) {
+            firstName = parsedUser.name.firstName || firstName;
+            lastName = parsedUser.name.lastName || lastName;
+          }
+        } catch (e) {
+          logger.error('Failed to parse Apple user payload:', e);
+        }
+      } else if (email) {
+        firstName = email.split('@')[0] || firstName;
+      }
+
+      let user = await userModel.findByAppleId(appleId);
+
+      if (user) {
+        if (!user.is_active) {
+          const error = new Error('Your account has been deactivated. Please contact support.');
+          error.statusCode = 403;
+          throw error;
+        }
+        const authTokens = await this.generateTokens(user);
+        return { user, tokens: authTokens };
+      }
+
+      user = await userModel.findByEmail(email);
+
+      if (user) {
+        user = await userModel.update(user.id, {
+          apple_id: appleId,
+          is_email_verified: true
+        });
+      } else {
+        user = await userModel.create({
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          password: null,
+          apple_id: appleId,
+          is_email_verified: true
+        });
+      }
+
+      const authTokens = await this.generateTokens(user);
+      return { user, tokens: authTokens };
+    }
 
     // Admin Methods
     async listUsers(page = 1, limit = 10) {

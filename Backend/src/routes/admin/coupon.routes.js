@@ -42,7 +42,7 @@ const bulkSchema = joi.object({
 });
 
 router.use(requireAdmin);
-// router.use(hasPermission('coupon:write')); // Optional RBAC
+router.use(hasPermission('coupon:write'));
 
 /**
  * @swagger
@@ -53,7 +53,7 @@ router.use(requireAdmin);
 
 /**
  * @swagger
- * /api/v1/admin/coupons:
+ * /admin/coupons:
  *   get:
  *     summary: List all coupons (with filtering)
  *     tags: [Admin Coupons]
@@ -76,7 +76,7 @@ router.post('/', validateRequest(createSchema), adminCouponController.createCoup
 
 /**
  * @swagger
- * /api/v1/admin/coupons/bulk-generate:
+ * /admin/coupons/bulk-generate:
  *   post:
  *     summary: Generate multiple unique coupon codes
  *     tags: [Admin Coupons]
@@ -90,7 +90,7 @@ router.post('/bulk-generate', validateRequest(bulkSchema), adminCouponController
 
 /**
  * @swagger
- * /api/v1/admin/coupons/{id}:
+ * /admin/coupons/{id}:
  *   get:
  *     summary: Get coupon details
  *     tags: [Admin Coupons]
@@ -137,7 +137,7 @@ router.delete('/:id', adminCouponController.deleteCoupon);
 
 /**
  * @swagger
- * /api/v1/admin/coupons/{id}/deactivate:
+ * /admin/coupons/{id}/deactivate:
  *   post:
  *     summary: Soft delete / deactivate a coupon
  *     tags: [Admin Coupons]
@@ -156,7 +156,7 @@ router.post('/:id/deactivate', adminCouponController.deactivateCoupon);
 
 /**
  * @swagger
- * /api/v1/admin/coupons/{id}/usage:
+ * /admin/coupons/{id}/usage:
  *   get:
  *     summary: Get usage analytics for a coupon
  *     tags: [Admin Coupons]

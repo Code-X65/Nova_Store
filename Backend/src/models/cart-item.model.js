@@ -61,6 +61,17 @@ class CartItemModel {
     if (error) throw error;
     return data;
   }
+
+  async findById(id) {
+    const { data, error } = await supabase
+      .from('cart_items')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  }
 }
 
 module.exports = new CartItemModel();

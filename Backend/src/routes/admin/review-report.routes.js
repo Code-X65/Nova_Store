@@ -31,16 +31,29 @@ router.use(requireAdmin);
  * @swagger
  * /admin/review-reports:
  *   get:
- *     summary: Paginated list of review reports (filters: status, reviewId)
+ *     summary: "Paginated list of review reports (filters: status, reviewId)"
  *     tags: [Admin Review Reports]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: query name: status schema: { type: string, enum: [pending,resolved,dismissed] }
- *       - in: query name: page    schema: { type: integer, default: 1 }
- *       - in: query name: limit   schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, resolved, dismissed]
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
  *     responses:
- *       200: { description: Paginated report queue }
+ *       200:
+ *         description: Paginated report queue
  */
 router.get('/', validate({ query: listSchema }), reviewAdminController.getReports);
 

@@ -1,43 +1,83 @@
-const supabase = require('../config/supabase');
+const supabase               = require('../config/supabase');
+const { supabaseAdmin }      = require('../config/supabase');
+const productAttributeModel  = require('./product-attribute.model');
 
 class ProductModel {
   async findAll(filters = {}, pagination = { page: 1, limit: 20 }) {
     const { page, limit } = pagination;
     const offset = (page - 1) * limit;
+    const { attrFilters, ...stdFilters } = filters;
 
+    // --- Attribute-filtered path: use RPC ---
+    if (attrFilters && Object.keys(attrFilters).length > 0) {
+      const supabaseClient = supabaseAdmin || supabase;
+      const { data, error } = await supabaseClient.rpc(
+        'get_products_by_attributes',
+        { attr_filters: attrFilters }
+      );
+      if (error) throw error;
+
+      // Apply standard filters in-memory (RPC returns all matching attribute rows)
+      let results = data || [];
+      if (stdFilters.status)      results = results.filter(p => p.status === stdFilters.status);
+      if (stdFilters.category_id) results = results.filter(p => p.category_id === stdFilters.category_id);
+      if (stdFilters.brand_id)    results = results.filter(p => p.brand_id === stdFilters.brand_id);
+      if (stdFilters.subcategory_id) results = results.filter(p => p.subcategory_id === stdFilters.subcategory_id);
+      if (stdFilters.is_featured !== undefined) results = results.filter(p => p.is_featured === stdFilters.is_featured);
+      if (stdFilters.minPrice)    results = results.filter(p => p.price >= stdFilters.minPrice);
+      if (stdFilters.maxPrice)    results = results.filter(p => p.price <= stdFilters.maxPrice);
+      if (stdFilters.search) {
+        const q = stdFilters.search.toLowerCase();
+        results = results.filter(p =>
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.description || '').toLowerCase().includes(q) ||
+          (p.sku || '').toLowerCase().includes(q)
+        );
+      }
+
+      const total     = results.length;
+      const paginated = results.slice(offset, offset + limit);
+      return {
+        products: paginated,
+        pagination: { page: parseInt(page), limit: parseInt(limit), total, totalPages: Math.ceil(total / limit) }
+      };
+    }
+
+    // --- Standard path ---
     let query = supabase
       .from('products')
       .select('*', { count: 'exact' })
       .is('deleted_at', null);
 
     // Apply Filters
-    if (filters.status) query = query.eq('status', filters.status);
-    if (filters.category) query = query.eq('category', filters.category);
-    if (filters.brand) query = query.eq('brand', filters.brand);
-    if (filters.is_featured !== undefined) query = query.eq('is_featured', filters.is_featured);
+    if (stdFilters.status)      query = query.eq('status', stdFilters.status);
+    if (stdFilters.category_id) query = query.eq('category_id', stdFilters.category_id);
+    if (stdFilters.brand_id)    query = query.eq('brand_id', stdFilters.brand_id);
+    if (stdFilters.subcategory_id) query = query.eq('subcategory_id', stdFilters.subcategory_id);
+    if (stdFilters.is_featured !== undefined) query = query.eq('is_featured', stdFilters.is_featured);
     
     // Price Filtering
-    if (filters.minPrice) query = query.gte('price', filters.minPrice);
-    if (filters.maxPrice) query = query.lte('price', filters.maxPrice);
+    if (stdFilters.minPrice) query = query.gte('price', stdFilters.minPrice);
+    if (stdFilters.maxPrice) query = query.lte('price', stdFilters.maxPrice);
     
     // Rating Filtering
-    if (filters.minRating) query = query.gte('average_rating', filters.minRating);
+    if (stdFilters.minRating) query = query.gte('average_rating', stdFilters.minRating);
 
-    if (filters.search) {
-      query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%,sku.ilike.%${filters.search}%`);
+    if (stdFilters.search) {
+      query = query.or(`name.ilike.%${stdFilters.search}%,description.ilike.%${stdFilters.search}%,sku.ilike.%${stdFilters.search}%`);
     }
 
     // Sorting
     const sortMapping = {
-      'newest': { column: 'created_at', ascending: false },
-      'cheapest': { column: 'price', ascending: true },
-      'price_low': { column: 'price', ascending: true },
-      'price_high': { column: 'price', ascending: false },
-      'popular': { column: 'review_count', ascending: false },
-      'rating': { column: 'average_rating', ascending: false }
+      'newest':     { column: 'created_at',    ascending: false },
+      'cheapest':   { column: 'price',         ascending: true  },
+      'price_low':  { column: 'price',         ascending: true  },
+      'price_high': { column: 'price',         ascending: false },
+      'popular':    { column: 'review_count',  ascending: false },
+      'rating':     { column: 'average_rating',ascending: false }
     };
 
-    const sortConfig = sortMapping[filters.sortBy] || { column: filters.sortBy || 'created_at', ascending: filters.order !== 'asc' };
+    const sortConfig = sortMapping[stdFilters.sortBy] || { column: stdFilters.sortBy || 'created_at', ascending: stdFilters.order !== 'asc' };
     query = query.order(sortConfig.column, { ascending: sortConfig.ascending });
 
     // Pagination
@@ -66,6 +106,10 @@ class ProductModel {
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
+    if (!data) return null;
+
+    // Attach dynamic attributes
+    data.attributes = await productAttributeModel.findByProductId(id);
     return data;
   }
 
@@ -78,6 +122,10 @@ class ProductModel {
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
+    if (!data) return null;
+
+    // Attach dynamic attributes
+    data.attributes = await productAttributeModel.findByProductId(data.id);
     return data;
   }
 
@@ -238,6 +286,15 @@ class ProductModel {
 
     if (error) throw error;
     return data;
+  }
+
+  async search(query, limit = 10) {
+    const { data, error } = await supabase.rpc('search_products', {
+      search_query: query,
+      lim: limit
+    });
+    if (error) throw error;
+    return data || [];
   }
 }
 

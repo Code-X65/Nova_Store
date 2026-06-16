@@ -74,7 +74,29 @@ class CartService {
     if (quantity <= 0) {
       return await CartItemModel.delete(cartItemId);
     }
-    return await CartItemModel.update(cartItemId, { quantity });
+
+    const cartItem = await CartItemModel.findById(cartItemId);
+    if (!cartItem) throw new Error('Cart item not found');
+
+    const product = await ProductModel.findById(cartItem.product_id);
+    if (!product) throw new Error('Product not found');
+
+    const reserved = product.reserved_quantity || 0;
+    const available = (product.stock_quantity || 0) - reserved;
+    const canBackorder = !!product.allow_backorder;
+
+    if (!canBackorder && quantity > available) {
+      throw new Error(
+        `Insufficient stock for "${product.name}". Available: ${available}, requested: ${quantity}`
+      );
+    }
+
+    const unitPrice = product.sale_price || product.price;
+
+    return await CartItemModel.update(cartItemId, {
+      quantity,
+      unit_price: unitPrice
+    });
   }
 
   async removeItem(cartItemId) {

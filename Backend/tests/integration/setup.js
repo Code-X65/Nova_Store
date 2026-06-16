@@ -3,6 +3,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env'
 // Mock rate limiting for faster tests
 jest.mock('../../src/middlewares/rate-limit.middleware', () => ({
   authLimiter: (req, res, next) => next(),
+  adminLoginLimiter: (req, res, next) => next(),
   resetLimiter: (req, res, next) => next(),
   refreshLimiter: (req, res, next) => next(),
   adminLimiter: (req, res, next) => next(),
@@ -14,6 +15,30 @@ jest.mock('../../src/services/email.service');
 jest.mock('../../src/services/sms.service');
 jest.mock('../../src/services/notification.service');
 jest.mock('../../src/services/audit.service');
+
+// Mock session store to prevent real database connections during tests
+jest.mock('connect-pg-simple', () => {
+  return (session) => {
+    const Store = session.Store;
+    class MockStore extends Store {
+      constructor() {
+        super();
+      }
+      get(sid, cb) { cb(null, null); }
+      set(sid, sess, cb) { cb(null); }
+      destroy(sid, cb) { cb(null); }
+    }
+    return MockStore;
+  };
+});
+
+// Mock phone verification database model to prevent outbound network/DB timeouts
+jest.mock('../../src/models/phone_verification.model', () => ({
+  createPhoneVerificationToken: jest.fn().mockResolvedValue(),
+  findByPhoneToken: jest.fn().mockResolvedValue(),
+  markAsUsed: jest.fn().mockResolvedValue(),
+  findLatestByUserId: jest.fn().mockResolvedValue(),
+}));
 
 // Mock redis client globally
 jest.mock('../../src/config/redis', () => ({

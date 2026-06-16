@@ -3,9 +3,9 @@ const { supabaseAdmin } = require('../config/supabase');
 class AdminAuthLogModel {
   /**
    * Record an admin login attempt (success or failure).
-   * @param {{ adminId?: string, ipAddress?: string, emailAttempted: string, success: boolean }} params
+   * @param {{ adminId?: string, ipAddress?: string, emailAttempted: string, success: boolean, userAgent?: string }} params
    */
-  async log({ adminId = null, ipAddress = null, emailAttempted, success }) {
+  async log({ adminId = null, ipAddress = null, emailAttempted, success, userAgent = null }) {
     const { error } = await supabaseAdmin
       .from('admin_auth_logs')
       .insert([{
@@ -13,6 +13,7 @@ class AdminAuthLogModel {
         ip_address:      ipAddress,
         email_attempted: emailAttempted,
         success,
+        user_agent:      userAgent,
       }]);
 
     if (error) {

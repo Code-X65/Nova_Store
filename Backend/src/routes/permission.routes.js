@@ -31,7 +31,7 @@ const detailSchema = {
 
 /**
  * @swagger
- * /api/v1/permissions:
+ * /permissions:
  *   get:
  *     summary: List all permissions (with optional category/search filter + pagination)
  *     tags: [Permissions]
@@ -64,7 +64,7 @@ router.get('/', validate(listSchema), permissionController.getAllPermissions);
 
 /**
  * @swagger
- * /api/v1/permissions/categories:
+ * /permissions/categories:
  *   get:
  *     summary: List all distinct permission categories
  *     tags: [Permissions]
@@ -78,7 +78,7 @@ router.get('/categories', permissionController.getPermissionCategories);
 
 /**
  * @swagger
- * /api/v1/permissions/{id}:
+ * /permissions/{id}:
  *   get:
  *     summary: Get a single permission by ID
  *     tags: [Permissions]

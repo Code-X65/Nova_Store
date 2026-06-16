@@ -1,4 +1,5 @@
 const InventoryService = require('../services/inventory.service');
+const AuditService = require('../services/audit.service');
 
 class InventoryController {
   async addStock(req, res, next) {
@@ -11,6 +12,7 @@ class InventoryController {
       }
 
       const result = await InventoryService.addStock(productId, quantity, userId, notes, variantId);
+      AuditService.log(req, 'inventory.stock_added', 'product', productId, null, { quantity, notes, variantId });
       res.status(200).json({ success: true, data: result, message: 'Stock updated successfully' });
     } catch (error) {
       next(error);
@@ -35,6 +37,7 @@ class InventoryController {
         notes, 
         variantId
       );
+      AuditService.log(req, 'inventory.stock_reduced', 'product', productId, null, { quantity, type: type || 'adjustment', referenceId, notes, variantId });
       res.status(200).json({ success: true, data: result, message: 'Stock reduced successfully' });
     } catch (error) {
       next(error);
@@ -83,6 +86,7 @@ class InventoryController {
       }
 
       const result = await InventoryService.updateThreshold(id, lowStockThreshold);
+      AuditService.log(req, 'inventory.threshold_updated', 'product', id, null, { lowStockThreshold });
       res.status(200).json({ success: true, data: result, message: 'Threshold updated successfully' });
     } catch (error) {
       next(error);
@@ -99,6 +103,7 @@ class InventoryController {
       }
 
       const results = await InventoryService.bulkUpdateStock(updates, userId);
+      AuditService.log(req, 'inventory.bulk_updated', 'inventory', null, null, { count: updates.length, productIds: updates.map(u => u.productId) });
       res.status(200).json({ success: true, data: results, message: 'Bulk stock update completed' });
     } catch (error) {
       next(error);

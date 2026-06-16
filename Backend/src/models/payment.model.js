@@ -37,6 +37,20 @@ class PaymentModel {
     if (error) throw error;
     return data;
   }
+
+  async findSuccessfulByOrderId(orderId) {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('order_id', orderId)
+      .eq('status', 'success')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  }
 }
 
 module.exports = new PaymentModel();

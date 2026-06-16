@@ -4,6 +4,50 @@ const permissionModel = require('../models/permission.model');
 const userRoleModel = require('../models/user-role.model');
 
 const protect = async (req, res, next) => {
+  // Check for session-based admin auth first
+  if (req.session && req.session.adminId) {
+    try {
+      const adminModel = require('../models/admin.model');
+      const admin = await adminModel.findById(req.session.adminId);
+      
+      if (admin && admin.is_active) {
+        req.admin = admin;
+        req.user = {
+          id: admin.id,
+          email: admin.email,
+          role: 'admin',
+          roles: ['admin'],
+          permissions: ['*']
+        };
+        return next();
+      }
+    } catch (error) {
+      console.error('Session authentication error in protect middleware:', error);
+    }
+  }
+
+  // Check for session-based customer (user) auth next
+  if (req.session && req.session.userId) {
+    try {
+      const user = await userModel.findById(req.session.userId);
+      if (user && user.is_active) {
+        const [roles, permissions] = await Promise.all([
+          userRoleModel.getUserRoles(user.id),
+          permissionModel.getUserPermissions(user.id)
+        ]);
+
+        req.user = {
+          ...user,
+          roles: roles.map(r => r.name),
+          permissions: permissions
+        };
+        return next();
+      }
+    } catch (error) {
+      console.error('Session user authentication error in protect middleware:', error);
+    }
+  }
+
   let token;
 
   if (
@@ -36,15 +80,15 @@ const protect = async (req, res, next) => {
         permissions: permissions
       };
 
-      next();
+      return next();
     } catch (error) {
       console.error(error);
-      res.status(401).json({ success: false, message: 'Not authorized, token failed' });
+      return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
     }
   }
 
   if (!token) {
-    res.status(401).json({ success: false, message: 'Not authorized, no token' });
+    return res.status(401).json({ success: false, message: 'Not authorized, no token' });
   }
 };
 
@@ -60,6 +104,50 @@ const admin = (req, res, next) => {
 };
 
 const optionalAuth = async (req, res, next) => {
+  // Check session first
+  if (req.session && req.session.userId) {
+    try {
+      const user = await userModel.findById(req.session.userId);
+      if (user && user.is_active) {
+        const [roles, permissions] = await Promise.all([
+          userRoleModel.getUserRoles(user.id),
+          permissionModel.getUserPermissions(user.id)
+        ]);
+
+        req.user = {
+          ...user,
+          roles: roles.map(r => r.name),
+          permissions: permissions
+        };
+        return next();
+      }
+    } catch (error) {
+      // Ignore session verification errors
+    }
+  }
+
+  // Fallback to session admin
+  if (req.session && req.session.adminId) {
+    try {
+      const adminModel = require('../models/admin.model');
+      const admin = await adminModel.findById(req.session.adminId);
+      if (admin && admin.is_active) {
+        req.admin = admin;
+        req.user = {
+          id: admin.id,
+          email: admin.email,
+          role: 'admin',
+          roles: ['admin'],
+          permissions: ['*']
+        };
+        return next();
+      }
+    } catch (error) {
+      // Ignore session verification errors
+    }
+  }
+
+  // Fallback to Bearer token
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')

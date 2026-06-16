@@ -1,68 +1,118 @@
-const sessionService = require('../../services/session.service');
+const { supabaseAdmin } = require('../../config/supabase');
 
+/**
+ * Admin Session Controller
+ * Works exclusively with the `admin_sessions` table managed by connect-pg-simple.
+ * All identity comes from req.admin (set by requireAdmin middleware).
+ */
 class AdminSessionController {
   /**
-   * Get active sessions for the current admin user
-   * GET /admin/sessions
+   * GET /api/v1/admin/sessions
+   * List all non-expired cookie sessions belonging to the current admin.
    */
   async getActiveSessions(req, res, next) {
     try {
-      const userId = req.user.id;
-      const sessions = await sessionService.getActiveSessionsForUser(userId);
-      const adminSessions = await sessionService.getActiveAdminSessionsForUser(userId);
-      
-      res.status(200).json({
-        success: true,
-        data: {
-          allSessions: sessions,
-          adminSessions: adminSessions
-        }
-      });
+      const adminId = req.admin.id;
+
+      // admin_sessions.sess is a JSON blob. We look for sessions whose
+      // sess->>'adminId' matches the current admin and that haven't expired.
+      const { data, error } = await supabaseAdmin
+        .from('admin_sessions')
+        .select('sid, sess, expire')
+        .gt('expire', new Date().toISOString())
+        .order('expire', { ascending: false });
+
+      if (error) throw error;
+
+      // Filter in JS for adminId (Supabase JS can't do JSON path filters natively)
+      const mine = (data || [])
+        .filter(row => {
+          try { return row.sess?.adminId === adminId; } catch { return false; }
+        })
+        .map(row => ({
+          sessionId: row.sid,
+          expiresAt: row.expire,
+        }));
+
+      res.status(200).json({ success: true, data: { sessions: mine, total: mine.length } });
     } catch (error) {
       next(error);
     }
   }
 
   /**
-   * Revoke a specific session
-   * DELETE /admin/sessions/:sessionId
+   * DELETE /api/v1/admin/sessions/:sessionId
+   * Revoke a specific session — only if it belongs to the current admin.
    */
   async revokeSession(req, res, next) {
     try {
+      const adminId   = req.admin.id;
       const { sessionId } = req.params;
-      const userId = req.user.id;
-      
-      // Verify the session belongs to the user before revoking
-      const session = await sessionService.findById(sessionId);
-      if (!session || session.user_id !== userId) {
-        const error = new Error('Session not found or unauthorized');
-        error.statusCode = 404;
-        throw error;
+
+      // Fetch the session first to verify ownership
+      const { data: row, error: fetchErr } = await supabaseAdmin
+        .from('admin_sessions')
+        .select('sid, sess')
+        .eq('sid', sessionId)
+        .maybeSingle();
+
+      if (fetchErr) throw fetchErr;
+
+      if (!row || row.sess?.adminId !== adminId) {
+        return res.status(404).json({ success: false, error: 'Session not found or not yours.' });
       }
-      
-      await sessionService.revoke(session.refresh_token);
-      
-      res.status(200).json({
-        success: true,
-        message: 'Session revoked successfully'
-      });
+
+      const { error: delErr } = await supabaseAdmin
+        .from('admin_sessions')
+        .delete()
+        .eq('sid', sessionId);
+
+      if (delErr) throw delErr;
+
+      res.status(200).json({ success: true, message: 'Session revoked.' });
     } catch (error) {
       next(error);
     }
   }
 
   /**
-   * Revoke all admin sessions for the current user (security feature)
-   * DELETE /admin/sessions
+   * DELETE /api/v1/admin/sessions
+   * Revoke ALL sessions for the current admin (nuclear option).
+   * The current session is also destroyed so the admin is immediately logged out.
    */
-  async revokeAllAdminSessions(req, res, next) {
+  async revokeAllSessions(req, res, next) {
     try {
-      const userId = req.user.id;
-      await sessionService.revokeAllAdminSessionsForUser(userId);
-      
+      const adminId        = req.admin.id;
+      const currentSid     = req.sessionID;
+
+      // Fetch all active sessions for this admin
+      const { data, error: fetchErr } = await supabaseAdmin
+        .from('admin_sessions')
+        .select('sid, sess')
+        .gt('expire', new Date().toISOString());
+
+      if (fetchErr) throw fetchErr;
+
+      const mySids = (data || [])
+        .filter(row => { try { return row.sess?.adminId === adminId; } catch { return false; } })
+        .map(row => row.sid);
+
+      if (mySids.length > 0) {
+        const { error: delErr } = await supabaseAdmin
+          .from('admin_sessions')
+          .delete()
+          .in('sid', mySids);
+
+        if (delErr) throw delErr;
+      }
+
+      // Also destroy the in-memory session object so this request is immediately logged out
+      req.session.destroy(() => {});
+      res.clearCookie('connect.sid', { path: '/' });
+
       res.status(200).json({
         success: true,
-        message: 'All admin sessions revoked successfully'
+        message: `All ${mySids.length} admin session(s) revoked. You have been logged out.`,
       });
     } catch (error) {
       next(error);

@@ -1,8 +1,12 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
 
-const { authLimiter, adminAuthLimiter, adminLoginLimiter, resetLimiter, refreshLimiter, adminLimiter, apiLimiter } = require('./middlewares/rate-limit.middleware');
+const adminUploadRoutes = require('./routes/admin/upload.routes');
+const currencyRoutes = require('./routes/currency.routes');
+
+const { authLimiter, adminLoginLimiter, resetLimiter, refreshLimiter, adminLimiter, apiLimiter } = require('./middlewares/rate-limit.middleware');
 const cookieParser = require('cookie-parser');
 const requestIdMiddleware = require('./middlewares/request-id.middleware');
 const requestLogger = require('./middlewares/request-logger.middleware');
@@ -16,6 +20,7 @@ const userRoleRoutes = require('./routes/user-role.routes');
 const productRoutes = require('./routes/product.routes');
 const categoryRoutes = require('./routes/product-category.routes');
 const brandRoutes = require('./routes/product-brand.routes');
+const attributeRoutes = require('./routes/attribute.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
 const cartRoutes = require('./routes/cart.routes');
 const wishlistRoutes = require('./routes/wishlist.routes');
@@ -29,6 +34,7 @@ const adminReviewRoutes = require('./routes/admin/review.routes');
 const adminReviewReportRoutes = require('./routes/admin/review-report.routes');
 const reportRoutes = require('./routes/report.routes');
 const couponRoutes = require('./routes/coupon.routes');
+const telemetryRoutes = require('./routes/telemetry.routes');
 const adminCouponRoutes = require('./routes/admin/coupon.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const adminNotificationRoutes = require('./routes/admin/notification.routes');
@@ -44,8 +50,10 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const requireAdmin = require('./middlewares/require-admin.middleware');
 const adminAuthRoutes = require('./routes/admin/auth.routes');
+const idempotencyMiddleware = require('./middlewares/idempotency.middleware');
 
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(requestIdMiddleware);
 
@@ -67,7 +75,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: 8 * 60 * 60 * 1000,
   },
 }));
@@ -107,7 +115,6 @@ app.use(cors({
 }));
 
 app.use('/api/v1/admin/login', adminLoginLimiter);
-app.use('/api/v1/auth/admin/login', adminAuthLimiter);
 app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', authLimiter);
 app.use('/api/v1/auth/forgot-password', resetLimiter);
@@ -119,6 +126,8 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use(xssSanitize);
+app.use(idempotencyMiddleware);
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -142,6 +151,7 @@ app.use('/api/v1/admin/coupons', adminCouponRoutes);
 app.use('/api/v1/admin/notifications', adminNotificationRoutes);
 app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
 app.use('/api/v1/admin/settings', adminSettingRoutes);
+app.use('/api/v1/admin/upload', adminUploadRoutes);
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/user', userRoutes);
@@ -152,6 +162,7 @@ app.use('/api/v1/user-routes', userRoleRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/brands', brandRoutes);
+app.use('/api/v1', attributeRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
@@ -162,8 +173,10 @@ app.use('/api/v1/shipping', shippingRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/review-reports', reportRoutes);
 app.use('/api/v1/coupons', couponRoutes);
+app.use('/api/v1/analytics', telemetryRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/settings', publicSettingRoutes);
+app.use('/api/v1/currencies', currencyRoutes);
 app.use('/api/v1/health', healthRoutes);
 
 app.use(errorMiddleware);

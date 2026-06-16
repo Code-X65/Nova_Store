@@ -51,7 +51,7 @@ router.use(requireAdmin);
 
 /**
  * @swagger
- * /api/v1/admin/notifications:
+ * /admin/notifications:
  *   get:
  *     summary: List all notifications across the system
  *     tags: [Admin Notifications]
@@ -65,7 +65,7 @@ router.get('/', adminNotificationController.getAllNotifications);
 
 /**
  * @swagger
- * /api/v1/admin/notifications/send:
+ * /admin/notifications/send:
  *   post:
  *     summary: Send a custom notification to a user
  *     tags: [Admin Notifications]
@@ -79,7 +79,7 @@ router.post('/send', validateRequest(sendSchema), adminNotificationController.se
 
 /**
  * @swagger
- * /api/v1/admin/notifications/broadcast:
+ * /admin/notifications/broadcast:
  *   post:
  *     summary: Broadcast a notification to all/filtered users
  *     tags: [Admin Notifications]
@@ -93,7 +93,7 @@ router.post('/broadcast', validateRequest(broadcastSchema), adminNotificationCon
 
 /**
  * @swagger
- * /api/v1/admin/notifications/test-email:
+ * /admin/notifications/test-email:
  *   post:
  *     summary: Send a test email using a specific template
  *     tags: [Admin Notifications]
@@ -107,7 +107,7 @@ router.post('/test-email', adminNotificationController.testEmail);
 
 /**
  * @swagger
- * /api/v1/admin/notifications/templates:
+ * /admin/notifications/templates:
  *   get:
  *     summary: Get all notification templates
  *     tags: [Admin Notifications]
@@ -130,7 +130,7 @@ router.post('/templates', validateRequest(templateSchema), adminNotificationCont
 
 /**
  * @swagger
- * /api/v1/admin/notifications/templates/{id}:
+ * /admin/notifications/templates/{id}:
  *   patch:
  *     summary: Update a notification template
  *     tags: [Admin Notifications]

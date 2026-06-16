@@ -27,12 +27,13 @@ class SMSService {
         return { success: false, error: 'Twilio provider credentials missing in production' };
       }
 
-      logger.info(`Sending SMS via Twilio to ${to}`);
+      const formattedTo = to.startsWith('+') ? to : `+${to}`;
+      logger.info(`Sending SMS via Twilio to ${formattedTo}`);
       
       const response = await this.client.messages.create({
         body: message,
         from: this.fromNumber,
-        to
+        to: formattedTo
       });
 
       logger.info(`SMS sent successfully to ${to}. SID: ${response.sid}`);

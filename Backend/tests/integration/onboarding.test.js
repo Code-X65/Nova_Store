@@ -1,63 +1,80 @@
 const request = require('supertest');
 const app = require('../../src/app');
-const { redisClient } = require('../../src/config/redis');
 
-// Setup for a random user for onboarding tests
-const randomEmail = () => `onboard_${Date.now()}_${Math.floor(Math.random() * 1000)}@example.com`;
+jest.setTimeout(20000);
+
+const userModel = require('../../src/models/user.model');
+const onboardingModel = require('../../src/models/onboarding.model');
+const userRoleModel = require('../../src/models/user-role.model');
+const permissionModel = require('../../src/models/permission.model');
+const jwt = require('jsonwebtoken');
+
+jest.mock('../../src/models/user.model');
+jest.mock('../../src/models/onboarding.model');
+jest.mock('../../src/models/user-role.model');
+jest.mock('../../src/models/permission.model');
+jest.mock('jsonwebtoken');
 
 describe('Onboarding API Endpoints', () => {
   let testUser = {
-    email: randomEmail(),
-    password: 'SecurePassword123!',
+    id: 'user-onboard-123',
+    email: 'onboard@example.com',
     firstName: 'Onboard',
     lastName: 'User'
   };
 
-  let accessToken = '';
+  let accessToken = 'mock-access-token';
 
-  beforeAll(async () => {
-    // We mock the user registration or just bypass the DB. 
-    // Wait, testing onboarding requires authentication.
-    // If the system requires email verification before login, we cannot test onboarding via API without verifying the email in the DB.
-    // For now, we'll try to register.
-    await request(app).post('/api/v1/auth/register').send(testUser);
-    
-    // We will attempt login. If it's 403 unverified, we might not be able to test onboarding unless we mock DB.
-    const res = await request(app).post('/api/v1/auth/login').send({
+  beforeAll(() => {
+    // Mock jwt.verify to return decoded user payload
+    jwt.verify.mockReturnValue({ id: testUser.id });
+
+    // Mock userModel.findById
+    userModel.findById.mockResolvedValue({
+      id: testUser.id,
       email: testUser.email,
-      password: testUser.password
+      first_name: testUser.firstName,
+      last_name: testUser.lastName,
+      onboarding_status: 'not_started',
     });
-    
-    if (res.body.accessToken) {
-      accessToken = res.body.accessToken;
-    }
+
+    // Mock roles/permissions
+    userRoleModel.getUserRoles.mockResolvedValue([]);
+    permissionModel.getUserPermissions.mockResolvedValue([]);
   });
 
-  afterAll(async () => {
-    if (redisClient.isOpen) {
-      await redisClient.disconnect();
-    }
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('GET /api/v1/onboarding/status', () => {
     it('should return 401 if unauthorized', async () => {
+      // Temporarily make jwt.verify throw to simulate unauthorized
+      jwt.verify.mockImplementationOnce(() => {
+        throw new Error('Invalid token');
+      });
+
       const res = await request(app).get('/api/v1/onboarding/status');
       expect(res.statusCode).toBe(401);
     });
 
     it('should return onboarding status if authorized', async () => {
-      if (!accessToken) {
-        console.warn('Skipping test: User could not be logged in (likely needs email verification)');
-        return;
-      }
+      jwt.verify.mockReturnValue({ id: testUser.id });
+      onboardingModel.getStatus.mockResolvedValue({
+        status: 'not_started',
+        progress: 0,
+      });
 
       const res = await request(app)
         .get('/api/v1/onboarding/status')
         .set('Authorization', `Bearer ${accessToken}`);
-      
+
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data).toBeDefined();
+      expect(res.body.data).toEqual({
+        status: 'not_started',
+        progress: 0,
+      });
     });
   });
 });

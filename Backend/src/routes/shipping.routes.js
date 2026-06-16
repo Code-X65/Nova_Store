@@ -34,7 +34,7 @@ const shippingSchema = joi.object({
 
 /**
  * @swagger
- * /api/v1/shipping/zones:
+ * /shipping/zones:
  *   get:
  *     summary: Get all active shipping zones
  *     tags: [Shipping]
@@ -46,7 +46,7 @@ router.get('/zones', shippingController.getZones);
 
 /**
  * @swagger
- * /api/v1/shipping/calculate:
+ * /shipping/calculate:
  *   post:
  *     summary: Calculate shipping options for a cart/address
  *     tags: [Shipping]

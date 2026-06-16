@@ -5,7 +5,7 @@ const requireAdmin = require('../../middlewares/require-admin.middleware');
 const { hasPermission } = require('../../middlewares/permission.middleware');
 
 router.use(requireAdmin);
-// Optional: router.use(hasPermission('analytics:read'));
+router.use(hasPermission('analytics:read'));
 
 /**
  * @swagger
@@ -16,7 +16,7 @@ router.use(requireAdmin);
 
 /**
  * @swagger
- * /api/v1/admin/analytics/dashboard:
+ * /admin/analytics/dashboard:
  *   get:
  *     summary: Get dashboard summary metrics
  *     tags: [Admin Analytics]
@@ -40,7 +40,7 @@ router.get('/dashboard', analyticsController.getDashboard);
 
 /**
  * @swagger
- * /api/v1/admin/analytics/revenue:
+ * /admin/analytics/revenue:
  *   get:
  *     summary: Get revenue report over time
  *     tags: [Admin Analytics]
@@ -64,7 +64,7 @@ router.get('/revenue', analyticsController.getRevenue);
 
 /**
  * @swagger
- * /api/v1/admin/analytics/revenue/summary:
+ * /admin/analytics/revenue/summary:
  *   get:
  *     summary: Get revenue summary for date range
  *     tags: [Admin Analytics]
@@ -85,7 +85,7 @@ router.get('/revenue/summary', analyticsController.getRevenueSummary);
 
 /**
  * @swagger
- * /api/v1/admin/analytics/best-sellers:
+ * /admin/analytics/best-sellers:
  *   get:
  *     summary: Get best selling products
  *     tags: [Admin Analytics]
@@ -115,7 +115,7 @@ router.get('/best-sellers', analyticsController.getBestSellers);
 
 /**
  * @swagger
- * /api/v1/admin/analytics/users:
+ * /admin/analytics/users:
  *   get:
  *     summary: Get user growth report
  *     tags: [Admin Analytics]
@@ -139,7 +139,7 @@ router.get('/users', analyticsController.getUsers);
 
 /**
  * @swagger
- * /api/v1/admin/analytics/orders:
+ * /admin/analytics/orders:
  *   get:
  *     summary: Get order statistics
  *     tags: [Admin Analytics]
@@ -163,7 +163,7 @@ router.get('/orders', analyticsController.getOrders);
 
 /**
  * @swagger
- * /api/v1/admin/analytics/payments:
+ * /admin/analytics/payments:
  *   get:
  *     summary: Get payment provider performance
  *     tags: [Admin Analytics]
@@ -184,7 +184,7 @@ router.get('/payments', analyticsController.getPayments);
 
 /**
  * @swagger
- * /api/v1/admin/analytics/inventory:
+ * /admin/analytics/inventory:
  *   get:
  *     summary: Get low stock alerts
  *     tags: [Admin Analytics]
@@ -202,7 +202,7 @@ router.get('/inventory', analyticsController.getInventory);
 
 /**
  * @swagger
- * /api/v1/admin/analytics/export/revenue:
+ * /admin/analytics/export/revenue:
  *   get:
  *     summary: Export revenue report as CSV
  *     tags: [Admin Analytics]

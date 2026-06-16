@@ -61,6 +61,85 @@ class AuditLogModel {
 
     return { logs: data, total: count, page, limit };
   }
+
+  /**
+   * Query general system activity logs.
+   */
+  async findAll({ userId, action, resourceType, resourceId, fromDate, toDate, page = 1, limit = 50 } = {}) {
+    const from = (parseInt(page) - 1) * parseInt(limit);
+    const to = from + parseInt(limit) - 1;
+
+    let query = supabaseAdmin
+      .from('audit_logs')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+    if (action) {
+      if (action.includes('%')) {
+        query = query.like('action', action);
+      } else {
+        query = query.eq('action', action);
+      }
+    }
+    if (resourceType) {
+      query = query.eq('resource_type', resourceType);
+    }
+    if (resourceId) {
+      query = query.eq('resource_id', resourceId);
+    }
+    if (fromDate) {
+      query = query.gte('created_at', fromDate);
+    }
+    if (toDate) {
+      query = query.lte('created_at', toDate);
+    }
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error('AuditLogModel.findAll failed:', error);
+      throw error;
+    }
+
+    return { logs: data, total: count, page: parseInt(page), limit: parseInt(limit) };
+  }
+
+  /**
+   * Aggregate statistics of core events.
+   */
+  async getStats() {
+    const getCount = async (action) => {
+      const { count, error } = await supabaseAdmin
+        .from('audit_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('action', action);
+      if (error) {
+        console.error(`Failed to get count for action "${action}":`, error);
+        return 0;
+      }
+      return count || 0;
+    };
+
+    const totalLoginsSuccess = await getCount('user.login.success');
+    const totalLoginsFailed = await getCount('user.login.failed');
+    const adminLoginsSuccess = await getCount('user.admin_login.success');
+    const adminLoginsFailed = await getCount('user.admin_login.failed');
+    const userLockouts = await getCount('user.auth.lockout');
+    const adminLockouts = await getCount('admin.auth.lockout');
+
+    return {
+      totalLogins: totalLoginsSuccess + totalLoginsFailed,
+      failedLogins: totalLoginsFailed,
+      adminLogins: adminLoginsSuccess,
+      failedAdminLogins: adminLoginsFailed,
+      lockouts: userLockouts,
+      adminLockouts: adminLockouts
+    };
+  }
 }
 
 module.exports = new AuditLogModel();

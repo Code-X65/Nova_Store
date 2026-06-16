@@ -28,7 +28,7 @@ class AdminModel {
   async findById(id) {
     const { data, error } = await supabaseAdmin
       .from('admins')
-      .select('id, email, created_at, updated_at')
+      .select('id, email, is_active, created_at, updated_at')
       .eq('id', id)
       .maybeSingle();
 
@@ -93,6 +93,60 @@ class AdminModel {
 
     if (error) {
       console.error('[AdminModel.findFirst] error:', error);
+      throw error;
+    }
+    return data;
+  }
+
+  /**
+   * Increment failed login attempts for an admin.
+   * If attempts reach 3 or more, lock for 60 minutes.
+   * @param {object} admin
+   * @returns {object} updated admin row
+   */
+  async incrementFailedAttempts(admin) {
+    const failedAttempts = (admin.failed_login_attempts || 0) + 1;
+    let lockUntil = admin.lock_until;
+
+    if (failedAttempts >= 3) {
+      lockUntil = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('admins')
+      .update({
+        failed_login_attempts: failedAttempts,
+        lock_until: lockUntil
+      })
+      .eq('id', admin.id)
+      .select('id, email, failed_login_attempts, lock_until')
+      .single();
+
+    if (error) {
+      console.error('[AdminModel.incrementFailedAttempts] error:', error);
+      throw error;
+    }
+    return data;
+  }
+
+  /**
+   * Reset failed attempts count and lock time for an admin.
+   * @param {object} admin
+   * @returns {object} updated admin row
+   */
+  async resetFailedAttempts(admin) {
+    const { data, error } = await supabaseAdmin
+      .from('admins')
+      .update({
+        failed_login_attempts: 0,
+        lock_until: null
+      })
+      .eq('id', admin.id)
+      .select('id, email, failed_login_attempts, lock_until')
+      .single();
+
+    if (error) {
+      console.error('[AdminModel.resetFailedAttempts] error:', error);
       throw error;
     }
     return data;

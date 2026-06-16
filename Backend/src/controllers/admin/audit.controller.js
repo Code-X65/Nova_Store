@@ -1,23 +1,43 @@
-const AuditService = require('../../services/audit.service');
+const AuditLogModel = require('../../models/audit-log.model');
 
 class AdminAuditController {
+  /**
+   * Get general system activity audit logs
+   * GET /admin/audit
+   */
+  async getActivityLogs(req, res, next) {
+    try {
+      const { page = 1, limit = 10, userId, action, resourceType, resourceId, fromDate, toDate } = req.query;
+      const result = await AuditLogModel.findAll({
+        userId,
+        action,
+        resourceType,
+        resourceId,
+        fromDate,
+        toDate,
+        page,
+        limit
+      });
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   /**
    * Get authentication audit logs for admins
    * GET /admin/audit/auth
    */
   async getAuthAuditLogs(req, res, next) {
     try {
-      // In a real implementation, we would query the audit logs with filters
-      // For now, we'll return a placeholder response
-      res.status(200).json({
-        success: true,
-        data: {
-          logs: [],
-          total: 0,
-          page: req.query.page || 1,
-          limit: req.query.limit || 10
-        }
+      const { page = 1, limit = 10, userId } = req.query;
+      const result = await AuditLogModel.findAll({
+        userId,
+        action: 'user.login.%',
+        page,
+        limit
       });
+      res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
     }
@@ -29,17 +49,14 @@ class AdminAuditController {
    */
   async getAdminAuthAuditLogs(req, res, next) {
     try {
-      // In a real implementation, we would query the audit logs with filters for admin events
-      // For now, we'll return a placeholder response
-      res.status(200).json({
-        success: true,
-        data: {
-          logs: [],
-          total: 0,
-          page: req.query.page || 1,
-          limit: req.query.limit || 10
-        }
+      const { page = 1, limit = 10, userId } = req.query;
+      const result = await AuditLogModel.findAll({
+        userId,
+        action: 'user.admin_login.%',
+        page,
+        limit
       });
+      res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
     }
@@ -51,19 +68,8 @@ class AdminAuditController {
    */
   async getAuditStats(req, res, next) {
     try {
-      // In a real implementation, we would calculate statistics from audit logs
-      // For now, we'll return a placeholder response
-      res.status(200).json({
-        success: true,
-        data: {
-          totalLogins: 0,
-          failedLogins: 0,
-          adminLogins: 0,
-          failedAdminLogins: 0,
-          lockouts: 0,
-          adminLockouts: 0
-        }
-      });
+      const stats = await AuditLogModel.getStats();
+      res.status(200).json({ success: true, data: stats });
     } catch (error) {
       next(error);
     }

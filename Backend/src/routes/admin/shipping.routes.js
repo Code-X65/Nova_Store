@@ -34,7 +34,7 @@ const rateSchema = joi.object({
 
 // Protect all admin routes
 router.use(requireAdmin);
-// Optional: router.use(hasPermission('shipping:write')); // depending on your RBAC
+router.use(hasPermission('shipping:write'));
 
 /**
  * @swagger

@@ -81,7 +81,8 @@ class OnboardingService {
       onboarding_status: 'completed',
       onboarding_completed_at: new Date().toISOString(),
       features: features,
-      preferences: preferences
+      preferences: preferences,
+      ...(preferences.referral_source && { referral_source: preferences.referral_source })
     });
 
     logger.info(`User ${userId} completed onboarding`);
