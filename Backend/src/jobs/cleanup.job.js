@@ -2,6 +2,7 @@ const sessionModel = require('../models/session.model');
 const TokenModel = require('../models/token.model');
 const supabase = require('../config/supabase');
 const logger = require('../utils/logger');
+const invitationService = require('../services/invitation.service');
 
 /**
  * Daily garbage-collection job.
@@ -76,6 +77,17 @@ async function runCleanup() {
     logger.info(`[Cleanup] Deleted ${count} expired inventory reservation(s).`);
   } catch (err) {
     logger.error('[Cleanup] Failed to delete expired inventory reservations:', err.message || err);
+  }
+
+  // 5. Expire stale invitations (pending but past their expires_at)
+  try {
+    const expired = await invitationService.cleanupExpired();
+    total += expired;
+    if (expired > 0) {
+      logger.info(`[Cleanup] Expired ${expired} stale invitation(s).`);
+    }
+  } catch (err) {
+    logger.error('[Cleanup] Failed to expire stale invitations:', err.message || err);
   }
 
   logger.info(`[Cleanup] Daily maintenance done — ${total} rows removed in total.`);

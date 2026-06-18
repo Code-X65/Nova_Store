@@ -34,6 +34,24 @@ router.get('/', adminSessionController.getActiveSessions);
 
 /**
  * @swagger
+ * /admin/sessions/health:
+ *   get:
+ *     summary: Show active admin sessions count
+ *     tags: [Admin Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Active sessions count retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/health', adminSessionController.getSessionHealth);
+
+/**
+ * @swagger
  * /admin/sessions/{sessionId}:
  *   delete:
  *     summary: Revoke a specific session

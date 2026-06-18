@@ -3,23 +3,53 @@ const userModel = require('../models/user.model');
 const permissionModel = require('../models/permission.model');
 const userRoleModel = require('../models/user-role.model');
 
+// Helper to verify JWT using a comma-separated list of rotation secrets
+function verifyToken(token) {
+  const secrets = process.env.JWT_ACCESS_SECRET.split(',');
+  let verifyError = null;
+
+  for (const secret of secrets) {
+    try {
+      return jwt.verify(token, secret);
+    } catch (err) {
+      verifyError = err;
+    }
+  }
+  throw verifyError || new Error('Invalid token');
+}
+
 const protect = async (req, res, next) => {
   // Check for session-based admin auth first
   if (req.session && req.session.adminId) {
     try {
-      const adminModel = require('../models/admin.model');
-      const admin = await adminModel.findById(req.session.adminId);
+      const admin = await userModel.findById(req.session.adminId);
       
       if (admin && admin.is_active) {
-        req.admin = admin;
-        req.user = {
-          id: admin.id,
-          email: admin.email,
-          role: 'admin',
-          roles: ['admin'],
-          permissions: ['*']
-        };
-        return next();
+        const { roles, permissions } = await userModel.getUserRolesAndPermissions(admin.id);
+        const hasAdminRole = roles.some(r => r === 'ADMIN' || r === 'SUPER_ADMIN');
+
+        if (hasAdminRole) {
+          const isSuperAdmin = roles.includes('SUPER_ADMIN');
+          const primaryRole = isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+
+          req.admin = {
+            id: admin.id,
+            email: admin.email,
+            firstName: admin.first_name,
+            lastName: admin.last_name,
+            role: primaryRole,
+            roles,
+            permissions: isSuperAdmin ? ['*'] : permissions
+          };
+          req.user = {
+            id: admin.id,
+            email: admin.email,
+            role: primaryRole,
+            roles,
+            permissions: req.admin.permissions
+          };
+          return next();
+        }
       }
     } catch (error) {
       console.error('Session authentication error in protect middleware:', error);
@@ -58,8 +88,8 @@ const protect = async (req, res, next) => {
       // Get token from header
       token = req.headers.authorization.split(' ')[1];
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+      // Verify token using rotation secrets list
+      const decoded = verifyToken(token);
 
       // Get user from the token
       const user = await userModel.findById(decoded.id);
@@ -129,18 +159,33 @@ const optionalAuth = async (req, res, next) => {
   // Fallback to session admin
   if (req.session && req.session.adminId) {
     try {
-      const adminModel = require('../models/admin.model');
-      const admin = await adminModel.findById(req.session.adminId);
+      const admin = await userModel.findById(req.session.adminId);
       if (admin && admin.is_active) {
-        req.admin = admin;
-        req.user = {
-          id: admin.id,
-          email: admin.email,
-          role: 'admin',
-          roles: ['admin'],
-          permissions: ['*']
-        };
-        return next();
+        const { roles, permissions } = await userModel.getUserRolesAndPermissions(admin.id);
+        const hasAdminRole = roles.some(r => r === 'ADMIN' || r === 'SUPER_ADMIN');
+
+        if (hasAdminRole) {
+          const isSuperAdmin = roles.includes('SUPER_ADMIN');
+          const primaryRole = isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+
+          req.admin = {
+            id: admin.id,
+            email: admin.email,
+            firstName: admin.first_name,
+            lastName: admin.last_name,
+            role: primaryRole,
+            roles,
+            permissions: isSuperAdmin ? ['*'] : permissions
+          };
+          req.user = {
+            id: admin.id,
+            email: admin.email,
+            role: primaryRole,
+            roles,
+            permissions: req.admin.permissions
+          };
+          return next();
+        }
       }
     } catch (error) {
       // Ignore session verification errors
@@ -154,7 +199,7 @@ const optionalAuth = async (req, res, next) => {
   ) {
     try {
       const token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+      const decoded = verifyToken(token);
       const user = await userModel.findById(decoded.id);
       if (user) {
         // Eager load roles and permissions for optional auth as well, enabling RBAC check in downstream middleware

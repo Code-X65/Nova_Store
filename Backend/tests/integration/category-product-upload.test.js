@@ -15,8 +15,19 @@ jest.mock('../../src/models/product-attribute.model');
 jest.mock('../../src/models/audit-log.model');
 jest.mock('../../src/middlewares/require-admin.middleware', () => {
   return (req, res, next) => {
-    req.admin = { id: 'admin-uuid-999', is_active: true };
-    req.user = { id: 'admin-uuid-999', role: 'ADMIN' };
+    req.admin = {
+      id: 'admin-uuid-999',
+      email: 'admin@example.com',
+      role: 'ADMIN',
+      roles: ['ADMIN'],
+      is_active: true,
+      permissions: [
+        'category:create', 'category:write',
+        'product:create', 'product:write',
+        'audit:read'
+      ]
+    };
+    req.user = { id: 'admin-uuid-999', role: 'ADMIN', permissions: req.admin.permissions };
     next();
   };
 });

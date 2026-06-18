@@ -11,7 +11,27 @@ class NotificationTemplateModel {
     return data;
   }
 
+  /**
+   * Find an active template by its unique key.
+   * Returns null if the template does not exist or is deactivated.
+   */
   async findByKey(key) {
+    const { data, error } = await supabase
+      .from('notification_templates')
+      .select('*')
+      .eq('key', key)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Find a template by key regardless of active status.
+   * Use only in admin/management contexts where inactive templates must be visible.
+   */
+  async findByKeyAny(key) {
     const { data, error } = await supabase
       .from('notification_templates')
       .select('*')

@@ -8,6 +8,8 @@ jest.mock('../../src/middlewares/rate-limit.middleware', () => ({
   refreshLimiter: (req, res, next) => next(),
   adminLimiter: (req, res, next) => next(),
   apiLimiter: (req, res, next) => next(),
+  inviteLimiter: (req, res, next) => next(),
+  healthLimiter: (req, res, next) => next(),
 }));
 
 // Mock external services

@@ -2,7 +2,6 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const userModel = require('../models/user.model');
-const adminModel = require('../models/admin.model');
 const sessionModel = require('../models/session.model');
 const tokenModel = require('../models/token.model');
 const emailService = require('./email.service');
@@ -125,8 +124,8 @@ class AuthService {
     async generateTokens(user) {
       // Shorter token expiration for admin sessions
       const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
-      const accessTokenExpiresIn = isAdmin ? '15m' : '15m'; // Could be made shorter for admins if needed
-      const refreshTokenExpiresIn = isAdmin ? '8h' : '30d'; // Shorter refresh token for admins (8 hours vs 30 days)
+      const accessTokenExpiresIn = isAdmin ? (securityConfig?.admin?.session?.accessTokenExpiresIn || '15m') : '15m';
+      const refreshTokenExpiresIn = isAdmin ? (securityConfig?.admin?.session?.refreshTokenExpiresIn || '8h') : '30d';
 
       const accessToken = jwt.sign(
         { id: user.id, role: user.role },
@@ -144,7 +143,9 @@ class AuthService {
       const hashedRT = crypto.createHash('sha256').update(refreshToken).digest('hex');
       const expiresAt = new Date();
       if (isAdmin) {
-        expiresAt.setHours(expiresAt.getHours() + 8);
+        const expiry = securityConfig?.admin?.session?.refreshTokenExpiresIn || '8h';
+        const hours = parseInt(expiry);
+        expiresAt.setHours(expiresAt.getHours() + (isNaN(hours) ? 8 : hours));
       } else {
         expiresAt.setDate(expiresAt.getDate() + 30);
       }
@@ -167,12 +168,16 @@ class AuthService {
       // Also store in Redis for high-performance lookup
       if (redisClient.isOpen) {
         const sessionKey = `session:${hashedRT}`;
+        const expiry = securityConfig?.admin?.session?.refreshTokenExpiresIn || '8h';
+        const hours = parseInt(expiry);
+        const redisTTL = isNaN(hours) ? 8 * 60 * 60 : hours * 60 * 60;
+
         await redisClient.set(sessionKey, JSON.stringify({
           id: sessionKey, // include key for easy deletion
           userId: user.id,
           expiresAt: expiresAt.toISOString()
         }), {
-          EX: isAdmin ? 8 * 60 * 60 : 30 * 24 * 60 * 60 // Match Redis expiration (8h vs 30d)
+          EX: isAdmin ? redisTTL : 30 * 24 * 60 * 60 // Match Redis expiration (8h vs 30d)
         });
 
         // Add to user's active sessions set
@@ -190,6 +195,11 @@ class AuthService {
    async login(email, password, ip = null) {
      const user = await userModel.findByEmail(email);
      if (!user) {
+       // Audit: unknown email — generic message to caller, specific action in audit trail
+       Promise.resolve(AuditService.logRaw('user.login.failed', 'user', null, {
+         ip,
+         newValues: { reason: 'email_not_found', emailAttempted: email },
+       })).catch(() => {});
        const error = new Error('Invalid email or password');
        error.statusCode = 401;
        throw error;
@@ -197,18 +207,33 @@ class AuthService {
 
      // Check account status: active, not locked, verified
      if (!user.is_active) {
+       Promise.resolve(AuditService.logRaw('user.login.failed', 'user', user.id, {
+         ip,
+         userId: user.id,
+         newValues: { reason: 'account_deactivated' },
+       })).catch(() => {});
        const error = new Error('Your account has been deactivated. Please contact support.');
        error.statusCode = 403;
        throw error;
      }
 
      if (user.is_locked && user.lock_until && new Date(user.lock_until) > new Date()) {
+       Promise.resolve(AuditService.logRaw('user.auth.lockout', 'user', user.id, {
+         ip,
+         userId: user.id,
+         newValues: { reason: 'account_locked', lockUntil: user.lock_until },
+       })).catch(() => {});
        const error = new Error('Account is locked due to multiple failed login attempts. Try again later.');
        error.statusCode = 403;
        throw error;
      }
 
      if (!user.is_email_verified) {
+       Promise.resolve(AuditService.logRaw('user.login.failed', 'user', user.id, {
+         ip,
+         userId: user.id,
+         newValues: { reason: 'email_not_verified' },
+       })).catch(() => {});
        const error = new Error('Please verify your email address before logging in.');
        error.statusCode = 403;
        throw error;
@@ -218,9 +243,11 @@ class AuthService {
      if (!isMatch) {
        await userModel.incrementFailedAttempts(user);
        logger.warn(`Failed login attempt for email: ${email}`);
-       // Audit log (requires req if we pass it, but we don't have req here unless we do it in controller)
-       // Since we don't have req object directly in service right now, we can omit it, or we can just log a basic audit
-       // We will skip AuditService here since it relies on req.user and req.ip being cleanly passed, and we just added last_login_ip support in userModel.
+       Promise.resolve(AuditService.logRaw('user.login.failed', 'user', user.id, {
+         ip,
+         userId: user.id,
+         newValues: { reason: 'bad_password', failedAttempts: (user.failed_login_attempts || 0) + 1 },
+       })).catch(() => {});
        const error = new Error('Invalid email or password');
        error.statusCode = 401;
        throw error;
@@ -232,64 +259,108 @@ class AuthService {
      }
 
      logger.info(`User logged in successfully: ${email}`);
+     Promise.resolve(AuditService.logRaw('user.login.success', 'user', user.id, {
+       ip,
+       userId: user.id,
+     })).catch(() => {});
      const tokens = await this.generateTokens(user);
      return { user, tokens };
    }
 
     async adminLogin(email, password, ip = null) {
-      const adminEmail = process.env.ADMIN_EMAIL || 'admin@novastore.com';
-      // Check if email is exactly the predefined admin email
-      if (email !== adminEmail) {
-        // Log failed attempt for non-admin email trying to login as admin
-        logger.warn(`Non-admin email attempted to login as admin: ${email}`);
-        const error = new Error('Invalid email or password');
-        error.statusCode = 401;
-        throw error;
-      }
+      // Multi-admin login: query users table (no hardcoded single-email restriction)
+      const user = await userModel.findByEmail(email);
 
-      const user = await adminModel.findByEmail(email);
       if (!user) {
-        // Log failed attempt for non-existent email (security through obscurity)
         logger.warn(`Admin login attempt for non-existent email: ${email}`);
+        Promise.resolve(AuditService.logRaw('admin.login.failed', 'user', null, {
+          ip,
+          newValues: { reason: 'email_not_found', emailAttempted: email },
+        })).catch(() => {});
         const error = new Error('Invalid email or password');
         error.statusCode = 401;
         throw error;
       }
 
-      // Check account status: active, not locked
+      // Must have ADMIN or SUPER_ADMIN role in user_roles
+      const { roles } = await userModel.getUserRolesAndPermissions(user.id);
+      const hasAdminRole = roles.some(r => r === 'ADMIN' || r === 'SUPER_ADMIN');
+
+      if (!hasAdminRole) {
+        logger.warn(`Non-admin user attempted admin login: ${email}`);
+        Promise.resolve(AuditService.logRaw('admin.login.failed', 'user', user.id, {
+          ip,
+          userId: user.id,
+          newValues: { reason: 'insufficient_role', emailAttempted: email },
+        })).catch(() => {});
+        const error = new Error('Invalid email or password');
+        error.statusCode = 401;
+        throw error;
+      }
+
+      // Account status checks
       if (!user.is_active) {
+        Promise.resolve(AuditService.logRaw('admin.login.failed', 'user', user.id, {
+          ip,
+          userId: user.id,
+          newValues: { reason: 'account_deactivated' },
+        })).catch(() => {});
         const error = new Error('Your account has been deactivated. Please contact support.');
         error.statusCode = 403;
         throw error;
       }
 
-      // Check admin/shared lockout using standard lock_until column
-      if (user.lock_until && new Date(user.lock_until) > new Date()) {
+      if (user.is_locked && user.lock_until && new Date(user.lock_until) > new Date()) {
+        Promise.resolve(AuditService.logRaw('admin.auth.lockout', 'user', user.id, {
+          ip,
+          userId: user.id,
+          newValues: { reason: 'account_locked', lockUntil: user.lock_until },
+        })).catch(() => {});
         const error = new Error('Admin account is locked due to multiple failed login attempts. Try again later.');
         error.statusCode = 403;
         throw error;
       }
 
-      const isMatch = await bcrypt.compare(password, user.password_hash);
+      if (!user.password_hash) {
+        Promise.resolve(AuditService.logRaw('admin.login.failed', 'user', user.id, {
+          ip,
+          userId: user.id,
+          newValues: { reason: 'no_password_set' },
+        })).catch(() => {});
+        const error = new Error('Password not set. Please complete your invitation setup.');
+        error.statusCode = 401;
+        throw error;
+      }
+
+      const isMatch = await userModel.comparePassword(password, user.password_hash);
       if (!isMatch) {
-        // Increment admin failed attempts (locks for 60 min after 3 attempts)
-        await adminModel.incrementFailedAttempts(user);
+        await userModel.incrementAdminFailedAttempts(user);
         logger.warn(`Failed admin login attempt for email: ${email}`);
+        Promise.resolve(AuditService.logRaw('admin.login.failed', 'user', user.id, {
+          ip,
+          userId: user.id,
+          newValues: { reason: 'bad_password', failedAttempts: (user.failed_login_attempts || 0) + 1 },
+        })).catch(() => {});
         const error = new Error('Invalid email or password');
         error.statusCode = 401;
         throw error;
       }
 
-      // Reset attempts on success
-      if (user.failed_login_attempts > 0) {
-        await adminModel.resetFailedAttempts(user);
+      // Reset failed attempts on success
+      if (user.failed_login_attempts > 0 || ip) {
+        await userModel.resetFailedAttempts(user, ip);
       }
 
       logger.info(`Admin logged in successfully: ${email}`);
-      
-      // Dynamically attach role: 'ADMIN' to user object so generateTokens configures admin settings correctly
-      user.role = 'ADMIN';
-      
+      Promise.resolve(AuditService.logRaw('admin.login.success', 'user', user.id, {
+        ip,
+        userId: user.id,
+      })).catch(() => {});
+
+      // Set role on user object so generateTokens uses correct session config
+      const isSuperAdmin = roles.includes('SUPER_ADMIN');
+      user.role = isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+
       const authTokens = await this.generateTokens(user);
       return { user, tokens: authTokens };
     }
@@ -741,40 +812,6 @@ class AuthService {
       return user;
     }
 
-    async adminRegister(userData, createdByUserId = null) {
-      // Check if any admin already exists in the system
-      const adminExists = await userModel.findAdminExists();
-      if (adminExists) {
-        const error = new Error('Admin registration is closed. An admin account already exists.');
-        error.statusCode = 403;
-        throw error;
-      }
-
-      // Set role to ADMIN for admin registration
-      const adminUserData = {
-        ...userData,
-        role: 'ADMIN'
-      };
-      
-      // Delegate to RegistrationService to handle hashing, validation, etc.
-      const user = await RegistrationService.register(adminUserData);
-      
-      // Assign ADMIN role explicitly via user-role model
-      const adminRole = await RoleModel.findByName('ADMIN');
-      if (adminRole) {
-        await UserRoleModel.assignRole(user.id, adminRole.id, createdByUserId);
-      }
-
-      // Update users table with admin properties
-      // Note: We remove is_email_verified: true so that standard verification flows are enforced.
-      await userModel.update(user.id, {
-        role: 'ADMIN',
-        department: userData.department,
-        access_level: userData.accessLevel || 'admin'
-      });
-      
-      return user;
-    }
 }
 
 module.exports = new AuthService();

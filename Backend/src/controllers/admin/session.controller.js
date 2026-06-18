@@ -118,6 +118,31 @@ class AdminSessionController {
       next(error);
     }
   }
+
+  /**
+   * GET /api/v1/admin/sessions/health
+   * Returns a global count of active (non-expired) sessions across all admins.
+   */
+  async getSessionHealth(req, res, next) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('admin_sessions')
+        .select('sid, expire')
+        .gt('expire', new Date().toISOString());
+
+      if (error) throw error;
+
+      res.status(200).json({
+        success: true,
+        data: {
+          activeSessionsCount: data ? data.length : 0,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new AdminSessionController();

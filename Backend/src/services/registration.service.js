@@ -271,10 +271,9 @@ class RegistrationService {
     }
 
     // 9. Audit log
-    await AuditService.log({
+    await AuditService.logRaw('USER_REGISTERED', 'user', user.id, {
       userId: user.id,
-      action: 'USER_REGISTERED',
-      metadata: {
+      newValues: {
         email: user.email,
         phone: user.phone_number,
         hasReferral: !!body.referredByCode

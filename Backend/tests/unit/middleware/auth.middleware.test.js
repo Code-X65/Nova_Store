@@ -35,20 +35,35 @@ describe('Auth Middleware - protect', () => {
       const mockAdmin = {
         id: 'admin-uuid-123',
         email: 'admin@novastore.com',
+        first_name: 'System',
+        last_name: 'Admin',
         is_active: true
       };
 
-      adminModel.findById.mockResolvedValue(mockAdmin);
+      userModel.findById.mockResolvedValue(mockAdmin);
+      userModel.getUserRolesAndPermissions.mockResolvedValue({
+        roles: ['ADMIN'],
+        permissions: ['*']
+      });
 
       await protect(req, res, next);
 
-      expect(adminModel.findById).toHaveBeenCalledWith('admin-uuid-123');
-      expect(req.admin).toEqual(mockAdmin);
+      expect(userModel.findById).toHaveBeenCalledWith('admin-uuid-123');
+      expect(userModel.getUserRolesAndPermissions).toHaveBeenCalledWith('admin-uuid-123');
+      expect(req.admin).toEqual({
+        id: 'admin-uuid-123',
+        email: 'admin@novastore.com',
+        firstName: 'System',
+        lastName: 'Admin',
+        role: 'ADMIN',
+        roles: ['ADMIN'],
+        permissions: ['*']
+      });
       expect(req.user).toEqual({
         id: 'admin-uuid-123',
         email: 'admin@novastore.com',
-        role: 'admin',
-        roles: ['admin'],
+        role: 'ADMIN',
+        roles: ['ADMIN'],
         permissions: ['*']
       });
       expect(next).toHaveBeenCalled();
@@ -63,12 +78,12 @@ describe('Auth Middleware - protect', () => {
         is_active: false
       };
 
-      adminModel.findById.mockResolvedValue(mockAdmin);
+      userModel.findById.mockResolvedValue(mockAdmin);
 
       await protect(req, res, next);
 
       // Falls through to token check, fails because no authorization header
-      expect(adminModel.findById).toHaveBeenCalledWith('admin-uuid-123');
+      expect(userModel.findById).toHaveBeenCalledWith('admin-uuid-123');
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         success: false,

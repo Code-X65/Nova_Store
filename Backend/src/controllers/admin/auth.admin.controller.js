@@ -28,7 +28,7 @@ const login = async (req, res, next) => {
 
         // Generate a short-lived JWT access token for Bearer-auth endpoints
         const accessToken = jwt.sign(
-          { id: admin.id, email: admin.email, role: 'admin' },
+          { id: admin.id, email: admin.email, role: admin.role },
           process.env.JWT_ACCESS_SECRET,
           { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '8h' }
         );

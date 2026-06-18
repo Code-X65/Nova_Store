@@ -3,20 +3,16 @@
  * reset-password.js
  * -----------------
  * CLI tool to reset the password for the admin account.
- * Targets the first (and normally only) admin row.
+ * Targets the first (and normally only) admin row in users table.
  *
  * Usage:
  *   node src/scripts/reset-password.js <newPassword>
- *
- * Requires:
- *   - .env loaded (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)
- *   - At least one admin already created via create-admin.js
  */
 'use strict';
 
 require('dotenv').config();
 const bcrypt = require('bcrypt');
-const adminModel = require('../models/admin.model');
+const userModel = require('../models/user.model');
 
 const BCRYPT_ROUNDS = 12;
 
@@ -28,12 +24,15 @@ async function main() {
     process.exit(1);
   }
 
-  if (newPassword.length < 8) {
-    console.error('Error: Password must be at least 8 characters.');
+  if (newPassword.length < 12) {
+    console.error('Error: Password must be at least 12 characters.');
     process.exit(1);
   }
 
-  const admin = await adminModel.findFirst();
+  // Find the first admin user
+  const result = await userModel.findAdmins({ page: 1, limit: 1 });
+  const admin = result.admins?.[0];
+
   if (!admin) {
     console.error('Error: No admin account found. Run create-admin.js first.');
     process.exit(1);
@@ -43,7 +42,7 @@ async function main() {
   console.log('Hashing new password…');
 
   const password_hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-  const updated = await adminModel.updatePassword(admin.id, password_hash);
+  const updated = await userModel.update(admin.id, { password_hash });
 
   console.log(`\n✅ Password reset successfully.`);
   console.log(`   Email:   ${admin.email}`);

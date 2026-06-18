@@ -78,6 +78,35 @@ class UserController {
       next(error);
     }
   }
+
+  async exportUserData(req, res, next) {
+    try {
+      const data = await userService.exportUserData(req.user.id);
+      AuditService.log(req, 'user.gdpr.export', 'user', req.user.id);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async gdprForget(req, res, next) {
+    try {
+      await userService.deleteAccount(req.user.id);
+      AuditService.log(req, 'user.gdpr.forget', 'user', req.user.id);
+      if (req.session) {
+        req.session.destroy((err) => {
+          if (err) return next(err);
+          res.clearCookie('connect.sid');
+          res.status(200).json({ success: true, message: 'Your personal data has been erased and account deactivated.' });
+        });
+      } else {
+        res.clearCookie('connect.sid');
+        res.status(200).json({ success: true, message: 'Your personal data has been erased and account deactivated.' });
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new UserController();

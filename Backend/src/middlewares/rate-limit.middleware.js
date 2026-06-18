@@ -117,6 +117,16 @@ const apiLimiter = createLimiter('api', {
   limit: 200,
 });
 
+const inviteLimiter = createLimiter('invite', {
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 15,
+});
+
+const healthLimiter = createLimiter('health', {
+  windowMs: 1 * 60 * 1000, // 1 minute
+  limit: 30,
+});
+
 module.exports = {
   authLimiter,
   adminLoginLimiter,
@@ -124,4 +134,6 @@ module.exports = {
   refreshLimiter,
   adminLimiter,
   apiLimiter,
+  inviteLimiter,
+  healthLimiter,
 };

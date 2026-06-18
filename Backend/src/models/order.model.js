@@ -38,14 +38,17 @@ class OrderModel {
   }
 
   async updateStatus(id, status, paymentStatus = null, note = null, changedBy = null) {
-    const updateData = { status, updated_at: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const updateData = { status, updated_at: now };
     if (paymentStatus) updateData.payment_status = paymentStatus;
-    
-    // Set timestamp based on status
-    if (status === 'shipped') updateData.shipped_at = new Date().toISOString();
-    if (status === 'delivered') updateData.delivered_at = new Date().toISOString();
-    if (status === 'cancelled') updateData.cancelled_at = new Date().toISOString();
-    if (paymentStatus === 'paid') updateData.paid_at = new Date().toISOString();
+
+    // Set milestone timestamps
+    if (status === 'shipped')             updateData.shipped_at             = now;
+    if (status === 'out_for_delivery')    updateData.out_for_delivery_at    = now;
+    if (status === 'delivery_attempted')  updateData.attempted_at           = now;
+    if (status === 'delivered')           updateData.delivered_at           = now;
+    if (status === 'cancelled')           updateData.cancelled_at           = now;
+    if (paymentStatus === 'paid')         updateData.paid_at                = now;
 
     const { data, error } = await supabase
       .from('orders')
@@ -55,14 +58,6 @@ class OrderModel {
       .single();
 
     if (error) throw error;
-
-    // Log history
-    await supabase.from('order_status_history').insert([{
-      order_id: id,
-      status: status,
-      note: note || `Status updated to ${status}`,
-      changed_by: changedBy
-    }]);
 
     return data;
   }
@@ -143,6 +138,46 @@ class OrderModel {
 
     if (error) throw error;
     return data;
+  }
+
+  /**
+   * Returns orders that are paid/confirmed but not yet assigned to a driver.
+   * Used by the admin dispatch queue view.
+   */
+  async getDispatchQueue(filters = {}, pagination = { page: 1, limit: 20 }) {
+    const { page, limit } = pagination;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('orders')
+      .select('*, user:users(first_name, last_name, email)', { count: 'exact' })
+      .in('status', ['confirmed', 'processing', 'ready_for_dispatch', 'dispatched', 'out_for_delivery', 'delivery_attempted']);
+
+    if (filters.status)          query = query.eq('status', filters.status);
+    if (filters.deliveryStatus)  query = query.eq('delivery_status', filters.deliveryStatus);
+    if (filters.dateFrom)        query = query.gte('created_at', filters.dateFrom);
+    if (filters.dateTo)          query = query.lte('created_at', filters.dateTo);
+
+    // Stale-order SLA filter: only return orders not updated within N minutes
+    if (filters.staleSinceMinutes) {
+      const cutoff = new Date(Date.now() - filters.staleSinceMinutes * 60 * 1000).toISOString();
+      query = query.lt('updated_at', cutoff);
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return {
+      orders: data,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        totalPages: Math.ceil(count / limit)
+      }
+    };
   }
 }
 

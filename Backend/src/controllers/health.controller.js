@@ -1,8 +1,21 @@
 const supabase = require('../config/supabase');
 const { redisClient: redis } = require('../config/redis');
 const ErrorResponse = require('../utils/errorResponse');
+const { register } = require('../middlewares/metrics.middleware');
 
 class HealthController {
+  /**
+   * GET /health/metrics
+   * Expose Prometheus metrics
+   */
+  async getMetrics(req, res, next) {
+    try {
+      res.setHeader('Content-Type', register.contentType);
+      res.send(await register.metrics());
+    } catch (error) {
+      next(error);
+    }
+  }
   /**
    * GET /health
    * Basic health check endpoint
@@ -133,6 +146,75 @@ class HealthController {
         };
       }
 
+      // 4. Email Transport Connectivity Check
+      try {
+        const EmailService = require('../services/email.service');
+        const start = Date.now();
+        await EmailService.transporter.verify();
+        const latency = Date.now() - start;
+        detailedStatus.checks.email = {
+          status: 'UP',
+          latency: `${latency}ms`
+        };
+      } catch (emailError) {
+        detailedStatus.checks.email = {
+          status: 'DOWN',
+          error: emailError.message
+        };
+        if (detailedStatus.status === 'UP') {
+          detailedStatus.status = 'DEGRADED';
+        }
+      }
+
+      // 5. SMS / Twilio Connectivity Check
+      try {
+        const SMSService = require('../services/sms.service');
+        if (SMSService.client) {
+          const start = Date.now();
+          await SMSService.client.api.v2010.accounts(SMSService.accountSid).fetch();
+          const latency = Date.now() - start;
+          detailedStatus.checks.sms = {
+            status: 'UP',
+            latency: `${latency}ms`
+          };
+        } else {
+          detailedStatus.checks.sms = {
+            status: 'STUB',
+            info: 'Twilio credentials not configured'
+          };
+        }
+      } catch (smsError) {
+        detailedStatus.checks.sms = {
+          status: 'DOWN',
+          error: smsError.message
+        };
+        if (detailedStatus.status === 'UP') {
+          detailedStatus.status = 'DEGRADED';
+        }
+      }
+
+      // 6. Payment / Paystack Connectivity Check
+      try {
+        const start = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const response = await fetch('https://api.paystack.co/', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const latency = Date.now() - start;
+        detailedStatus.checks.payment = {
+          status: response.ok || response.status === 200 || response.status === 401 ? 'UP' : 'DEGRADED',
+          latency: `${latency}ms`
+        };
+      } catch (paystackError) {
+        detailedStatus.checks.payment = {
+          status: 'DOWN',
+          error: paystackError.message
+        };
+        if (detailedStatus.status === 'UP') {
+          detailedStatus.status = 'DEGRADED';
+        }
+      }
+
       const statusCode = 
         detailedStatus.status === 'UP' ? 200 :
         detailedStatus.status === 'DEGRADED' ? 200 : 503;
@@ -162,8 +244,14 @@ class HealthController {
         ready = false;
       }
 
-      // Add other critical checks as needed
-      // For now, just database is critical
+      // Redis readiness
+      try {
+        await redis.ping();
+        checks.redis = { status: 'READY' };
+      } catch (redisError) {
+        checks.redis = { status: 'NOT_READY', error: redisError.message };
+        ready = false;
+      }
 
       const statusCode = ready ? 200 : 503;
       res.status(statusCode).json({

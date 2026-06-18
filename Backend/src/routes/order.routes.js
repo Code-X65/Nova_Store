@@ -2,6 +2,9 @@ const express = require('express');
 const orderController = require('../controllers/order.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { hasPermission } = require('../middlewares/permission.middleware');
+const validate = require('../middlewares/validate.middleware');
+const deliveryValidator = require('../validators/delivery.validator');
+const returnEvidenceRouter = require('./order-return-evidence.routes');
 
 const router = express.Router();
 
@@ -9,16 +12,18 @@ const router = express.Router();
  * @swagger
  * tags:
  *   name: Orders
- *   description: Customer order management
+ *   description: Customer order management and admin delivery operations
  */
 
 router.use(protect);
+
+// ── Customer routes ─────────────────────────────────────────────────────────
 
 /**
  * @swagger
  * /orders:
  *   get:
- *     summary: Get user's orders
+ *     summary: Get current user's orders
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -33,14 +38,6 @@ router.get('/', orderController.getMyOrders);
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string, format: uuid }
- *     responses:
- *       200:
- *         description: PDF invoice downloaded successfully
  */
 router.get('/:id/invoice', orderController.getInvoice);
 
@@ -48,7 +45,7 @@ router.get('/:id/invoice', orderController.getInvoice);
  * @swagger
  * /orders/{id}:
  *   get:
- *     summary: Get order details
+ *     summary: Get order details (includes dispatch history)
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -64,16 +61,12 @@ router.get('/:id', orderController.getOrderDetails);
  *     security:
  *       - bearerAuth: []
  *     requestBody:
- *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
  *             properties:
  *               reason: { type: string }
- *     responses:
- *       200:
- *         description: Order cancelled
  */
 router.post('/:id/cancel', orderController.cancelOrder);
 
@@ -81,7 +74,7 @@ router.post('/:id/cancel', orderController.cancelOrder);
  * @swagger
  * /orders/{id}/return-request:
  *   post:
- *     summary: Request a return for a delivered order
+ *     summary: Request a return (must be within 7 days of delivery)
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -91,26 +84,38 @@ router.post('/:id/cancel', orderController.cancelOrder);
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [reason]
  *             properties:
- *               reason: { type: string }
- *     responses:
- *       200:
- *         description: Return requested
+ *               reason:         { type: string, minLength: 5 }
+ *               evidenceUrls:   { type: array, items: { type: string, format: uri } }
+ *               evidenceNotes:  { type: string }
  */
-router.post('/:id/return-request', orderController.requestReturn);
+router.post('/:id/return-request',
+  validate(deliveryValidator.requestReturn),
+  orderController.requestReturn
+);
+
+/**
+ * @swagger
+ * /orders/{id}/return-evidence:
+ *   post:
+ *     summary: Upload return evidence photos (max 5 files, images only)
+ *     tags: [Orders]
+ */
+router.use('/:id/return-evidence', returnEvidenceRouter);
 
 /**
  * @swagger
  * /orders/{id}/reorder:
  *   post:
- *     summary: Reorder items from previous order
+ *     summary: Re-add items from a previous order to cart
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
  */
 router.post('/:id/reorder', orderController.reorder);
 
-// --- Admin Order Routes ---
+// ── Admin routes ─────────────────────────────────────────────────────────────
 
 /**
  * @swagger
@@ -125,45 +130,288 @@ router.get('/admin/list', hasPermission('order:read'), orderController.getAllOrd
 
 /**
  * @swagger
- * /orders/admin/{id}:
- *   patch:
- *     summary: Update order status (Admin)
+ * /orders/admin/dispatch-queue:
+ *   get:
+ *     summary: View the live dispatch queue — orders in active delivery stages
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema: { type: string }
+ *         description: Filter by order status (e.g. ready_for_dispatch, dispatched)
+ *       - in: query
+ *         name: deliveryStatus
+ *         schema: { type: string }
+ *         description: Filter by delivery_status column (e.g. not_dispatched, assigned)
+ *       - in: query
+ *         name: staleSinceMinutes
+ *         schema: { type: integer }
+ *         description: Filter for orders stale/not updated for at least this many minutes (SLA window)
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer }
+ */
+router.get('/admin/dispatch-queue', hasPermission('order:read'), orderController.getDispatchQueue);
+
+/**
+ * @swagger
+ * /orders/admin/{id}:
+ *   patch:
+ *     summary: Generic order status update (Admin)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: Order ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status: { type: string }
+ *               trackingNumber: { type: string }
+ *               carrier: { type: string }
+ *               note: { type: string }
  */
 router.patch('/admin/:id', hasPermission('order:write'), orderController.updateOrderStatus);
 
 /**
  * @swagger
- * /orders/admin/{id}/ship:
+ * /orders/admin/{id}/ready:
  *   post:
- *     summary: Mark order as shipped (Admin)
+ *     summary: Mark order as packed and ready for dispatch
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: Order ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               note: { type: string }
  */
-router.post('/admin/:id/ship', hasPermission('order:write'), orderController.shipOrder);
+router.post('/admin/:id/ready',
+  hasPermission('order:write'),
+  validate(deliveryValidator.deliveryMilestoneNote),
+  orderController.markReadyForDispatch
+);
+
+/**
+ * @swagger
+ * /orders/admin/{id}/dispatch:
+ *   post:
+ *     summary: Assign a driver and dispatch the order
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: Order ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [driverName]
+ *             properties:
+ *               driverName:     { type: string }
+ *               driverPhone:    { type: string }
+ *               dispatchNotes:  { type: string }
+ *               deliveryWindow: { type: string, enum: [morning, afternoon, evening, custom] }
+ */
+router.post('/admin/:id/dispatch',
+  hasPermission('order:write'),
+  validate(deliveryValidator.dispatchOrder),
+  orderController.dispatchOrder
+);
+
+/**
+ * @swagger
+ * /orders/admin/{id}/picked-up:
+ *   post:
+ *     summary: Record that the driver collected the package
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: Order ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               note: { type: string }
+ */
+router.post('/admin/:id/picked-up',
+  hasPermission('order:write'),
+  validate(deliveryValidator.deliveryMilestoneNote),
+  orderController.markPickedUp
+);
+
+/**
+ * @swagger
+ * /orders/admin/{id}/out-for-delivery:
+ *   post:
+ *     summary: Mark order as out for delivery (driver en route)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: Order ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               note: { type: string }
+ */
+router.post('/admin/:id/out-for-delivery',
+  hasPermission('order:write'),
+  validate(deliveryValidator.deliveryMilestoneNote),
+  orderController.markOutForDelivery
+);
+
+/**
+ * @swagger
+ * /orders/admin/{id}/delivery-attempted:
+ *   post:
+ *     summary: Record a failed delivery attempt
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: Order ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               note: { type: string }
+ */
+router.post('/admin/:id/delivery-attempted',
+  hasPermission('order:write'),
+  validate(deliveryValidator.deliveryMilestoneNote),
+  orderController.markDeliveryAttempted
+);
 
 /**
  * @swagger
  * /orders/admin/{id}/deliver:
  *   post:
- *     summary: Mark order as delivered (Admin)
+ *     summary: Mark order as delivered with proof of delivery
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: Order ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               podType:  { type: string, enum: [otp, signature, photo_reference, driver_confirmation] }
+ *               podValue: { type: string }
+ *               note:     { type: string }
  */
-router.post('/admin/:id/deliver', hasPermission('order:write'), orderController.deliverOrder);
+router.post('/admin/:id/deliver',
+  hasPermission('order:write'),
+  validate(deliveryValidator.markDelivered),
+  orderController.deliverOrder
+);
+
+/**
+ * @swagger
+ * /orders/admin/{id}/returned-to-store:
+ *   post:
+ *     summary: Mark order as returned to store by driver (undelivered). Re-queues the order back to 'processing' status.
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: Order ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               note: { type: string }
+ */
+router.post('/admin/:id/returned-to-store',
+  hasPermission('order:write'),
+  validate(deliveryValidator.deliveryMilestoneNote),
+  orderController.markReturnedToStore
+);
 
 /**
  * @swagger
  * /orders/admin/{id}/return:
  *   post:
- *     summary: Process a return request — approve | reject | complete
+ *     summary: Process a customer return through all stages. Enforces strict state transitions.
+ *     description: |
+ *       Enforces the following return state-transition guardrails:
+ *       * **review** requires current status: `requested`
+ *       * **approve** requires current status: `requested`, `under_review`
+ *       * **reject** requires current status: `requested`, `under_review`, `approved`
+ *       * **schedule_pickup** requires current status: `approved`
+ *       * **mark_collected** requires current status: `pickup_scheduled`
+ *       * **complete_qc** requires current status: `collected`. Reintegrates inventory if `qcOutcome` is `sellable`.
+ *       * **process_refund** requires current status: `qc_received`
+ *       * **complete** requires current status: `refund_pending`. Payment gateway refund must succeed before calling this endpoint (blocks completion if payment gateway fails).
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: Order ID
  *     requestBody:
  *       required: true
  *       content:
@@ -172,13 +420,21 @@ router.post('/admin/:id/deliver', hasPermission('order:write'), orderController.
  *             type: object
  *             required: [action]
  *             properties:
- *               action: { type: string, enum: [approve, reject, complete] }
- *               note: { type: string }
+ *               action:
+ *                 type: string
+ *                 enum: [review, approve, reject, schedule_pickup, mark_collected, complete_qc, process_refund, complete]
+ *               note:         { type: string }
  *               refundAmount: { type: number }
- *     responses:
- *       200:
- *         description: Return processed
+ *               qcOutcome:    { type: string, enum: [sellable, damaged, quarantine, discard] }
+ *               qcNotes:      { type: string }
  */
-router.post('/admin/:id/return', hasPermission('order:write'), orderController.processReturn);
+router.post('/admin/:id/return',
+  hasPermission('order:write'),
+  validate(deliveryValidator.processReturn),
+  orderController.processReturn
+);
+
+// Legacy alias — ship endpoint forwards to the generic status updater
+router.post('/admin/:id/ship', hasPermission('order:write'), orderController.updateOrderStatus);
 
 module.exports = router;

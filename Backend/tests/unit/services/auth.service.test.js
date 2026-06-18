@@ -7,8 +7,13 @@ jest.mock('../../../src/models/user.model');
 jest.mock('../../../src/models/session.model');
 jest.mock('../../../src/models/token.model');
 jest.mock('../../../src/services/email.service');
+jest.mock('../../../src/services/audit.service');
+jest.mock('../../../src/services/notification.service');
+jest.mock('../../../src/services/registration.service');
+jest.mock('../../../src/config/redis', () => ({ redisClient: { isOpen: false } }));
 jest.mock('bcrypt');
 jest.mock('jsonwebtoken');
+
 
 describe('AuthService', () => {
   afterEach(() => {

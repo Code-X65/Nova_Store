@@ -768,5 +768,25 @@ router.post('/resend-verification', validate(resendVerificationSchema), authCont
  */
 router.get('/oauth/status', protect, authController.getOAuthStatus);
 
+/**
+ * @swagger
+ * /auth/csrf-token:
+ *   get:
+ *     summary: Retrieve active session CSRF token
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: CSRF token retrieved successfully
+ */
+router.get('/csrf-token', (req, res) => {
+  const crypto = require('crypto');
+  if (req.session && !req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+  }
+  res.status(200).json({
+    success: true,
+    csrfToken: req.session ? req.session.csrfToken : null
+  });
+});
 
 module.exports = router;

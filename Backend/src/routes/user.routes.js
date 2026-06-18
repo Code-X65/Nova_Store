@@ -190,6 +190,34 @@ router.delete('/avatar', userController.deleteAvatar);
  */
 router.delete('/account', userController.deleteAccount);
 
+/**
+ * @swagger
+ * /user/gdpr/export:
+ *   get:
+ *     summary: Export user profile and database records (GDPR Data Portability)
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User data export payload
+ */
+router.get('/gdpr/export', userController.exportUserData);
+
+/**
+ * @swagger
+ * /user/gdpr/forget:
+ *   delete:
+ *     summary: Request anonymization and erasure of personal data (GDPR Right to be Forgotten)
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: GDPR erasure complete
+ */
+router.delete('/gdpr/forget', userController.gdprForget);
+
 // --- Address Routes ---
 
 /**

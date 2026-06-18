@@ -33,11 +33,19 @@ class NotificationService {
       if (!user) throw new Error('User not found');
       const settings = await NotificationSettingModel.getSettings(userId);
 
-      // 2. Get template
+      // 2. Get template — findByKey only returns active templates
       const template = await NotificationTemplateModel.findByKey(templateKey);
       if (!template && !customTitle) {
-        throw new Error(`Template ${templateKey} not found`);
+        // Check if template exists but is deactivated, to surface a clearer warning
+        const anyTemplate = await NotificationTemplateModel.findByKeyAny(templateKey).catch(() => null);
+        if (anyTemplate) {
+          logger.warn(`[Notification] Template '${templateKey}' is deactivated — skipping notification for user ${userId}`);
+        } else {
+          logger.warn(`[Notification] Template '${templateKey}' not found — skipping notification for user ${userId}`);
+        }
+        throw new Error(`Template ${templateKey} not found or is deactivated`);
       }
+
 
       // 3. Render content
       let title = customTitle || template.subject;
@@ -141,6 +149,74 @@ class NotificationService {
 
   async sendOrderConfirmation(userId, orderNumber, totalAmount) {
     return await this.sendToUser(userId, 'order_created', { orderNumber, totalAmount });
+  }
+
+  // ─── Admin Invitation Emails ───────────────────────────────────────────────
+  // These send directly via EmailService because the recipient may not yet be
+  // a registered user in the system.
+
+  /**
+   * Send an admin invitation email.
+   *
+   * @param {object} params
+   * @param {string} params.to          - Recipient email address
+   * @param {string} params.inviteLink  - Full accept-invite URL
+   * @param {string} params.inviterName - Display name of the inviting admin
+   * @param {string} params.expiryDate  - Human-readable expiry date string
+   */
+  async sendAdminInvitationEmail({ to, inviteLink, inviterName, expiryDate }) {
+    try {
+      await EmailService.sendTemplate('admin_invitation', to, {
+        inviteLink,
+        inviterName,
+        expiryDate,
+        storeName: process.env.STORE_NAME || 'Nova Store'
+      });
+      return true;
+    } catch (err) {
+      logger.error(`[NotificationService] Failed to send admin invitation email to ${to}:`, err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Notify the inviting admin that their invitation was accepted.
+   *
+   * @param {object} params
+   * @param {string} params.to             - Inviter's email
+   * @param {string} params.newAdminName   - Display name of the new admin
+   * @param {string} params.newAdminEmail  - Email of the new admin
+   */
+  async sendAdminInvitationAcceptedEmail({ to, newAdminName, newAdminEmail }) {
+    try {
+      await EmailService.sendTemplate('admin_invitation_accepted', to, {
+        newAdminName,
+        newAdminEmail,
+        storeName: process.env.STORE_NAME || 'Nova Store'
+      });
+      return true;
+    } catch (err) {
+      logger.error(`[NotificationService] Failed to send invitation-accepted email to ${to}:`, err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Notify the invitee that their invitation has been revoked.
+   *
+   * @param {object} params
+   * @param {string} params.to - Invitee's email
+   */
+  async sendAdminInvitationRevokedEmail({ to }) {
+    try {
+      await EmailService.sendTemplate('admin_invitation_revoked', to, {
+        storeName: process.env.STORE_NAME || 'Nova Store'
+      });
+      return true;
+    } catch (err) {
+      logger.error(`[NotificationService] Failed to send invitation-revoked email to ${to}:`, err.message);
+      return false;
+    }
   }
 }
 

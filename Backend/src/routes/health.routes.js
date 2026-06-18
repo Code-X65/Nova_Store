@@ -25,6 +25,18 @@ router.get('/', healthController.getHealth);
 
 /**
  * @swagger
+ * /health/metrics:
+ *   get:
+ *     summary: Prometheus metrics endpoint
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Metrics exported
+ */
+router.get('/metrics', healthController.getMetrics);
+
+/**
+ * @swagger
  * /health/detailed:
  *   get:
  *     summary: Detailed health check with dependency information

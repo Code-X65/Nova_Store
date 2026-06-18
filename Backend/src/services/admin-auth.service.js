@@ -1,70 +1,81 @@
-const bcrypt = require('bcrypt');
-const adminModel = require('../models/admin.model');
+const authService = require('./auth.service');
 const adminAuthLogModel = require('../models/admin-auth-log.model');
+const logger = require('../utils/logger');
+
+/** Map a thrown error message to a short reason code for the audit log. */
+function resolveFailureReason(errorMessage) {
+  if (!errorMessage) return 'unknown';
+  const msg = errorMessage.toLowerCase();
+  if (msg.includes('deactivated'))    return 'account_deactivated';
+  if (msg.includes('locked'))         return 'account_locked';
+  if (msg.includes('invalid') || msg.includes('password')) return 'bad_credentials';
+  if (msg.includes('invitation'))     return 'no_password_set';
+  return 'unknown';
+}
 
 class AdminAuthService {
   /**
    * Attempt to authenticate an admin with email + password.
    *
-   * On success: logs the event and returns the admin row (without password_hash).
-   * On failure: logs the event and throws a generic Error or specific lockout/deactivation errors.
+   * On success: logs the event (awaited) and returns the admin row.
+   * On failure: logs the event (awaited) and re-throws a sanitised error.
    *
    * @param {string} email
    * @param {string} password   Plain-text password from the request body
    * @param {string} ip         Request IP for audit logging
    * @param {string} userAgent  Request User-Agent for audit logging
-   * @returns {Promise<{ id: string, email: string }>}
+   * @returns {Promise<{ id: string, email: string, role: string }>}
    */
   async login(email, password, ip, userAgent) {
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Always look up the admin first
-    const admin = await adminModel.findByEmail(normalizedEmail);
+    try {
+      const { user } = await authService.adminLogin(normalizedEmail, password, ip);
 
-    if (admin) {
-      if (!admin.is_active) {
+      // Successful login — awaited so the record is guaranteed before we return
+      try {
+        await adminAuthLogModel.log({
+          adminId:        user.id,
+          ipAddress:      ip,
+          emailAttempted: normalizedEmail,
+          success:        true,
+          userAgent:      userAgent,
+        });
+      } catch (logErr) {
+        // Log failure must never block the successful auth response
+        logger.error('[AdminAuthService] Failed to write success auth log:', logErr.message);
+      }
+
+      return { id: user.id, email: user.email, role: user.role };
+    } catch (error) {
+      const failureReason = resolveFailureReason(error.message);
+
+      // Failed login — awaited so the record lands before the error propagates
+      try {
+        await adminAuthLogModel.log({
+          adminId:        null,
+          ipAddress:      ip,
+          emailAttempted: normalizedEmail,
+          success:        false,
+          failureReason:  failureReason,
+          userAgent:      userAgent,
+        });
+      } catch (logErr) {
+        logger.error('[AdminAuthService] Failed to write failure auth log:', logErr.message);
+      }
+
+      // Map authService errors to keep controller compatibility
+      if (error.message.includes('deactivated')) {
         throw new Error('Account deactivated');
       }
-
-      if (admin.lock_until && new Date(admin.lock_until) > new Date()) {
+      if (error.message.includes('locked')) {
         throw new Error('Account locked');
       }
-    }
-
-    const dummyHash = '$2b$12$invalidhashusedtopreventipenumeration000000000000000000000';
-    const hashToCheck = admin ? admin.password_hash : dummyHash;
-
-    const match = await bcrypt.compare(password, hashToCheck);
-
-    if (!admin || !match) {
-      if (admin) {
-        await adminModel.incrementFailedAttempts(admin);
+      if (error.message.includes('Invalid') || error.statusCode === 401) {
+        throw new Error('Invalid credentials');
       }
-
-      // Fire-and-forget log (non-blocking)
-      adminAuthLogModel.log({
-        adminId:        null,
-        ipAddress:      ip,
-        emailAttempted: normalizedEmail,
-        success:        false,
-        userAgent:      userAgent,
-      });
-      throw new Error('Invalid credentials');
+      throw error;
     }
-
-    // Successful login - reset failed attempts
-    await adminModel.resetFailedAttempts(admin);
-
-    adminAuthLogModel.log({
-      adminId:        admin.id,
-      ipAddress:      ip,
-      emailAttempted: normalizedEmail,
-      success:        true,
-      userAgent:      userAgent,
-    });
-
-    // Return only safe fields — never expose password_hash outside this service
-    return { id: admin.id, email: admin.email };
   }
 }
 

@@ -1,6 +1,8 @@
 const NotificationModel = require('../../models/notification.model');
 const NotificationTemplateModel = require('../../models/notification-template.model');
 const NotificationService = require('../../services/notification.service');
+const notificationQueue = require('../../services/notification-queue.service');
+
 
 exports.getAllNotifications = async (req, res, next) => {
   try {
@@ -107,3 +109,29 @@ exports.testEmail = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * GET /admin/notifications/health
+ * Returns real-time metrics for the async notification queue.
+ */
+exports.getQueueHealth = async (req, res, next) => {
+  try {
+    const stats = await notificationQueue.getQueueStats();
+    res.status(200).json({
+      success: true,
+      data: {
+        queue: {
+          pending:  stats.pending,
+          inflight: stats.inflight,
+          failed:   stats.failed,
+          // A high inflight count relative to pending may indicate stuck jobs
+          status: stats.inflight > 100 ? 'degraded' : 'healthy',
+        },
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

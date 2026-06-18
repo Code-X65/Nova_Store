@@ -1,8 +1,27 @@
+const logger = require('../utils/logger');
+const errorTracker = require('../utils/error-tracker');
+
 const errorHandler = (err, req, res, next) => {
-  console.error(`[${new Date().toISOString()}] ${err.stack}`);
+  logger.error('Unhandled request error', {
+    error: err.message,
+    stack: err.stack,
+    method: req.method,
+    url: req.originalUrl,
+  });
+
+  // Track unhandled 5xx server errors in Sentry
+  let statusCode = err.statusCode || 500;
+  if (statusCode >= 500) {
+    errorTracker.captureException(err, {
+      extra: {
+        method: req.method,
+        url: req.originalUrl,
+        requestId: req.id,
+      }
+    });
+  }
   
   // Default error
-  let statusCode = err.statusCode || 500;
   let errorCode = err.code || 'SERVER_ERROR';
   let message = err.message || 'Internal server error';
   let details = err.details || [];

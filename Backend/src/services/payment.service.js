@@ -5,30 +5,71 @@ const CartService = require('./cart.service');
 const CouponService = require('./coupon.service');
 const InventoryReservationService = require('./inventory-reservation.service');
 const AuditService = require('./audit.service');
+const SettingModel = require('../models/setting.model');
 const crypto = require('crypto');
-const Stripe = require('stripe');
-const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+const CircuitBreaker = require('../utils/circuit-breaker');
+const contextStore = require('../utils/context');
+
+const paystackRequest = async ({ url, method, body, customHeaders = {} }) => {
+  const store = contextStore.getStore();
+  const reqId = store?.requestId;
+  
+  const headers = {
+    ...customHeaders
+  };
+  if (reqId) {
+    headers['X-Request-ID'] = reqId;
+    headers['traceparent'] = `00-${reqId.replace(/-/g, '')}-0000000000000001-01`;
+  }
+
+  const response = await fetch(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.message || `Paystack API returned HTTP ${response.status}`);
+  }
+  return result;
+};
+
+const paystackBreaker = new CircuitBreaker(paystackRequest, {
+  failureThreshold: 5,
+  cooldownPeriod: 30000
+});
+
+async function getPaystackSecretKey() {
+  let secretKey = process.env.PAYSTACK_SECRET_KEY;
+  try {
+    const setting = await SettingModel.getByKey('paystack_secret_key');
+    if (setting && setting.value) {
+      secretKey = setting.value;
+    }
+  } catch (err) {
+    // Fallback
+  }
+  return secretKey;
+}
 
 class PaymentService {
   async initializePaystack(userId, email, amount, checkoutSessionId) {
     try {
-      const response = await fetch('https://api.paystack.co/transaction/initialize', {
+      const paystackSecretKey = await getPaystackSecretKey();
+      const result = await paystackBreaker.execute({
+        url: 'https://api.paystack.co/transaction/initialize',
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+        body: {
           email,
           amount: Math.round(amount * 100), // convert to kobo
           metadata: { checkoutSessionId, userId }
-        })
+        },
+        customHeaders: {
+          'Authorization': `Bearer ${paystackSecretKey}`,
+          'Content-Type': 'application/json'
+        }
       });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to initialize Paystack payment');
-      }
 
       const { data } = result;
       
@@ -44,17 +85,14 @@ class PaymentService {
 
   async verifyPaystack(reference) {
     try {
-      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      const paystackSecretKey = await getPaystackSecretKey();
+      const result = await paystackBreaker.execute({
+        url: `https://api.paystack.co/transaction/verify/${reference}`,
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
+        customHeaders: {
+          'Authorization': `Bearer ${paystackSecretKey}`
         }
       });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to verify Paystack payment');
-      }
 
       const { data } = result;
       if (data.status === 'success') {
@@ -68,7 +106,7 @@ class PaymentService {
 
   async handleWebhook(provider, payload, signature) {
     // 1. Verify Signature
-    if (!this.verifySignature(provider, payload, signature)) {
+    if (!await this.verifySignature(provider, payload, signature)) {
       throw new Error('Invalid signature');
     }
 
@@ -78,38 +116,18 @@ class PaymentService {
       if (event === 'charge.success') {
         await this.handleSuccessfulPayment(data.reference, 'paystack', data);
       }
-    } else if (provider === 'stripe') {
-      const { type, data } = payload;
-      if (type === 'checkout.session.completed') {
-        await this.handleSuccessfulPayment(data.object.id, 'stripe', data.object);
-      }
     }
     
     return { success: true };
   }
 
-  verifySignature(provider, payload, signature) {
+  async verifySignature(provider, payload, signature) {
     if (provider === 'paystack') {
-      const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
+      const paystackSecretKey = await getPaystackSecretKey();
+      const hash = crypto.createHmac('sha512', paystackSecretKey)
                          .update(JSON.stringify(payload))
                          .digest('hex');
       return hash === signature;
-    }
-
-    if (provider === 'stripe') {
-      if (!signature) return false;
-      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-      if (!webhookSecret) {
-        console.error('STRIPE_WEBHOOK_SECRET is not set; cannot verify Stripe signature');
-        return false;
-      }
-      try {
-        stripeClient.webhooks.constructEvent(payload, signature, webhookSecret);
-        return true;
-      } catch (err) {
-        console.error('Stripe signature verification failed:', err.message);
-        return false;
-      }
     }
 
     return false;
@@ -125,46 +143,8 @@ class PaymentService {
       orderId = payment.order_id;
       await PaymentModel.updateStatus(payment.id, 'success', rawResponse);
     } else {
-      // No pre-existing payments row — typical for Stripe webhooks when the frontend
-      // redirects directly to Stripe Checkout without calling our initialize endpoint.
-      // Retrieve the Stripe session to extract the internal checkoutSessionId stored
-      // in metadata, then locate the order and create the payments record.
-      if (provider === 'stripe') {
-        try {
-          const stripeSession = await stripeClient.checkout.sessions.retrieve(reference);
-          const internalSessionId = stripeSession?.metadata?.checkoutSessionId;
-
-          if (!internalSessionId) {
-            console.error(`[Payment] Stripe session ${reference} has no checkoutSessionId metadata.`);
-            return;
-          }
-
-          const matchedOrder = await OrderModel.findByCheckoutSessionId(internalSessionId);
-          if (!matchedOrder) {
-            console.error(`[Payment] No order found for checkoutSessionId ${internalSessionId}.`);
-            return;
-          }
-
-          orderId = matchedOrder.id;
-
-          // Persist the payments row so future webhook retries hit the fast path above
-          await PaymentModel.create({
-            order_id: orderId,
-            reference,
-            provider: 'stripe',
-            amount: matchedOrder.total_amount,
-            currency: 'NGN',
-            status: 'success',
-            raw_response: rawResponse,
-          });
-        } catch (lookupErr) {
-          console.error('[Payment] Failed to resolve Stripe order from webhook:', lookupErr.message);
-          return;
-        }
-      } else {
-        console.error(`[Payment] No payment record found for reference ${reference} (${provider}).`);
-        return;
-      }
+      console.error(`[Payment] No payment record found for reference ${reference} (${provider}).`);
+      return;
     }
 
     // 2. Update Order Status
@@ -203,58 +183,7 @@ class PaymentService {
   }
 
   /**
-   * Initialize a Stripe Checkout Session.
-   * Creates a pending `payments` row keyed on the Stripe session ID so that
-   * the incoming webhook can be resolved idempotently via PaymentModel.findByReference.
-   *
-   * @param {string}  userId            - Authenticated user's ID
-   * @param {string}  email             - Customer email for the Stripe session
-   * @param {number}  amount            - Total in major currency units (e.g. NGN)
-   * @param {string}  checkoutSessionId - Internal UUID from createCheckoutSession
-   * @param {string}  orderId           - Order ID to associate the payment with
-   * @returns {{ sessionId: string, url: string }}
-   */
-  async initializeStripe(userId, email, amount, checkoutSessionId, orderId) {
-    try {
-      const session = await stripeClient.checkout.sessions.create({
-        payment_method_types: ['card'],
-        mode: 'payment',
-        customer_email: email,
-        line_items: [{
-          price_data: {
-            currency: (process.env.CURRENCY || 'ngn').toLowerCase(),
-            product_data: { name: 'Nova Store Order' },
-            unit_amount: Math.round(amount * 100), // Stripe expects minor units
-          },
-          quantity: 1,
-        }],
-        // Embed our internal IDs in metadata so the webhook can resolve the order
-        // even when no pending payments row was created before the session completed.
-        metadata: { checkoutSessionId, orderId, userId: String(userId) },
-        success_url: `${process.env.CLIENT_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  `${process.env.CLIENT_URL}/checkout/cancel`,
-      });
-
-      // Persist a pending payment row so the webhook lookup (findByReference) hits
-      // the fast idempotent path instead of the slower metadata-resolve fallback.
-      await PaymentModel.create({
-        order_id: orderId,
-        reference: session.id,
-        provider: 'stripe',
-        amount,
-        currency: (process.env.CURRENCY || 'NGN').toUpperCase(),
-        status: 'pending',
-      });
-
-      return { sessionId: session.id, url: session.url };
-    } catch (error) {
-      console.error('Stripe Init Error:', error.message);
-      throw error;
-    }
-  }
-
-  /**
-   * Refund a successful payment via the gateway (Stripe or Paystack).
+   * Refund a successful payment via the gateway (Paystack).
    * @param {string} orderId
    * @param {number} refundAmount - Amount to refund
    * @param {string} reason       - Reason for refund
@@ -268,36 +197,21 @@ class PaymentService {
 
       let rawResponse = null;
 
-      if (payment.provider === 'stripe') {
-        const session = await stripeClient.checkout.sessions.retrieve(payment.reference);
-        const paymentIntentId = session.payment_intent;
-        if (!paymentIntentId) {
-          throw new Error(`No payment intent found on Stripe session ${payment.reference}`);
-        }
-
-        const refund = await stripeClient.refunds.create({
-          payment_intent: paymentIntentId,
-          amount: Math.round(refundAmount * 100),
-        });
-        rawResponse = refund;
-      } else if (payment.provider === 'paystack') {
-        const response = await fetch('https://api.paystack.co/refund', {
+      if (payment.provider === 'paystack') {
+        const paystackSecretKey = await getPaystackSecretKey();
+        const result = await paystackBreaker.execute({
+          url: 'https://api.paystack.co/refund',
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
+          body: {
             transaction: payment.reference,
             amount: Math.round(refundAmount * 100),
             customer_note: reason || 'Refund for returned items'
-          })
+          },
+          customHeaders: {
+            'Authorization': `Bearer ${paystackSecretKey}`,
+            'Content-Type': 'application/json'
+          }
         });
-
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(result.message || 'Paystack refund failed');
-        }
         rawResponse = result.data;
       } else {
         throw new Error(`Unsupported payment provider for refunds: ${payment.provider}`);

@@ -233,6 +233,116 @@ class UserModel {
     if (error) throw error;
     return (count || 0) > 0;
   }
+
+  /**
+   * List all users with ADMIN or SUPER_ADMIN roles.
+   *
+   * @param {object} opts
+   * @param {string} [opts.role]    - Filter by role name
+   * @param {string} [opts.search]  - Partial email/name search
+   * @param {number} [opts.page=1]
+   * @param {number} [opts.limit=20]
+   */
+  async findAdmins({ role, search, page = 1, limit = 20 } = {}) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase
+      .from('users')
+      .select(
+        'id, email, first_name, last_name, role, is_active, created_at, last_login_at, ' +
+        'user_roles(role_id, roles(id, name))',
+        { count: 'exact' }
+      )
+      .in('role', ['ADMIN', 'SUPER_ADMIN'])
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (role) query = query.eq('role', role);
+    if (search) {
+      query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    return { admins: data, total: count || 0, page, limit };
+  }
+
+  /**
+   * List all SUPER_ADMIN users.
+   */
+  async findSuperAdmins() {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, first_name, last_name, role, is_active, created_at')
+      .eq('role', 'SUPER_ADMIN')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Check whether a user holds the SUPER_ADMIN role in user_roles.
+   *
+   * @param {string} userId
+   * @returns {boolean}
+   */
+  async isSuperAdmin(userId) {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('roles(name)')
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return (data || []).some(ur => ur.roles?.name === 'SUPER_ADMIN');
+  }
+
+  /**
+   * Load a user's roles and their associated permissions.
+   * Returns { roles: string[], permissions: string[] }
+   *
+   * @param {string} userId
+   */
+  async getUserRolesAndPermissions(userId) {
+    const [rolesResult, userResult] = await Promise.all([
+      supabase
+        .from('user_roles')
+        .select('roles(name, role_permissions(permissions(key, name)))')
+        .eq('user_id', userId),
+      supabase
+        .from('users')
+        .select('extra_permissions')
+        .eq('id', userId)
+        .single()
+    ]);
+
+    if (rolesResult.error) throw rolesResult.error;
+    if (userResult.error && userResult.error.code !== 'PGRST116') throw userResult.error;
+
+    const roles = [];
+    const permSet = new Set();
+
+    for (const ur of rolesResult.data || []) {
+      const role = ur.roles;
+      if (!role) continue;
+      roles.push(role.name);
+      for (const rp of role.role_permissions || []) {
+        if (rp.permissions?.key) permSet.add(rp.permissions.key);
+        if (rp.permissions?.name) permSet.add(rp.permissions.name);
+      }
+    }
+
+    const extraPerms = userResult.data?.extra_permissions;
+    if (Array.isArray(extraPerms)) {
+      for (const perm of extraPerms) {
+        permSet.add(perm);
+      }
+    }
+
+    return { roles, permissions: [...permSet] };
+  }
 }
 
 module.exports = new UserModel();

@@ -1,0 +1,103 @@
+name: Nova Store Backend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    name: Run Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      # Spin up a Redis container to ensure any active Redis logic in tests succeeds
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./Backend
+        run: npm ci
+
+      - name: Audit Dependencies for Vulnerabilities
+        working-directory: ./Backend
+        run: npm audit --audit-level=high || true
+
+      - name: Run Jest Test Suite (Unit & Integration)
+        working-directory: ./Backend
+        env:
+          NODE_ENV: test
+          PORT: 5000
+          SESSION_SECRET: CI_TEST_SESSION_SECRET_KEY
+          JWT_ACCESS_SECRET: CI_TEST_JWT_ACCESS_SECRET_KEY
+          JWT_REFRESH_SECRET: CI_TEST_JWT_REFRESH_SECRET_KEY
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres # Mock connection string
+          REDIS_URL: redis://localhost:6379
+        run: npm run test
+
+  build-image:
+    name: Build & Package Docker Image
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Production Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Backend
+          file: ./Backend/Dockerfile
+          push: false # Set to true once registry credentials are configured
+          tags: novastore/backend:latest,novastore/backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy Container to Production
+    needs: build-image
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      # Template for deploying to cloud providers (e.g. AWS ECS, GCP Cloud Run, Render, or DigitalOcean)
+      - name: Trigger Cloud Provider Rollout
+        run: |
+          echo "Initiating production rollout for commit: ${{ github.sha }}"
+          # Example for Render deployment hook:
+          # curl -X POST https://api.render.com/deploy/srv-${{ secrets.RENDER_SERVICE_ID }}?key=${{ secrets.RENDER_DEPLOY_KEY }}
+          
+      # Run migrations on production database before traffic redirection
+      - name: Run Production Schema Migrations
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          echo "Executing schema migrations..."
+          # cd Backend && npm run db:migrate

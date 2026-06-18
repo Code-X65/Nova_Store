@@ -1,5 +1,6 @@
 const supabase = require('../config/supabase');
 const userModel = require('../models/user.model');
+const tokenModel = require('../models/token.model');
 const sharp = require('sharp');
 const crypto = require('crypto');
 const emailService = require('./email.service');
@@ -147,6 +148,71 @@ class UserService {
     return true;
   }
 
+  async exportUserData(userId) {
+    const user = await userModel.findById(userId);
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Clean user profile data
+    const { 
+      password_hash, 
+      deleted_at, 
+      google_id, 
+      apple_id, 
+      facebook_id, 
+      failed_login_attempts, 
+      lock_until, 
+      ...profile 
+    } = user;
+
+    // Fetch related records
+    const { data: addresses, error: addressesError } = await supabase
+      .from('addresses')
+      .select('*')
+      .eq('user_id', userId);
+    if (addressesError) throw addressesError;
+
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('*, items:order_items(*)')
+      .eq('user_id', userId);
+    if (ordersError) throw ordersError;
+
+    const { data: reviews, error: reviewsError } = await supabase
+      .from('product_reviews')
+      .select('*')
+      .eq('user_id', userId);
+    if (reviewsError) throw reviewsError;
+
+    const { data: productViews, error: productViewsError } = await supabase
+      .from('user_product_views')
+      .select('*')
+      .eq('user_id', userId);
+    if (productViewsError) throw productViewsError;
+
+    const { data: searchLogs, error: searchLogsError } = await supabase
+      .from('user_search_logs')
+      .select('*')
+      .eq('user_id', userId);
+    if (searchLogsError) throw searchLogsError;
+
+    return {
+      exported_at: new Date().toISOString(),
+      user_id: userId,
+      profile,
+      addresses: addresses || [],
+      orders: orders || [],
+      reviews: reviews || [],
+      telemetry: {
+        product_views: productViews || [],
+        search_logs: searchLogs || []
+      }
+    };
+  }
+
   async deleteAccount(userId) {
     // Soft delete / anonymize user
     const updates = {
@@ -192,6 +258,35 @@ class UserService {
 
     if (settingsError) {
       logger.error(`[GDPR Cleanup] Failed to delete notification settings for user ${userId}: ${settingsError.message}`);
+    }
+
+    // 4. Purge telemetry records
+    const { error: searchLogsError } = await supabase
+      .from('user_search_logs')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (searchLogsError) {
+      logger.error(`[GDPR Cleanup] Failed to delete search logs for user ${userId}: ${searchLogsError.message}`);
+    }
+
+    const { error: productViewsError } = await supabase
+      .from('user_product_views')
+      .delete()
+      .eq('user_id', userId);
+
+    if (productViewsError) {
+      logger.error(`[GDPR Cleanup] Failed to delete product views for user ${userId}: ${productViewsError.message}`);
+    }
+
+    // 5. Delete addresses (GDPR Right to be Forgotten)
+    const { error: addressError } = await supabase
+      .from('addresses')
+      .delete()
+      .eq('user_id', userId);
+
+    if (addressError) {
+      logger.error(`[GDPR Cleanup] Failed to delete addresses for user ${userId}: ${addressError.message}`);
     }
     
     logger.info(`User account soft-deleted and PII anonymized: ${userId}`);

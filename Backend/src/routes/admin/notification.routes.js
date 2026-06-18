@@ -107,6 +107,38 @@ router.post('/test-email', adminNotificationController.testEmail);
 
 /**
  * @swagger
+ * /admin/notifications/health:
+ *   get:
+ *     summary: Notification queue health metrics
+ *     description: Returns the number of pending and in-flight async notification jobs.
+ *     tags: [Admin Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Queue health snapshot
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     queue:
+ *                       type: object
+ *                       properties:
+ *                         pending:  { type: integer, description: Jobs waiting to be dispatched }
+ *                         inflight: { type: integer, description: Jobs currently being processed }
+ *                         status:   { type: string, enum: [healthy, degraded] }
+ *                     timestamp: { type: string, format: date-time }
+ */
+router.get('/health', adminNotificationController.getQueueHealth);
+
+
+/**
+ * @swagger
  * /admin/notifications/templates:
  *   get:
  *     summary: Get all notification templates

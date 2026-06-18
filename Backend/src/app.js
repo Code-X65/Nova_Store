@@ -2,11 +2,13 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const crypto = require('crypto');
+const csrfProtection = require('./middlewares/csrf.middleware');
 
 const adminUploadRoutes = require('./routes/admin/upload.routes');
 const currencyRoutes = require('./routes/currency.routes');
 
-const { authLimiter, adminLoginLimiter, resetLimiter, refreshLimiter, adminLimiter, apiLimiter } = require('./middlewares/rate-limit.middleware');
+const { authLimiter, adminLoginLimiter, resetLimiter, refreshLimiter, adminLimiter, apiLimiter, healthLimiter } = require('./middlewares/rate-limit.middleware');
 const cookieParser = require('cookie-parser');
 const requestIdMiddleware = require('./middlewares/request-id.middleware');
 const requestLogger = require('./middlewares/request-logger.middleware');
@@ -51,11 +53,24 @@ const pgSession = require('connect-pg-simple')(session);
 const requireAdmin = require('./middlewares/require-admin.middleware');
 const adminAuthRoutes = require('./routes/admin/auth.routes');
 const idempotencyMiddleware = require('./middlewares/idempotency.middleware');
+const invitationRoutes = require('./routes/admin/invitation.routes');
+const adminManagementRoutes = require('./routes/admin/admin-management.routes');
+const acceptInviteRoutes = require('./routes/public/accept-invite.routes');
+
+const { metricsMiddleware } = require('./middlewares/metrics.middleware');
+const compression = require('compression');
+const requestTimeout = require('./middlewares/timeout.middleware');
+const pgPool = require('./config/db');
 
 const app = express();
 app.set('trust proxy', 1);
 
+app.use(compression());
+app.use(requestTimeout(15000));
+
 app.use(requestIdMiddleware);
+app.use(metricsMiddleware);
+app.use(requestLogger);
 
 const maintenanceMiddleware = require('./middlewares/maintenance.middleware');
 const { optionalAuth } = require('./middlewares/auth.middleware');
@@ -64,11 +79,11 @@ app.use(maintenanceMiddleware);
 
 app.use(session({
   store: new pgSession({
-    conString: process.env.DATABASE_URL,
+    pool: pgPool,
     tableName: 'admin_sessions',
     pruneSessionInterval: 60 * 60,
   }),
-  secret: process.env.SESSION_SECRET || 'CHANGE_ME_IN_PRODUCTION',
+  secret: process.env.SESSION_SECRET.split(','),
   resave: false,
   saveUninitialized: false,
   name: 'connect.sid',
@@ -80,11 +95,16 @@ app.use(session({
   },
 }));
 
+app.use((req, res, next) => {
+  res.locals.nonce = crypto.randomBytes(16).toString('base64');
+  next();
+});
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", process.env.CLIENT_URL || 'http://localhost:5173'],
+      scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`, process.env.CLIENT_URL || 'http://localhost:5173'],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", process.env.CLIENT_URL || 'http://localhost:5173'],
@@ -127,21 +147,17 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use(xssSanitize);
 app.use(idempotencyMiddleware);
+app.use(csrfProtection);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'UP',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
+app.use('/health', healthLimiter, healthRoutes);
 
 app.use('/api/v1/admin', adminAuthRoutes);
 app.use('/api/v1/admin', requireAdmin);
 app.use('/api/v1/admin/sessions', require('./routes/admin/session.routes'));
+app.use('/api/v1/admin/migrations', require('./routes/admin/migration.routes'));
 app.use('/api/v1/admin/audit', require('./routes/admin/audit.routes'));
 app.use('/api/v1/admin/users', adminUserRoutes);
 app.use('/api/v1/admin/shipping', adminShippingRoutes);
@@ -152,6 +168,9 @@ app.use('/api/v1/admin/notifications', adminNotificationRoutes);
 app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
 app.use('/api/v1/admin/settings', adminSettingRoutes);
 app.use('/api/v1/admin/upload', adminUploadRoutes);
+app.use('/api/v1/admin/invitations', invitationRoutes);
+app.use('/api/v1/admin', adminManagementRoutes);
+app.use('/api/v1/accept-invite', acceptInviteRoutes);
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/user', userRoutes);
@@ -177,7 +196,7 @@ app.use('/api/v1/analytics', telemetryRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/settings', publicSettingRoutes);
 app.use('/api/v1/currencies', currencyRoutes);
-app.use('/api/v1/health', healthRoutes);
+app.use('/api/v1/health', healthLimiter, healthRoutes);
 
 app.use(errorMiddleware);
 
