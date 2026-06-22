@@ -437,4 +437,54 @@ router.post('/admin/:id/return',
 // Legacy alias — ship endpoint forwards to the generic status updater
 router.post('/admin/:id/ship', hasPermission('order:write'), orderController.updateOrderStatus);
 
+/**
+ * @swagger
+ * /orders/claim-guest-orders:
+ *   post:
+ *     summary: Claim guest checkout orders associated with the user's verified email
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Guest orders claimed successfully
+ *       400:
+ *         description: Email not verified or missing
+ */
+router.post('/claim-guest-orders', orderController.claimGuestOrders);
+
+/**
+ * @swagger
+ * /orders/admin/bulk-action:
+ *   post:
+ *     summary: Perform bulk status actions on multiple orders (Admin only)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [orderIds, action]
+ *             properties:
+ *               orderIds:
+ *                 type: array
+ *                 items: { type: string, format: uuid }
+ *               action:
+ *                 type: string
+ *                 enum: [pack, dispatch, deliver, cancel]
+ *               extraData:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Bulk action executed successfully
+ */
+router.post('/admin/bulk-action',
+  hasPermission('order:write'),
+  validate(deliveryValidator.bulkOrderAction),
+  orderController.bulkAction
+);
+
 module.exports = router;

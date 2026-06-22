@@ -182,10 +182,10 @@ async function runMigrations() {
     console.log('🔍 Running seed data verification...');
     
     // Verify default roles exist
-    const rolesCheck = await client.query("SELECT COUNT(*) FROM roles WHERE name IN ('USER', 'ADMIN', 'SUPER_ADMIN')");
+    const rolesCheck = await client.query("SELECT COUNT(*) FROM roles WHERE name IN ('customer', 'admin', 'SUPER_ADMIN')");
     const rolesCount = parseInt(rolesCheck.rows[0].count, 10);
     if (rolesCount < 3) {
-      console.warn('⚠️ WARNING: Core roles (USER, ADMIN, SUPER_ADMIN) are not fully seeded. Count: ' + rolesCount);
+      console.warn('⚠️ WARNING: Core roles (customer, admin, SUPER_ADMIN) are not fully seeded. Count: ' + rolesCount);
     } else {
       console.log('  ✓ Verified: Core roles exist.');
     }

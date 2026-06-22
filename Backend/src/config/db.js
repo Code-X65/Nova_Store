@@ -7,14 +7,14 @@ const pgPool = new Pool({
   connectionString,
   max: 20, // Max connection pool size
   idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
-  connectionTimeoutMillis: 2000, // Fail fast if database is unreachable (2 seconds)
+  connectionTimeoutMillis: 10000, // Fail fast if database is unreachable (10 seconds)
   ssl: {
     rejectUnauthorized: false
   }
 });
 
 pgPool.on('error', (err) => {
-  logger.error('Unexpected error on idle PostgreSQL client in pool:', err.message);
+  logger.error(`Unexpected error on idle PostgreSQL client in pool: ${err.message}`);
 });
 
 module.exports = pgPool;

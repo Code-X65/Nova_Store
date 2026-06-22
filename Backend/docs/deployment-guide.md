@@ -62,8 +62,7 @@ The API reads variables from the environment on startup. Ensure the following co
 | | `SMTP_PORT` | SMTP port | `587` |
 | | `SMTP_USER` | SMTP username credential | `smtp-username` |
 | | `SMTP_PASS` | SMTP password credential | `smtp-password` |
-| **Payment** | `STRIPE_SECRET_KEY` | Stripe backend payment key | `sk_live_...` |
-| | `STRIPE_WEBHOOK_SECRET` | Stripe webhook verification key | `whsec_...` |
+| **Payment** | `PAYSTACK_SECRET_KEY` | Paystack secret key | `sk_live_...` |
 
 ---
 

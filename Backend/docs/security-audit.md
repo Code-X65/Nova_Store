@@ -28,7 +28,7 @@ The Nova Store backend implements multiple defense-in-depth mechanisms to protec
 
 ### 1.5 Credentials & Token Rotation
 *   **Zero-Downtime Secret Rotation**: Both Express Session and JWT authentication support comma-separated lists of secrets (`SESSION_SECRET` and `JWT_ACCESS_SECRET`). The application sequentially attempts validation against all active keys, allowing seamless key rotation without logging out active users.
-*   **Dynamic Payment Keys**: Payment credentials (Stripe and Paystack secret keys) are resolved dynamically from database-backed `settings` configurations (with `.env` fallbacks) to allow instant gateway credential updates without restarting the application services.
+*   **Dynamic Payment Keys**: Payment credentials (Paystack secret key) are resolved dynamically from database-backed `settings` configurations (with `.env` fallbacks) to allow instant gateway credential updates without restarting the application services.
 
 ---
 

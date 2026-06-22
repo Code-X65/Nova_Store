@@ -17,6 +17,8 @@ services:
       - ./Backend/.env
     depends_on:
       - redis
+    volumes:
+      - ./Backend/uploads:/app/uploads
     restart: always
 
   # Redis Cache & Background Queue

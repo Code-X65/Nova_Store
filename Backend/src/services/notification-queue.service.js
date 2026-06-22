@@ -35,7 +35,7 @@ async function enqueue(job) {
       value: JSON.stringify({ userId, templateKey, data, requestId, attempts }),
     });
   } catch (err) {
-    logger.error('[NotifyQueue] Failed to enqueue notification:', err.message);
+    logger.error(`[NotifyQueue] Failed to enqueue notification: ${err.message}`);
     throw err;
   }
 }
@@ -84,7 +84,7 @@ async function _dequeueBatch() {
       // Remove from in-flight only after confirmed delivery
       await redisClient.hDel(INFLIGHT_KEY, jobId).catch(() => {});
     } catch (err) {
-      logger.error(`[NotifyQueue] Failed to deliver ${job.templateKey} → user ${job.userId}:`, err.message);
+      logger.error(`[NotifyQueue] Failed to deliver ${job.templateKey} → user ${job.userId}: ${err.message}`);
       
       const attempts = (job.attempts || 0) + 1;
       const MAX_ATTEMPTS = 3;
@@ -129,7 +129,7 @@ async function _recoverStuckJobs() {
       }
     }
   } catch (err) {
-    logger.error('[NotifyQueue] Stuck-job recovery error:', err.message);
+    logger.error(`[NotifyQueue] Stuck-job recovery error: ${err.message}`);
   }
 }
 
@@ -151,7 +151,7 @@ async function startWorker() {
       activeProcessingPromises++;
       await _dequeueBatch();
     } catch (err) {
-      logger.error('[NotifyQueue] Worker tick error:', err.message);
+      logger.error(`[NotifyQueue] Worker tick error: ${err.message}`);
     } finally {
       activeProcessingPromises--;
     }
@@ -164,7 +164,7 @@ async function startWorker() {
       activeProcessingPromises++;
       await _recoverStuckJobs();
     } catch (err) {
-      logger.error('[NotifyQueue] Stuck-job recovery error:', err.message);
+      logger.error(`[NotifyQueue] Stuck-job recovery error: ${err.message}`);
     } finally {
       activeProcessingPromises--;
     }

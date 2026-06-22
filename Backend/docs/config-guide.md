@@ -56,8 +56,6 @@ This guide describes all environment variables used by the Nova Store backend. I
 | Variable Name | Required in Prod? | Default/Fallback | Description |
 |---|---|---|---|
 | `PAYSTACK_SECRET_KEY` | **YES** | *None* | Paystack payment gateway secret key for checkout initialize and verification. |
-| `STRIPE_SECRET_KEY` | No | *None* | Stripe secret key (future support). |
-| `STRIPE_WEBHOOK_SECRET` | No | *None* | Stripe webhook signature key. |
 
 ---
 

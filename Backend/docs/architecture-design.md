@@ -15,7 +15,7 @@ graph TD
     API[Express API Service]
     Redis[Redis Cache & Queue]
     PG[(Supabase PostgreSQL)]
-    Stripe[Stripe Payments API]
+    Paystack[Paystack Payments API]
     Twilio[Twilio SMS Gateway]
     Brevo[Brevo SMTP Relay]
 
@@ -23,7 +23,7 @@ graph TD
     LB --> API
     API -- In-Memory Session / Queue --> Redis
     API -- SQL Queries / RPCs --> PG
-    API -- Charge Card --> Stripe
+    API -- Charge Card --> Paystack
     API -- Send OTP --> Twilio
     API -- Send Email --> Brevo
 ```

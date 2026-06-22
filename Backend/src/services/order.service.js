@@ -7,6 +7,7 @@ const InventoryService = require('./inventory.service');
 const NotificationService = require('./notification.service');
 const NotificationTemplateModel = require('../models/notification-template.model');
 const logger = require('../utils/logger');
+const AuditService = require('./audit.service');
 
 /** Days after delivery within which a return can be requested (hard rule). */
 const RETURN_WINDOW_DAYS = 7;
@@ -83,17 +84,18 @@ class OrderService {
     return { ...order, history, dispatches };
   }
 
-  async cancelOrder(orderId, userId, reason) {
+  async cancelOrder(orderId, userId, reason, isAdmin = false) {
     const order = await OrderModel.findById(orderId);
     if (!order) throw new Error('Order not found');
-    if (order.user_id !== userId) throw new Error('Unauthorized');
+    if (!isAdmin && order.user_id !== userId) throw new Error('Unauthorized');
 
     const nonCancellableStates = ['shipped', 'delivered', 'cancelled', 'returned', 'refunded'];
     if (nonCancellableStates.includes(order.status)) {
       throw new Error(`Order cannot be cancelled in current status: ${order.status}`);
     }
 
-    const updatedOrder = await OrderModel.updateStatus(orderId, 'cancelled', null, `Cancelled by user: ${reason}`, userId);
+    const cancelNote = isAdmin ? `Cancelled by admin: ${reason}` : `Cancelled by user: ${reason}`;
+    const updatedOrder = await OrderModel.updateStatus(orderId, 'cancelled', null, cancelNote, userId);
 
     // Restore inventory
     for (const item of order.items) {
@@ -104,7 +106,7 @@ class OrderService {
     await fireNotification(order.user_id, 'order_cancelled', {
       userName,
       orderNumber: order.order_number,
-      reason: reason || 'Customer request'
+      reason: reason || (isAdmin ? 'Admin action' : 'Customer request')
     });
 
     return updatedOrder;
@@ -557,6 +559,79 @@ class OrderService {
     }
 
     return updatedOrder;
+  }
+
+  async claimGuestOrders(userId, email, reqContext) {
+    if (!email) throw new Error('Email is required to claim guest orders');
+
+    // 1. Fetch user to verify they exist and are verified
+    const user = await UserModel.findById(userId);
+    if (!user) throw new Error('User not found');
+    if (!user.is_verified) {
+      throw new Error('Please verify your email address before claiming guest orders');
+    }
+
+    // 2. Perform database update
+    const claimedOrders = await OrderModel.claimGuestOrders(userId, email);
+    
+    // 3. Log audit event
+    if (claimedOrders.length > 0) {
+      await AuditService.log(reqContext, 'orders.guest_claimed', 'user', userId, null, {
+        email,
+        claimedCount: claimedOrders.length,
+        orderNumbers: claimedOrders.map(o => o.order_number)
+      });
+    }
+
+    return claimedOrders;
+  }
+
+  async bulkOrderAction(orderIds, action, extraData = {}, adminId, reqContext) {
+    const validActions = ['pack', 'dispatch', 'deliver', 'cancel'];
+    if (!validActions.includes(action)) {
+      throw new Error(`Invalid action: ${action}. Valid choices: ${validActions.join(', ')}`);
+    }
+
+    const successes = [];
+    const failures = [];
+
+    for (const orderId of orderIds) {
+      try {
+        let result;
+        if (action === 'pack') {
+          result = await this.markReadyForDispatch(orderId, extraData.note, adminId);
+        } else if (action === 'dispatch') {
+          result = await this.dispatchOrder(orderId, extraData, adminId);
+        } else if (action === 'deliver') {
+          result = await this.markDelivered(orderId, extraData, adminId);
+        } else if (action === 'cancel') {
+          result = await this.cancelOrder(orderId, adminId, extraData.reason, true);
+        }
+        successes.push(orderId);
+      } catch (err) {
+        failures.push({
+          orderId,
+          error: err.message
+        });
+      }
+    }
+
+    // Log bulk action event
+    if (successes.length > 0) {
+      await AuditService.log(reqContext, 'order.bulk_action', 'order', null, null, {
+        action,
+        successCount: successes.length,
+        failureCount: failures.length,
+        successes
+      });
+    }
+
+    return {
+      successCount: successes.length,
+      failureCount: failures.length,
+      successes,
+      failures
+    };
   }
 }
 

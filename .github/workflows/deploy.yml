@@ -40,7 +40,7 @@ jobs:
 
       - name: Audit Dependencies for Vulnerabilities
         working-directory: ./Backend
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high
 
       - name: Run Jest Test Suite (Unit & Integration)
         working-directory: ./Backend

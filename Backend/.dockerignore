@@ -1,0 +1,9 @@
+node_modules
+logs
+uploads
+tests
+scratch
+.env
+.git
+.github
+npm-debug.log

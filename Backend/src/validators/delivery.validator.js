@@ -72,10 +72,25 @@ const processReturn = {
   })
 };
 
+const bulkOrderAction = {
+  body: Joi.object({
+    orderIds: Joi.array().items(Joi.string().uuid().required()).min(1).required().messages({
+      'any.required': 'orderIds is required',
+      'array.min': 'At least one orderId must be provided'
+    }),
+    action: Joi.string().valid('pack', 'dispatch', 'deliver', 'cancel').required().messages({
+      'any.required': 'Action is required',
+      'any.only': 'Action must be one of: pack, dispatch, deliver, cancel'
+    }),
+    extraData: Joi.object().optional().default({})
+  })
+};
+
 module.exports = {
   dispatchOrder,
   deliveryMilestoneNote,
   markDelivered,
   requestReturn,
-  processReturn
+  processReturn,
+  bulkOrderAction
 };

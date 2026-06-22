@@ -1,0 +1,1 @@
+Nova Store static test file for load testing.

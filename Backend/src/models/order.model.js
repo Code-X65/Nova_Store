@@ -179,6 +179,18 @@ class OrderModel {
       }
     };
   }
+
+  async claimGuestOrders(userId, email) {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ user_id: userId, updated_at: new Date().toISOString() })
+      .is('user_id', null)
+      .eq('customer_email', email)
+      .select();
+
+    if (error) throw error;
+    return data;
+  }
 }
 
 module.exports = new OrderModel();

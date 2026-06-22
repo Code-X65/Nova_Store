@@ -310,6 +310,36 @@ class OrderController {
       next(error);
     }
   }
+
+  async claimGuestOrders(req, res, next) {
+    try {
+      const claimed = await OrderService.claimGuestOrders(req.user.id, req.user.email, req);
+      res.status(200).json({
+        success: true,
+        data: {
+          claimedCount: claimed.length,
+          orders: claimed
+        },
+        message: `${claimed.length} guest order(s) successfully claimed`
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkAction(req, res, next) {
+    try {
+      const { orderIds, action, extraData } = req.body;
+      const result = await OrderService.bulkOrderAction(orderIds, action, extraData, req.user.id, req);
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `Bulk ${action} execution completed`
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new OrderController();

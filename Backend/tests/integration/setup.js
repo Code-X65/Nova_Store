@@ -54,6 +54,7 @@ jest.mock('../../src/config/redis', () => ({
     sAdd: jest.fn().mockResolvedValue(1),
     sRem: jest.fn().mockResolvedValue(1),
     sMembers: jest.fn().mockResolvedValue([]),
+    sendCommand: jest.fn(),
     multi: jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue([]),
     }),

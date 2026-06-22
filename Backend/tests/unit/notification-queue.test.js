@@ -54,7 +54,7 @@ describe('Notification Queue Service - Unit Tests', () => {
       const job = { userId: 'u1', templateKey: 't1' };
 
       await expect(enqueue(job)).rejects.toThrow('Redis is down');
-      expect(logger.error).toHaveBeenCalledWith('[NotifyQueue] Failed to enqueue notification:', 'Redis is down');
+      expect(logger.error).toHaveBeenCalledWith('[NotifyQueue] Failed to enqueue notification: Redis is down');
     });
   });
 });

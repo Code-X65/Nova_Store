@@ -13,7 +13,8 @@
     "test:coverage": "jest --coverage",
     "db:migrate": "node src/scripts/run-migrations.js",
     "db:seed": "node scratch/seed-catalog-products.js",
-    "db:setup": "npm run db:migrate && npm run db:seed"
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "preflight": "node src/scripts/pre-flight-check.js"
   },
   "keywords": [],
   "author": "",

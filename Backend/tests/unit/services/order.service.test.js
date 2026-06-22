@@ -8,6 +8,7 @@ const InventoryService = require('../../../src/services/inventory.service');
 const NotificationService = require('../../../src/services/notification.service');
 const NotificationTemplateModel = require('../../../src/models/notification-template.model');
 const logger = require('../../../src/utils/logger');
+const AuditService = require('../../../src/services/audit.service');
 
 jest.mock('../../../src/models/order.model');
 jest.mock('../../../src/models/order-status-history.model');
@@ -18,6 +19,7 @@ jest.mock('../../../src/services/inventory.service');
 jest.mock('../../../src/services/notification.service');
 jest.mock('../../../src/models/notification-template.model');
 jest.mock('../../../src/utils/logger');
+jest.mock('../../../src/services/audit.service');
 
 describe('OrderService', () => {
   const mockUserId = 'user-uuid-123';
@@ -43,6 +45,7 @@ describe('OrderService', () => {
       first_name: 'John',
       last_name: 'Doe'
     });
+    AuditService.log.mockResolvedValue(undefined);
   });
 
   describe('getUserOrders', () => {
@@ -631,6 +634,108 @@ describe('OrderService', () => {
         refunded_at: expect.any(String),
         status: 'refunded'
       });
+    });
+  });
+
+  describe('claimGuestOrders', () => {
+    const mockEmail = 'guest@example.com';
+    const mockClaimedOrders = [
+      { id: 'order-1', order_number: 'NS-10001', customer_email: mockEmail }
+    ];
+
+    it('should successfully claim guest orders if user email is verified', async () => {
+      UserModel.findById.mockResolvedValue({
+        id: mockUserId,
+        first_name: 'John',
+        last_name: 'Doe',
+        is_verified: true
+      });
+      OrderModel.claimGuestOrders.mockResolvedValue(mockClaimedOrders);
+
+      const result = await orderService.claimGuestOrders(mockUserId, mockEmail, {});
+      expect(result).toEqual(mockClaimedOrders);
+      expect(OrderModel.claimGuestOrders).toHaveBeenCalledWith(mockUserId, mockEmail);
+      expect(AuditService.log).toHaveBeenCalledWith({}, 'orders.guest_claimed', 'user', mockUserId, null, {
+        email: mockEmail,
+        claimedCount: 1,
+        orderNumbers: ['NS-10001']
+      });
+    });
+
+    it('should throw an error if email is not provided', async () => {
+      await expect(orderService.claimGuestOrders(mockUserId, null, {})).rejects.toThrow('Email is required to claim guest orders');
+    });
+
+    it('should throw an error if user does not exist', async () => {
+      UserModel.findById.mockResolvedValue(null);
+      await expect(orderService.claimGuestOrders('non-existent', mockEmail, {})).rejects.toThrow('User not found');
+    });
+
+    it('should throw an error if user email is not verified', async () => {
+      UserModel.findById.mockResolvedValue({
+        id: mockUserId,
+        first_name: 'John',
+        last_name: 'Doe',
+        is_verified: false
+      });
+      await expect(orderService.claimGuestOrders(mockUserId, mockEmail, {})).rejects.toThrow('Please verify your email address before claiming guest orders');
+    });
+  });
+
+  describe('bulkOrderAction', () => {
+    const orderIds = ['order-1', 'order-2'];
+
+    it('should throw an error for invalid action', async () => {
+      await expect(orderService.bulkOrderAction(orderIds, 'invalid_action', {}, mockAdminId, {})).rejects.toThrow(/Invalid action: invalid_action/);
+    });
+
+    it('should process bulk pack actions and report successes/failures', async () => {
+      // Mock pack success for order-1
+      const order1 = { ...mockOrder, id: 'order-1', status: 'processing' };
+      OrderModel.findById.mockResolvedValueOnce(order1);
+      OrderModel.update.mockResolvedValueOnce({ ...order1, status: 'ready_for_dispatch', delivery_status: 'not_dispatched' });
+      NotificationTemplateModel.findByKey.mockResolvedValue({ id: 'tmpl' });
+
+      // Mock pack failure for order-2 by throwing error
+      OrderModel.findById.mockRejectedValueOnce(new Error('Order not found'));
+
+      const result = await orderService.bulkOrderAction(orderIds, 'pack', { note: 'Packed' }, mockAdminId, {});
+      
+      expect(result).toEqual({
+        successCount: 1,
+        failureCount: 1,
+        successes: ['order-1'],
+        failures: [
+          { orderId: 'order-2', error: 'Order not found' }
+        ]
+      });
+
+      expect(AuditService.log).toHaveBeenCalledWith({}, 'order.bulk_action', 'order', null, null, {
+        action: 'pack',
+        successCount: 1,
+        failureCount: 1,
+        successes: ['order-1']
+      });
+    });
+
+    it('should process bulk cancel actions as admin', async () => {
+      const order1 = { ...mockOrder, id: 'order-1', status: 'pending' };
+      const order2 = { ...mockOrder, id: 'order-2', status: 'pending' };
+      
+      OrderModel.findById.mockResolvedValueOnce(order1).mockResolvedValueOnce(order2);
+      OrderModel.updateStatus.mockResolvedValue({ ...order1, status: 'cancelled' });
+      NotificationTemplateModel.findByKey.mockResolvedValue({ id: 'tmpl-cancel' });
+
+      const result = await orderService.bulkOrderAction(orderIds, 'cancel', { reason: 'Stock issue' }, mockAdminId, {});
+
+      expect(result).toEqual({
+        successCount: 2,
+        failureCount: 0,
+        successes: ['order-1', 'order-2'],
+        failures: []
+      });
+
+      expect(InventoryService.addStock).toHaveBeenCalledTimes(4); // 2 items * 2 orders
     });
   });
 });
