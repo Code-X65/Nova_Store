@@ -49,6 +49,10 @@ class AttributeService {
         continue;
       }
 
+      if (value === null || value === undefined) {
+        continue;
+      }
+
       const strVal = String(value).trim();
 
       switch (template.attribute_type) {
@@ -110,25 +114,42 @@ class AttributeService {
     );
 
     const rows = [];
+    const deletePromises = [];
+
     for (const [name, value] of Object.entries(attributeValues)) {
       const template = nameToTemplate.get(name.toLowerCase());
       if (!template) continue; // Unknown attribute — skip silently
 
-      let typedVal = value;
+      if (value === null || value === undefined) {
+        deletePromises.push(productAttributeModel.deleteProductAttribute(productId, template.id));
+        continue;
+      }
+
+      let typedVal;
       if (template.attribute_type === 'number') {
-        typedVal = Number(value);
+        const num = Number(value);
+        typedVal = isNaN(num) ? null : String(num);
       } else if (template.attribute_type === 'boolean') {
-        typedVal = String(value).toLowerCase() === 'true' || value === true || String(value) === '1' || value === 1;
+        const boolVal = String(value).toLowerCase() === 'true' || value === true || String(value) === '1' || value === 1;
+        typedVal = String(boolVal);
       } else if (template.attribute_type === 'date') {
         typedVal = typeof value === 'string' ? value.trim() : value;
       } else {
         typedVal = typeof value === 'string' ? value.trim() : String(value);
       }
 
-      rows.push({
-        attribute_id:    template.id,
-        attribute_value: typedVal
-      });
+      if (typedVal === null) {
+        deletePromises.push(productAttributeModel.deleteProductAttribute(productId, template.id));
+      } else {
+        rows.push({
+          attribute_id:    template.id,
+          attribute_value: typedVal
+        });
+      }
+    }
+
+    if (deletePromises.length > 0) {
+      await Promise.all(deletePromises);
     }
 
     if (rows.length === 0) return [];

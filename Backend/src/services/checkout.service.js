@@ -27,18 +27,51 @@ class CheckoutService {
       const product = await ProductModel.findById(item.productId);
       
       if (!product) {
-        issues.push(`Product ${item.product.name} is no longer available`);
+        issues.push(`Product ${item.product?.name || 'Unknown'} is no longer available`);
         continue;
       }
 
-      const availableQty = (product.stock_quantity || 0) - (product.reserved_quantity || 0);
-      if (availableQty < item.quantity) {
-        issues.push(`Insufficient available stock for ${product.name}. Available: ${availableQty}`);
+      let availableQty = 0;
+      let name = product.name;
+
+      if (item.variantId) {
+        const variant = (product.variants || []).find(v => v.id === item.variantId);
+        if (!variant) {
+          issues.push(`Variant for product ${product.name} is no longer available`);
+          continue;
+        }
+        name = `${product.name} - ${variant.name}`;
+        if (variant.track_inventory === false || product.track_inventory === false) {
+          availableQty = Infinity;
+        } else {
+          availableQty = variant.stock_quantity || 0;
+        }
+      } else {
+        if (product.track_inventory === false) {
+          availableQty = Infinity;
+        } else {
+          availableQty = (product.stock_quantity || 0) - (product.reserved_quantity || 0);
+        }
       }
 
-      const currentPrice = product.sale_price || product.price;
+      if (availableQty < item.quantity) {
+        issues.push(`Insufficient available stock for ${name}. Available: ${availableQty}`);
+      }
+
+      let currentPrice = product.sale_price || product.price;
+      if (item.variantId) {
+        const variant = (product.variants || []).find(v => v.id === item.variantId);
+        if (variant) {
+          if (variant.sale_price) {
+            currentPrice = variant.sale_price;
+          } else if (variant.price_modifier) {
+            currentPrice = Number(product.sale_price || product.price) + Number(variant.price_modifier);
+          }
+        }
+      }
+
       if (currentPrice !== item.unitPrice) {
-        issues.push(`Price for ${product.name} has changed`);
+        issues.push(`Price for ${name} has changed`);
       }
 
       validatedItems.push({

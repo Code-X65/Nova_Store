@@ -14,20 +14,24 @@ class AdminAuthLogModel {
    * }} params
    */
   async log({ adminId = null, ipAddress = null, emailAttempted, success, userAgent = null, failureReason = null }) {
-    const { error } = await supabaseAdmin
-      .from('admin_auth_logs')
-      .insert([{
-        admin_id:        adminId,
-        ip_address:      ipAddress,
-        email_attempted: emailAttempted,
-        success,
-        user_agent:      userAgent,
-        failure_reason:  success ? null : failureReason,
-      }]);
+    try {
+      const { error } = await supabaseAdmin
+        .from('admin_auth_logs')
+        .insert([{
+          admin_id:        adminId,
+          ip_address:      ipAddress,
+          email_attempted: emailAttempted,
+          success,
+          user_agent:      userAgent,
+          failure_reason:  success ? null : failureReason,
+        }]);
 
-    if (error) {
-      // Log but never throw — auth logging failure must not break the auth flow
-      logger.error('[AdminAuthLogModel.log] error:', { message: error.message, code: error.code });
+      if (error) {
+        // Log but never throw — auth logging failure must not break the auth flow
+        logger.error('[AdminAuthLogModel.log] error:', { message: error.message, code: error.code });
+      }
+    } catch (err) {
+      logger.error('[AdminAuthLogModel.log] network error:', err.message);
     }
   }
 }

@@ -5,6 +5,7 @@ const UserModel = require('../models/user.model');
 const CartService = require('./cart.service');
 const InventoryService = require('./inventory.service');
 const NotificationService = require('./notification.service');
+const PaymentService = require('./payment.service');
 const NotificationTemplateModel = require('../models/notification-template.model');
 const logger = require('../utils/logger');
 const AuditService = require('./audit.service');
@@ -99,7 +100,13 @@ class OrderService {
 
     // Restore inventory
     for (const item of order.items) {
-      await InventoryService.addStock(item.product_id, item.quantity, orderId, 'return', `Order ${order.order_number} cancelled`);
+      await InventoryService.addStock(
+        item.product_id,
+        item.quantity,
+        userId,
+        `Order ${order.order_number} cancelled`,
+        item.variant_id
+      );
     }
 
     const userName = await resolveUserName(order.user_id);
@@ -279,9 +286,17 @@ class OrderService {
     const order = await OrderModel.findById(orderId);
     if (!order) throw new Error('Order not found');
 
-    const allowed = ['dispatched', 'out_for_delivery'];
-    if (!allowed.includes(order.status) && order.delivery_status !== 'picked_up') {
+    const allowedStatuses = ['dispatched', 'delivery_attempted'];
+    if (!allowedStatuses.includes(order.status)) {
       throw new Error(`Cannot mark as out_for_delivery from status: ${order.status}`);
+    }
+
+    const allowedDeliveryStatuses = {
+      'dispatched': 'picked_up',
+      'delivery_attempted': 'attempted'
+    };
+    if (order.delivery_status !== allowedDeliveryStatuses[order.status]) {
+      throw new Error(`Cannot mark as out_for_delivery from delivery status: ${order.delivery_status} (order status: ${order.status})`);
     }
 
     const now = new Date().toISOString();
@@ -501,12 +516,20 @@ class OrderService {
 
     if (refundAmount != null)    updateData.refund_amount = refundAmount;
     if (action === 'mark_collected') updateData.return_collected_at = now;
+
+    if (action === 'process_refund') {
+      const amountToRefund = refundAmount != null ? refundAmount : (order.refund_amount || order.total_amount);
+      if (amountToRefund > 0) {
+        await PaymentService.refundPayment(orderId, amountToRefund, note || 'Refund for return');
+      }
+      updateData.refund_status = 'pending';
+    }
+
     if (action === 'complete') {
       updateData.status        = 'refunded';   // Fix 6: align order lifecycle
       updateData.refund_status = 'completed';
       updateData.refunded_at   = now;
     }
-
     if (action === 'complete_qc') {
       if (!qcOutcome) throw new Error('qcOutcome is required for complete_qc action');
       const validQcOutcomes = ['sellable', 'damaged', 'quarantine', 'discard'];
@@ -522,9 +545,9 @@ class OrderService {
           await InventoryService.addStock(
             item.product_id,
             item.quantity,
-            orderId,
-            'return',
-            `Order ${order.order_number} return QC passed — sellable stock reintegrated`
+            adminId,
+            `Order ${order.order_number} return QC passed — sellable stock reintegrated`,
+            item.variant_id
           );
         }
       }
@@ -632,6 +655,131 @@ class OrderService {
       successes,
       failures
     };
+  }
+
+  async exportOrders(filters, format = 'csv') {
+    const reportExporter = require('../utils/report-exporter');
+    const PDFDocument = require('pdfkit');
+
+    const orders = await OrderModel.findAllWithoutPagination(filters);
+    
+    if (format === 'pdf') {
+      return new Promise((resolve, reject) => {
+        try {
+          const doc = new PDFDocument({ margin: 40 });
+          const buffers = [];
+          doc.on('data', buffers.push.bind(buffers));
+          doc.on('end', () => {
+            resolve(Buffer.concat(buffers));
+          });
+
+          // Header
+          doc.fillColor('#DC2626').fontSize(20).text('NOVA STORE', 40, 40, { continued: true });
+          doc.fillColor('#333333').fontSize(16).text(' - ORDERS EXPORT REPORT', { align: 'left' });
+          doc.moveDown(0.5);
+
+          // Filters and Date
+          doc.fontSize(9).fillColor('#666666');
+          doc.text(`Generated At: ${new Date().toLocaleString()}`);
+          doc.text(`Status Filter: ${filters.status || 'All'}`);
+          doc.text(`Date Range: ${filters.dateFrom || 'N/A'} to ${filters.dateTo || 'N/A'}`);
+          doc.moveDown();
+
+          // Metrics Summary
+          let totalCount = orders.length;
+          let totalRevenue = 0;
+          let totalTax = 0;
+          let totalShipping = 0;
+
+          orders.forEach(o => {
+            totalRevenue += Number(o.total_amount || 0);
+            totalTax += Number(o.tax_amount || 0);
+            totalShipping += Number(o.shipping_cost || 0);
+          });
+
+          const summaryY = doc.y;
+          doc.fontSize(10).fillColor('#111111').text('Export Summary:', 40, summaryY, { bold: true });
+          doc.fontSize(9).fillColor('#333333');
+          doc.text(`Total Orders: ${totalCount}`);
+          doc.text(`Total Revenue: ₦${totalRevenue.toFixed(2)}`);
+          doc.text(`Total Tax: ₦${totalTax.toFixed(2)}`);
+          doc.text(`Total Shipping: ₦${totalShipping.toFixed(2)}`);
+          doc.moveDown(1.5);
+
+          // Table Header
+          const tableHeaderY = doc.y;
+          doc.fontSize(9).fillColor('#111111');
+          doc.text('Order No', 40, tableHeaderY, { width: 90 });
+          doc.text('Date', 130, tableHeaderY, { width: 90 });
+          doc.text('Customer Name/Email', 220, tableHeaderY, { width: 150 });
+          doc.text('Status', 370, tableHeaderY, { width: 60, align: 'center' });
+          doc.text('Total', 430, tableHeaderY, { width: 60, align: 'right' });
+          doc.text('Payment', 490, tableHeaderY, { width: 60, align: 'center' });
+          doc.moveDown(0.5);
+
+          doc.moveTo(40, doc.y).lineTo(550, doc.y).strokeColor('#cccccc').stroke();
+          doc.moveDown(0.5);
+
+          // Rows
+          doc.fillColor('#444444').fontSize(8);
+          for (const order of orders) {
+            // Check if page height exceeds margin
+            if (doc.y > 700) {
+              doc.addPage();
+              // Re-draw small header on new page
+              doc.fontSize(9).fillColor('#111111');
+              const newPageHeaderY = doc.y;
+              doc.text('Order No', 40, newPageHeaderY, { width: 90 });
+              doc.text('Date', 130, newPageHeaderY, { width: 90 });
+              doc.text('Customer Name/Email', 220, newPageHeaderY, { width: 150 });
+              doc.text('Status', 370, newPageHeaderY, { width: 60, align: 'center' });
+              doc.text('Total', 430, newPageHeaderY, { width: 60, align: 'right' });
+              doc.text('Payment', 490, newPageHeaderY, { width: 60, align: 'center' });
+              doc.moveDown(0.5);
+              doc.moveTo(40, doc.y).lineTo(550, doc.y).strokeColor('#cccccc').stroke();
+              doc.moveDown(0.5);
+              doc.fillColor('#444444').fontSize(8);
+            }
+
+            const rowY = doc.y;
+            const customerName = order.user ? `${order.user.first_name || ''} ${order.user.last_name || ''}`.trim() : '';
+            const customerText = customerName ? `${customerName} (${order.customer_email || order.user.email})` : (order.customer_email || 'N/A');
+            const dateText = new Date(order.created_at).toLocaleDateString();
+
+            doc.text(order.order_number, 40, rowY, { width: 90 });
+            doc.text(dateText, 130, rowY, { width: 90 });
+            doc.text(customerText, 220, rowY, { width: 150, lineBreak: false });
+            doc.text(order.status, 370, rowY, { width: 60, align: 'center' });
+            doc.text(`₦${Number(order.total_amount).toFixed(2)}`, 430, rowY, { width: 60, align: 'right' });
+            doc.text(order.payment_status, 490, rowY, { width: 60, align: 'center' });
+            doc.moveDown(0.5);
+          }
+
+          doc.end();
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+    // CSV Format
+    const flatList = orders.map(order => {
+      const customerName = order.user ? `${order.user.first_name || ''} ${order.user.last_name || ''}`.trim() : '';
+      return {
+        'Order Number': order.order_number,
+        'Status': order.status,
+        'Customer Email': order.customer_email || (order.user ? order.user.email : ''),
+        'Customer Name': customerName,
+        'Subtotal': order.subtotal,
+        'Shipping Cost': order.shipping_cost,
+        'Tax Amount': order.tax_amount,
+        'Total Amount': order.total_amount,
+        'Payment Status': order.payment_status,
+        'Created At': order.created_at,
+      };
+    });
+
+    return reportExporter.toCSV(flatList);
   }
 }
 

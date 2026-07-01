@@ -66,15 +66,11 @@ async function runCleanup() {
 
   // 4. Expired inventory reservations with no attached order
   try {
-    const { data: res, error: resErr } = await supabase
-      .from('inventory_reservations')
-      .delete()
-      .lt('expires_at', new Date().toISOString())
-      .is('order_id', null);
+    const { data: resCount, error: resErr } = await supabase.rpc('release_expired_reservations');
     if (resErr) throw resErr;
-    const count = Array.isArray(res) ? res.length : 0;
+    const count = resCount || 0;
     total += count;
-    logger.info(`[Cleanup] Deleted ${count} expired inventory reservation(s).`);
+    logger.info(`[Cleanup] Released and deleted ${count} expired inventory reservation(s).`);
   } catch (err) {
     logger.error('[Cleanup] Failed to delete expired inventory reservations:', err.message || err);
   }

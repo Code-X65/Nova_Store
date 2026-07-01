@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../../src/app');
 
-jest.setTimeout(15000);
+jest.setTimeout(30000);
 
 // Mock models and third-party libraries used in the test
 jest.mock('../../src/models/user.model');

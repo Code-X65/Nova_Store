@@ -247,22 +247,19 @@ class OrderController {
       const { id } = req.params;
       const { action, note, refundAmount, qcOutcome, qcNotes } = req.body;
 
-      // Fix 2: For the 'complete' action, the gateway refund must succeed BEFORE
-      // the order is marked as refunded. A failed gateway call returns 502 and
-      // leaves the order in 'refund_pending' so the admin can retry.
-      if (action === 'complete' && refundAmount > 0) {
-        try {
-          await PaymentService.refundPayment(id, refundAmount, note || 'Refund for completed return');
-        } catch (refundErr) {
+      let order;
+      try {
+        order = await OrderService.processReturn(id, { action, note, refundAmount, qcOutcome, qcNotes }, req.user.id);
+      } catch (err) {
+        if (action === 'process_refund') {
           return res.status(502).json({
             success: false,
-            message: `Payment gateway refund failed — order not marked as refunded. Gateway error: ${refundErr.message}`,
+            message: `Payment gateway refund failed — return not marked as refund_pending. Gateway error: ${err.message}`,
             hint: 'Resolve the gateway issue and retry this action.'
           });
         }
+        throw err;
       }
-
-      const order = await OrderService.processReturn(id, { action, note, refundAmount, qcOutcome, qcNotes }, req.user.id);
 
       const actionLabels = {
         review:          'placed under review',
@@ -336,6 +333,27 @@ class OrderController {
         data: result,
         message: `Bulk ${action} execution completed`
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async exportOrders(req, res, next) {
+    try {
+      const { status, userId, dateFrom, dateTo, format } = req.query;
+      const filters = { status, userId, dateFrom, dateTo };
+
+      const fileData = await OrderService.exportOrders(filters, format || 'csv');
+
+      if (format === 'pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=orders-export-${Date.now()}.pdf`);
+      } else {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=orders-export-${Date.now()}.csv`);
+      }
+
+      res.status(200).send(fileData);
     } catch (error) {
       next(error);
     }

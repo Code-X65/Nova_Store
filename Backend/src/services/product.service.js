@@ -284,6 +284,55 @@ class ProductService {
     if (!query) throw new Error('Search query is required');
     return await productModel.search(query, limit);
   }
+
+  async getPriceRange(query, user) {
+    const filters = {
+      status:         query.status,
+      category_id:    query.category_id,
+      brand_id:       query.brand_id,
+      subcategory_id: query.subcategory_id,
+      is_featured: query.featured === 'true' ? true : undefined,
+      search:      query.search
+    };
+
+    // Resolve category slug to category_id
+    if (query.category && !filters.category_id) {
+      const category = await productCategoryModel.findBySlug(query.category);
+      if (category) {
+        filters.category_id = category.id;
+      } else {
+        filters.category_id = '00000000-0000-0000-0000-000000000000';
+      }
+    }
+
+    // Resolve brand slug to brand_id
+    if (query.brand && !filters.brand_id) {
+      const brand = await productBrandModel.findBySlug(query.brand);
+      if (brand) {
+        filters.brand_id = brand.id;
+      } else {
+        filters.brand_id = '00000000-0000-0000-0000-000000000000';
+      }
+    }
+
+    // Resolve subcategory slug to subcategory_id
+    if (query.subcategory && !filters.subcategory_id) {
+      const subcategory = await productCategoryModel.findBySlug(query.subcategory);
+      if (subcategory) {
+        filters.subcategory_id = subcategory.id;
+      } else {
+        filters.subcategory_id = '00000000-0000-0000-0000-000000000000';
+      }
+    }
+
+    // Non-admins only see published products
+    const isAdmin = user && (user.role === 'ADMIN' || (user.roles && user.roles.includes('admin')));
+    if (!isAdmin) {
+      filters.status = 'published';
+    }
+
+    return await productModel.getPriceRange(filters);
+  }
 }
 
 module.exports = new ProductService();

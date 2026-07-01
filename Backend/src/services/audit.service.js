@@ -6,10 +6,10 @@ class AuditService {
    */
   async log(req, action, resourceType, resourceId, oldValues = null, newValues = null) {
     try {
-      const userId = req.user ? req.user.id : null;
-      const ip = req.ip || req.connection?.remoteAddress;
-      const userAgent = req.get('user-agent') || 'unknown';
-      const requestId = req.id || null;
+      const userId = req && req.user ? req.user.id : null;
+      const ip = req ? (req.ip || req.connection?.remoteAddress) : null;
+      const userAgent = (req && typeof req.get === 'function' ? req.get('user-agent') : null) || 'unknown';
+      const requestId = req && req.id ? req.id : null;
 
       await AuditLogModel.log({
         userId,

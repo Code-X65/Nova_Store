@@ -2,17 +2,36 @@ const supabase = require('../config/supabase');
 
 class OrderModel {
   async create(orderData, items) {
-    // Start a transaction-like approach (Supabase doesn't have cross-table transactions in JS easily without RPC)
-    // We'll use a single request if possible or separate with cleanup.
-    // Better: use an RPC for atomic order creation.
-    
-    const { data, error } = await supabase.rpc('create_order_with_items', {
-      p_order_data: orderData,
-      p_order_items: items
-    });
+    // Check if an order with checkout_session_id already exists to prevent duplicate creation
+    if (orderData.checkout_session_id) {
+      const existing = await this.findByCheckoutSessionId(orderData.checkout_session_id);
+      if (existing) {
+        return existing;
+      }
+    }
 
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.rpc('create_order_with_items', {
+        p_order_data: orderData,
+        p_order_items: items
+      });
+
+      if (error) {
+        // Unique key constraint violation fallback (in case of concurrent race condition)
+        if (error.code === '23505' && orderData.checkout_session_id) {
+          const existing = await this.findByCheckoutSessionId(orderData.checkout_session_id);
+          if (existing) return existing;
+        }
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      if (error.code === '23505' && orderData.checkout_session_id) {
+        const existing = await this.findByCheckoutSessionId(orderData.checkout_session_id);
+        if (existing) return existing;
+      }
+      throw error;
+    }
   }
 
   async findById(id) {
@@ -190,6 +209,24 @@ class OrderModel {
 
     if (error) throw error;
     return data;
+  }
+
+  async findAllWithoutPagination(filters = {}) {
+    let query = supabase
+      .from('orders')
+      .select('*, user:users(first_name, last_name, email)');
+
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.userId) query = query.eq('user_id', filters.userId);
+    if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);
+    if (filters.dateTo) query = query.lte('created_at', filters.dateTo);
+
+    const { data, error } = await query
+      .order('created_at', { ascending: false })
+      .limit(5000);
+
+    if (error) throw error;
+    return data || [];
   }
 }
 

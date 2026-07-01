@@ -73,6 +73,22 @@ class ProductAttributeModel {
     if (error) throw error;
     return true;
   }
+
+  /**
+   * Delete a single attribute value for a product.
+   * @param {string} productId
+   * @param {string} attributeId
+   */
+  async deleteProductAttribute(productId, attributeId) {
+    const { error } = await supabaseAdmin
+      .from('product_attributes')
+      .delete()
+      .eq('product_id', productId)
+      .eq('attribute_id', attributeId);
+
+    if (error) throw error;
+    return true;
+  }
 }
 
 module.exports = new ProductAttributeModel();

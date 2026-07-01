@@ -2,6 +2,8 @@ const express = require('express');
 const brandController = require('../controllers/product-brand.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { hasPermission } = require('../middlewares/permission.middleware');
+const validate = require('../middlewares/validate.middleware');
+const brandValidator = require('../validators/brand.validator');
 
 const router = express.Router();
 
@@ -219,7 +221,7 @@ router.use(protect);
  *       409:
  *         description: Brand name or slug already exists
  */
-router.post('/', hasPermission('brand:create'), brandController.createBrand);
+router.post('/', hasPermission('brand:create'), validate(brandValidator.createBrand), brandController.createBrand);
 
 /**
  * @swagger
@@ -276,7 +278,7 @@ router.post('/', hasPermission('brand:create'), brandController.createBrand);
  *       404:
  *         description: Brand not found
  */
-router.patch('/:id', hasPermission('brand:write'), brandController.updateBrand);
+router.patch('/:id', hasPermission('brand:write'), validate(brandValidator.updateBrand), brandController.updateBrand);
 
 /**
  * @swagger

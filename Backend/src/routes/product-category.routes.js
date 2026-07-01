@@ -67,6 +67,11 @@ const router = express.Router();
  *           type: array
  *           items: { type: string }
  *           description: SEO keywords for the category page
+ *         color:
+ *           type: string
+ *           nullable: true
+ *           example: "#4285F4"
+ *           description: Display color for UI badges and filter chips
  */
 
 // --- Routes ---
@@ -232,6 +237,10 @@ router.use(protect);
  *                 description: Small/optimised category thumbnail for listing cards
  *               icon:
  *                 type: string
+ *               color:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Display color for UI badges and filter chips
  *               sort_order:
  *                 type: integer
  *                 default: 0
@@ -274,7 +283,7 @@ router.post('/', hasPermission('category:create'), validate(categoryValidator.cr
  *             type: array
  *             items:
  *               type: object
- *               required: [name, description, image_url, thumbnail_url, icon]
+ *               required: [name]
  *               properties:
  *                 name:
  *                   type: string
@@ -297,6 +306,10 @@ router.post('/', hasPermission('category:create'), validate(categoryValidator.cr
  *                 icon:
  *                   type: string
  *                   example: 📱
+ *                 color:
+ *                   type: string
+ *                   nullable: true
+ *                   description: Display color for UI badges and filter chips
  *                 sort_order:
  *                   type: integer
  *                   default: 0
@@ -359,6 +372,10 @@ router.post('/bulk', hasPermission('category:create'), validate(categoryValidato
  *                 description: Small/optimised thumbnail (replaces old value)
  *               icon:
  *                 type: string
+ *               color:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Display color for UI badges and filter chips
  *               sort_order:
  *                 type: integer
  *               is_active:

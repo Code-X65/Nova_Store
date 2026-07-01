@@ -41,6 +41,12 @@ class ProductBrandController {
       const { name, ...rest } = req.body;
       let slug = slugify(name);
 
+      // Guard against duplicate names/slugs before hitting the DB constraint
+      const existingBySlug = await brandModel.findBySlug(slug);
+      if (existingBySlug) {
+        return res.status(409).json({ success: false, message: `A brand with the name "${name}" already exists` });
+      }
+
       const brand = await brandModel.create({
         ...rest,
         name,

@@ -1,9 +1,13 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
+jest.setTimeout(30000);
+
+
 // Mock rate limiting for faster tests
 jest.mock('../../src/middlewares/rate-limit.middleware', () => ({
   authLimiter: (req, res, next) => next(),
   adminLoginLimiter: (req, res, next) => next(),
+  swaggerLoginLimiter: (req, res, next) => next(),
   resetLimiter: (req, res, next) => next(),
   refreshLimiter: (req, res, next) => next(),
   adminLimiter: (req, res, next) => next(),
@@ -61,3 +65,28 @@ jest.mock('../../src/config/redis', () => ({
   },
   connectRedis: jest.fn().mockResolvedValue(),
 }));
+
+// Mock Supabase globally to prevent integration tests from attempting real connection to Supabase cloud
+jest.mock('../../src/config/supabase', () => {
+  const mockQuery = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+    single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    insert: jest.fn().mockResolvedValue({ data: [], error: null }),
+    update: jest.fn().mockResolvedValue({ data: [], error: null }),
+    delete: jest.fn().mockResolvedValue({ data: [], error: null }),
+    then: jest.fn((resolve) => resolve({ data: [], error: null }))
+  };
+
+  return {
+    from: jest.fn().mockReturnValue(mockQuery),
+    rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
+    auth: {
+      signUp: jest.fn().mockResolvedValue({ data: {}, error: null }),
+      signInWithPassword: jest.fn().mockResolvedValue({ data: {}, error: null }),
+    }
+  };
+});

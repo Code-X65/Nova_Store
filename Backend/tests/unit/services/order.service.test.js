@@ -20,6 +20,8 @@ jest.mock('../../../src/services/notification.service');
 jest.mock('../../../src/models/notification-template.model');
 jest.mock('../../../src/utils/logger');
 jest.mock('../../../src/services/audit.service');
+const PaymentService = require('../../../src/services/payment.service');
+jest.mock('../../../src/services/payment.service');
 
 describe('OrderService', () => {
   const mockUserId = 'user-uuid-123';
@@ -109,8 +111,8 @@ describe('OrderService', () => {
 
       // Verify inventory restocked
       expect(InventoryService.addStock).toHaveBeenCalledTimes(2);
-      expect(InventoryService.addStock).toHaveBeenNthCalledWith(1, 'prod-1', 2, mockOrder.id, 'return', expect.any(String));
-      expect(InventoryService.addStock).toHaveBeenNthCalledWith(2, 'prod-2', 1, mockOrder.id, 'return', expect.any(String));
+      expect(InventoryService.addStock).toHaveBeenNthCalledWith(1, 'prod-1', 2, mockUserId, 'Order NS-10001 cancelled', undefined);
+      expect(InventoryService.addStock).toHaveBeenNthCalledWith(2, 'prod-2', 1, mockUserId, 'Order NS-10001 cancelled', undefined);
 
       // Verify notification sent
       expect(NotificationService.sendToUser).toHaveBeenCalledWith(mockUserId, 'order_cancelled', {
@@ -281,6 +283,29 @@ describe('OrderService', () => {
         refundAmount: '₦5000',
         action: 'complete'
       }, null, null, { async: true });
+    });
+
+    it('should initiate a return refund gateway call and set refund_status as pending', async () => {
+      const returnedOrder = { ...mockOrder, status: 'returned', return_status: 'qc_received' };
+      OrderModel.findById.mockResolvedValue(returnedOrder);
+      OrderModel.update.mockResolvedValue({ ...returnedOrder, return_status: 'refund_pending', refund_status: 'pending' });
+      NotificationTemplateModel.findByKey.mockResolvedValue({ id: 'tmpl-pending' });
+      PaymentService.refundPayment.mockResolvedValue({ success: true });
+
+      const result = await orderService.processReturn(returnedOrder.id, { action: 'process_refund', note: 'Initiating refund', refundAmount: 5000 }, mockAdminId);
+      expect(result.return_status).toBe('refund_pending');
+      expect(PaymentService.refundPayment).toHaveBeenCalledWith(returnedOrder.id, 5000, 'Initiating refund');
+      expect(OrderModel.update).toHaveBeenCalledWith(returnedOrder.id, {
+        return_status: 'refund_pending',
+        refund_amount: 5000,
+        refund_status: 'pending'
+      });
+      expect(OrderStatusHistoryModel.create).toHaveBeenCalledWith({
+        order_id: returnedOrder.id,
+        status: 'refund_pending',
+        note: 'Initiating refund',
+        changed_by: mockAdminId
+      });
     });
   });
 
@@ -464,6 +489,15 @@ describe('OrderService', () => {
         await expect(
           orderService.markOutForDelivery(localOrder.id, 'En route', mockAdminId)
         ).rejects.toThrow('Cannot mark as out_for_delivery from status: pending');
+      });
+
+      it('should throw if delivery_status does not match status in markOutForDelivery', async () => {
+        const localOrder = { ...mockOrder, status: 'dispatched', delivery_status: 'assigned' };
+        OrderModel.findById.mockResolvedValue(localOrder);
+
+        await expect(
+          orderService.markOutForDelivery(localOrder.id, 'En route', mockAdminId)
+        ).rejects.toThrow('Cannot mark as out_for_delivery from delivery status: assigned');
       });
     });
 

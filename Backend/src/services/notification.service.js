@@ -104,6 +104,7 @@ class NotificationService {
           phone: user.phone_number,
           message,
           provider_message_id: smsResult.messageId,
+          provider: smsResult.provider,
           status: smsResult.success ? 'sent' : 'failed',
           error: smsResult.error
         });

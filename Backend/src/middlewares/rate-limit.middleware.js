@@ -97,6 +97,11 @@ const adminLoginLimiter = createLimiter('admin-login', {
   limit: 5,
 });
 
+const swaggerLoginLimiter = createLimiter('swagger-login', {
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 5,
+});
+
 const resetLimiter = createLimiter('reset', {
   windowMs: 60 * 60 * 1000, // 1 hour
   limit: 3,
@@ -130,6 +135,7 @@ const healthLimiter = createLimiter('health', {
 module.exports = {
   authLimiter,
   adminLoginLimiter,
+  swaggerLoginLimiter,
   resetLimiter,
   refreshLimiter,
   adminLimiter,

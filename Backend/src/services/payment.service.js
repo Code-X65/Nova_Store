@@ -9,99 +9,29 @@ const SettingModel = require('../models/setting.model');
 const crypto = require('crypto');
 const CircuitBreaker = require('../utils/circuit-breaker');
 const contextStore = require('../utils/context');
-
-const paystackRequest = async ({ url, method, body, customHeaders = {} }) => {
-  const store = contextStore.getStore();
-  const reqId = store?.requestId;
-  
-  const headers = {
-    ...customHeaders
-  };
-  if (reqId) {
-    headers['X-Request-ID'] = reqId;
-    headers['traceparent'] = `00-${reqId.replace(/-/g, '')}-0000000000000001-01`;
-  }
-
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  });
-
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(result.message || `Paystack API returned HTTP ${response.status}`);
-  }
-  return result;
-};
-
-const paystackBreaker = new CircuitBreaker(paystackRequest, {
-  failureThreshold: 5,
-  cooldownPeriod: 30000
-});
-
-async function getPaystackSecretKey() {
-  let secretKey = process.env.PAYSTACK_SECRET_KEY;
-  try {
-    const setting = await SettingModel.getByKey('paystack_secret_key');
-    if (setting && setting.value) {
-      secretKey = setting.value;
-    }
-  } catch (err) {
-    // Fallback
-  }
-  return secretKey;
-}
+const PaymentGatewayFactory = require('./payment-gateways/factory');
 
 class PaymentService {
-  async initializePaystack(userId, email, amount, checkoutSessionId) {
-    try {
-      const paystackSecretKey = await getPaystackSecretKey();
-      const result = await paystackBreaker.execute({
-        url: 'https://api.paystack.co/transaction/initialize',
-        method: 'POST',
-        body: {
-          email,
-          amount: Math.round(amount * 100), // convert to kobo
-          metadata: { checkoutSessionId, userId }
-        },
-        customHeaders: {
-          'Authorization': `Bearer ${paystackSecretKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
+  async initializePayment(provider, userId, email, amount, checkoutSessionId) {
+    const gateway = PaymentGatewayFactory.getGateway(provider);
+    return await gateway.initialize({ userId, email, amount, checkoutSessionId });
+  }
 
-      const { data } = result;
-      
-      return {
-        authorizationUrl: data.authorization_url,
-        reference: data.reference
-      };
-    } catch (error) {
-      console.error('Paystack Init Error:', error.message);
-      throw error;
+  async initializePaystack(userId, email, amount, checkoutSessionId) {
+    return this.initializePayment('paystack', userId, email, amount, checkoutSessionId);
+  }
+
+  async verifyPayment(provider, reference) {
+    const gateway = PaymentGatewayFactory.getGateway(provider);
+    const data = await gateway.verify(reference);
+    if (data.status === 'success') {
+      await this.handleSuccessfulPayment(data.reference, provider, data);
     }
+    return data;
   }
 
   async verifyPaystack(reference) {
-    try {
-      const paystackSecretKey = await getPaystackSecretKey();
-      const result = await paystackBreaker.execute({
-        url: `https://api.paystack.co/transaction/verify/${reference}`,
-        method: 'GET',
-        customHeaders: {
-          'Authorization': `Bearer ${paystackSecretKey}`
-        }
-      });
-
-      const { data } = result;
-      if (data.status === 'success') {
-        await this.handleSuccessfulPayment(data.reference, 'paystack', data);
-      }
-      return data;
-    } catch (error) {
-      throw error;
-    }
+    return this.verifyPayment('paystack', reference);
   }
 
   async handleWebhook(provider, payload, signature) {
@@ -122,15 +52,12 @@ class PaymentService {
   }
 
   async verifySignature(provider, payload, signature) {
-    if (provider === 'paystack') {
-      const paystackSecretKey = await getPaystackSecretKey();
-      const hash = crypto.createHmac('sha512', paystackSecretKey)
-                         .update(JSON.stringify(payload))
-                         .digest('hex');
-      return hash === signature;
+    try {
+      const gateway = PaymentGatewayFactory.getGateway(provider);
+      return await gateway.verifySignature(payload, signature);
+    } catch (err) {
+      return false;
     }
-
-    return false;
   }
 
   async handleSuccessfulPayment(reference, provider, rawResponse) {
@@ -195,27 +122,8 @@ class PaymentService {
         throw new Error(`No successful payment record found for order ${orderId}`);
       }
 
-      let rawResponse = null;
-
-      if (payment.provider === 'paystack') {
-        const paystackSecretKey = await getPaystackSecretKey();
-        const result = await paystackBreaker.execute({
-          url: 'https://api.paystack.co/refund',
-          method: 'POST',
-          body: {
-            transaction: payment.reference,
-            amount: Math.round(refundAmount * 100),
-            customer_note: reason || 'Refund for returned items'
-          },
-          customHeaders: {
-            'Authorization': `Bearer ${paystackSecretKey}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        rawResponse = result.data;
-      } else {
-        throw new Error(`Unsupported payment provider for refunds: ${payment.provider}`);
-      }
+      const gateway = PaymentGatewayFactory.getGateway(payment.provider);
+      const rawResponse = await gateway.refund(payment.reference, refundAmount, reason);
 
       await PaymentModel.updateStatus(payment.id, 'refunded', rawResponse);
 

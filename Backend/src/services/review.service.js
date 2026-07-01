@@ -68,11 +68,21 @@ class ReviewService {
       }
       isVerifiedPurchase = true;
     } else {
-      // Automatically check if user bought it ever
-      // Fetch user's delivered orders and see if product is there
-      // For performance, a direct DB query would be better, but we can do a simple check
-      // For now, we'll just set it to false if they don't provide orderId
-      // Optionally, in a real app, query: SELECT count(*) FROM order_items JOIN orders WHERE user_id = ? AND product_id = ? AND status = 'delivered'
+      try {
+        const { data, error } = await supabase
+          .from('order_items')
+          .select('id, orders!inner(user_id, status)')
+          .eq('product_id', productId)
+          .eq('orders.user_id', userId)
+          .eq('orders.status', 'delivered')
+          .limit(1);
+
+        if (!error && data && data.length > 0) {
+          isVerifiedPurchase = true;
+        }
+      } catch (err) {
+        console.error('Failed to auto-detect verified purchase:', err.message);
+      }
     }
 
     // 3. Create review

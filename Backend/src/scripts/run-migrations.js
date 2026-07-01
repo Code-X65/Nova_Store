@@ -26,6 +26,15 @@ async function checkMigrationState(client, fileName) {
     `, [tableName, columnName]);
     return res.rows[0].exists;
   };
+  const constraintExists = async (conname) => {
+    const res = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM pg_constraint 
+        WHERE conname = $1
+      );
+    `, [conname]);
+    return res.rows[0].exists;
+  };
 
   if (fileName.includes('001_create_users_table')) return await tableExists('users');
   if (fileName.includes('002_onboarding')) return await tableExists('onboarding_questions');
@@ -58,6 +67,10 @@ async function checkMigrationState(client, fileName) {
   if (fileName.includes('045_superadmin_rbac_invitations')) return await tableExists('invitations');
   if (fileName.includes('047_manual_delivery_and_returns')) return await tableExists('delivery_dispatches');
   if (fileName.includes('048_auth_logging_and_queue_hardening')) return await columnExists('admin_auth_logs', 'user_agent');
+  if (fileName.includes('049_update_commit_reserved_stock_for_variants')) return false;
+  if (fileName.includes('050_add_unique_constraint_to_checkout_session_id')) return await constraintExists('uq_orders_checkout_session_id');
+  if (fileName.includes('051_optimize_fts_products')) return false;
+  if (fileName.includes('052_add_release_expired_reservations')) return false;
 
   const prefix = parseInt(fileName.split('_')[0], 10);
   if (!isNaN(prefix) && prefix < 25) {

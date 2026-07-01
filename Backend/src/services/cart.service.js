@@ -29,32 +29,27 @@ class CartService {
     const product = await ProductModel.findById(productId);
     if (!product) throw new Error('Product not found');
 
-    // Effective available quantity = stock minus already-reserved units
-    const reserved = product.reserved_quantity || 0;
-    const available = (product.stock_quantity || 0) - reserved;
+    const existingItem = await CartItemModel.findExisting(cart.id, productId, variantId);
+    const targetQty = existingItem ? (existingItem.quantity + quantity) : quantity;
 
-    const canBackorder = !!product.allow_backorder;
+    this.verifyStockAvailability(product, variantId, targetQty);
 
-    if (!canBackorder && quantity > available) {
-      throw new Error(
-        `Insufficient stock for "${product.name}". Available: ${available}, requested: ${quantity}`
-      );
+    // Always refresh unit_price to the product's live price (with variant overrides)
+    let unitPrice = product.sale_price || product.price;
+    if (variantId) {
+      const variant = (product.variants || []).find(v => v.id === variantId);
+      if (variant) {
+        if (variant.sale_price) {
+          unitPrice = variant.sale_price;
+        } else if (variant.price_modifier) {
+          unitPrice = Number(product.sale_price || product.price) + Number(variant.price_modifier);
+        }
+      }
     }
 
-    // Always refresh unit_price to the product's live price
-    const unitPrice = product.sale_price || product.price;
-
-    const existingItem = await CartItemModel.findExisting(cart.id, productId, variantId);
-
     if (existingItem) {
-      const newQty = existingItem.quantity + quantity;
-      if (!canBackorder && newQty > available) {
-        throw new Error(
-          `Insufficient stock for "${product.name}". Available: ${available}, cart total would be: ${newQty}`
-        );
-      }
       await CartItemModel.update(existingItem.id, {
-        quantity: newQty,
+        quantity: targetQty,
         unit_price: unitPrice
       });
     } else {
@@ -81,17 +76,19 @@ class CartService {
     const product = await ProductModel.findById(cartItem.product_id);
     if (!product) throw new Error('Product not found');
 
-    const reserved = product.reserved_quantity || 0;
-    const available = (product.stock_quantity || 0) - reserved;
-    const canBackorder = !!product.allow_backorder;
+    this.verifyStockAvailability(product, cartItem.variant_id, quantity);
 
-    if (!canBackorder && quantity > available) {
-      throw new Error(
-        `Insufficient stock for "${product.name}". Available: ${available}, requested: ${quantity}`
-      );
+    let unitPrice = product.sale_price || product.price;
+    if (cartItem.variant_id) {
+      const variant = (product.variants || []).find(v => v.id === cartItem.variant_id);
+      if (variant) {
+        if (variant.sale_price) {
+          unitPrice = variant.sale_price;
+        } else if (variant.price_modifier) {
+          unitPrice = Number(product.sale_price || product.price) + Number(variant.price_modifier);
+        }
+      }
     }
-
-    const unitPrice = product.sale_price || product.price;
 
     return await CartItemModel.update(cartItemId, {
       quantity,
@@ -116,6 +113,18 @@ class CartService {
 
     const userCart = await this.getOrCreateCart(userId, null);
 
+    // 1. Validate stock availability for all merged quantities first
+    for (const item of guestCart.items) {
+      const product = await ProductModel.findById(item.product_id);
+      if (!product) throw new Error('Product not found');
+
+      const existing = await CartItemModel.findExisting(userCart.id, item.product_id, item.variant_id);
+      const targetQty = existing ? (existing.quantity + item.quantity) : item.quantity;
+
+      this.verifyStockAvailability(product, item.variant_id, targetQty);
+    }
+
+    // 2. Perform DB writes/updates if all validations pass
     for (const item of guestCart.items) {
       const existing = await CartItemModel.findExisting(userCart.id, item.product_id, item.variant_id);
       if (existing) {
@@ -138,6 +147,37 @@ class CartService {
     await CartModel.delete(guestCart.id);
 
     return await this.getOrCreateCart(userId, null);
+  }
+
+  verifyStockAvailability(product, variantId, quantity) {
+    let available = 0;
+    let name = product.name;
+    const canBackorder = !!product.allow_backorder;
+
+    if (variantId) {
+      const variant = (product.variants || []).find(v => v.id === variantId);
+      if (!variant) throw new Error('Product variant not found');
+
+      name = `${product.name} - ${variant.name}`;
+      if (variant.track_inventory === false || product.track_inventory === false) {
+        available = Infinity;
+      } else {
+        available = variant.stock_quantity || 0;
+      }
+    } else {
+      if (product.track_inventory === false) {
+        available = Infinity;
+      } else {
+        const reserved = product.reserved_quantity || 0;
+        available = (product.stock_quantity || 0) - reserved;
+      }
+    }
+
+    if (!canBackorder && quantity > available) {
+      throw new Error(
+        `Insufficient stock for "${name}". Available: ${available}, requested: ${quantity}`
+      );
+    }
   }
 
   formatCartResponse(cart) {

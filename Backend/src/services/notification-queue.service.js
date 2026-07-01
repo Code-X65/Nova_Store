@@ -148,6 +148,23 @@ async function startWorker() {
   pollIntervalId = setInterval(async () => {
     if (isShuttingDown) return;
     try {
+      // Reconnection guard: check if Redis client is open
+      if (redisClient.isOpen === false) {
+        if (typeof redisClient.connect === 'function') {
+          logger.warn('[NotifyQueue] Redis client is closed. Attempting to reconnect...');
+          await redisClient.connect().catch(err => {
+            logger.error(`[NotifyQueue] Reconnection attempt failed: ${err.message}`);
+          });
+          if (redisClient.isOpen === false) {
+            logger.warn('[NotifyQueue] Reconnection failed, skipping this tick.');
+            return;
+          }
+          logger.info('[NotifyQueue] Reconnected to Redis successfully.');
+        } else {
+          logger.warn('[NotifyQueue] Redis client is closed but connect method is not available.');
+        }
+      }
+
       activeProcessingPromises++;
       await _dequeueBatch();
     } catch (err) {
@@ -161,6 +178,7 @@ async function startWorker() {
   recoveryIntervalId = setInterval(async () => {
     if (isShuttingDown) return;
     try {
+      if (redisClient.isOpen === false) return; // Skip recovery tick if Redis is closed
       activeProcessingPromises++;
       await _recoverStuckJobs();
     } catch (err) {

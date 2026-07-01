@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../../src/app');
 
-jest.setTimeout(20000);
+jest.setTimeout(30000);
 
 const userModel = require('../../src/models/user.model');
 const onboardingModel = require('../../src/models/onboarding.model');

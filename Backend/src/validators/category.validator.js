@@ -7,22 +7,22 @@ const categoryFields = {
     'string.min': 'Category name must be at least 2 characters',
     'string.max': 'Category name cannot exceed 50 characters'
   }),
-  description: Joi.string().min(10).max(500).required().messages({
-    'any.required': 'Category description is required',
+  // Optional — these fields are nullable in the DB; callers may omit them
+  description: Joi.string().min(10).max(500).optional().allow(null, '').messages({
     'string.min': 'Description must be at least 10 characters',
     'string.max': 'Description cannot exceed 500 characters'
   }),
-  image_url: Joi.string().uri().required().messages({
-    'any.required': 'Image URL is required',
+  image_url: Joi.string().uri().optional().allow(null, '').messages({
     'string.uri': 'Image URL must be a valid URI'
   }),
-  thumbnail_url: Joi.string().uri().required().messages({
-    'any.required': 'Thumbnail URL is required',
+  thumbnail_url: Joi.string().uri().optional().allow(null, '').messages({
     'string.uri': 'Thumbnail URL must be a valid URI'
   }),
-  icon: Joi.string().min(1).max(50).required().messages({
-    'any.required': 'Icon is required',
+  icon: Joi.string().min(1).max(50).optional().allow(null, '').messages({
     'string.min': 'Icon name cannot be empty'
+  }),
+  color: Joi.string().max(50).optional().allow(null, '').messages({
+    'string.max': 'Color cannot exceed 50 characters'
   }),
   sort_order: Joi.number().integer().min(0).optional().default(0),
   is_featured: Joi.boolean().optional().default(false),
@@ -45,10 +45,11 @@ const updateCategory = {
   body: Joi.object().keys({
     name: Joi.string().min(2).max(50).optional(),
     parentId: Joi.string().uuid().optional().allow(null, ''),
-    description: Joi.string().min(10).max(500).optional(),
-    image_url: Joi.string().uri().optional(),
-    thumbnail_url: Joi.string().uri().optional(),
-    icon: Joi.string().min(1).max(50).optional(),
+    description: Joi.string().min(10).max(500).optional().allow(null, ''),
+    image_url: Joi.string().uri().optional().allow(null, ''),
+    thumbnail_url: Joi.string().uri().optional().allow(null, ''),
+    icon: Joi.string().min(1).max(50).optional().allow(null, ''),
+    color: Joi.string().max(50).optional().allow(null, ''),
     sort_order: Joi.number().integer().min(0).optional(),
     is_featured: Joi.boolean().optional(),
     is_active: Joi.boolean().optional(),

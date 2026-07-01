@@ -24,6 +24,7 @@ const pgPool = require('./config/db');
 const { connectRedis, redisClient } = require('./config/redis');
 const CronJob = require('cron').CronJob;
 const runCleanup = require('./jobs/cleanup.job.js');
+const runReservationCleanup = require('./jobs/reservation-cleanup.job.js');
 const { startWorker: startNotifyWorker } = require('./services/notification-queue.service');
 
 const PORT = process.env.PORT || 5000;
@@ -33,6 +34,9 @@ startNotifyWorker().catch(err => console.error('[Server] Notify queue failed to 
 
 // 2. Daily garbage-collection: 02:00 UTC
 new CronJob('0 2 * * *', runCleanup, null, true, 'UTC');
+
+// 3. Stock reservation expiry cleanup: every 10 minutes
+new CronJob('*/10 * * * *', runReservationCleanup, null, true, 'UTC');
 
 let server;
 

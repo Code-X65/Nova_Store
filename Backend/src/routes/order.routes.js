@@ -127,6 +127,7 @@ router.post('/:id/reorder', orderController.reorder);
  *       - bearerAuth: []
  */
 router.get('/admin/list', hasPermission('order:read'), orderController.getAllOrders);
+router.get('/admin/export', hasPermission('order:read'), orderController.exportOrders);
 
 /**
  * @swagger

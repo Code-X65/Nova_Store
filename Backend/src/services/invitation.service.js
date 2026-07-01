@@ -156,6 +156,21 @@ class InvitationService {
     // Determine role name for users.role column
     const roleName = invitation.roles?.name || 'ADMIN';
 
+    // Generate unique referral code (same logic as userModel.create)
+    let referralCode;
+    let isUnique = false;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    while (!isUnique) {
+      referralCode = '';
+      for (let i = 0; i < 12; i++) {
+        referralCode += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const existingUserCode = await userModel.findByReferralCode(referralCode);
+      if (!existingUserCode) {
+        isUnique = true;
+      }
+    }
+
     // Create user
     const { supabaseAdmin } = require('../config/supabase');
     const { data: newUser, error: userError } = await supabaseAdmin
@@ -169,7 +184,8 @@ class InvitationService {
         is_email_verified: true, // Invitation link serves as email verification
         is_active: true,
         failed_login_attempts: 0,
-        extra_permissions: invitation.permissions || []
+        extra_permissions: invitation.permissions || [],
+        referral_code: referralCode
       }])
       .select()
       .single();

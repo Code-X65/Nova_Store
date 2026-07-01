@@ -157,7 +157,7 @@ class ProductModel {
     const previousQuantity = product.stock_quantity;
     const newQuantity = previousQuantity + quantityChange;
 
-    // 2. Update stock
+    // 2. Update product stock
     const { data: updatedProduct, error: updateError } = await supabase
       .from('products')
       .update({ 
@@ -171,15 +171,41 @@ class ProductModel {
 
     if (updateError) throw updateError;
 
-    // 3. Log transaction if provided
+    // 3. Update variant stock if variant_id is provided
+    let prevVarQty = 0;
+    let newVarQty = 0;
+    const variantId = transactionData?.variant_id;
+
+    if (variantId) {
+      const { data: variant, error: varFetchError } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('id', variantId)
+        .single();
+      if (varFetchError) throw varFetchError;
+
+      prevVarQty = variant.stock_quantity || 0;
+      newVarQty = prevVarQty + quantityChange;
+
+      const { error: varUpdateError } = await supabase
+        .from('product_variants')
+        .update({
+          stock_quantity: newVarQty,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', variantId);
+      if (varUpdateError) throw varUpdateError;
+    }
+
+    // 4. Log transaction if provided
     if (transactionData) {
       const { error: transError } = await supabase
         .from('inventory_transactions')
         .insert([{
           ...transactionData,
           product_id: productId,
-          previous_quantity: previousQuantity,
-          new_quantity: newQuantity,
+          previous_quantity: variantId ? prevVarQty : previousQuantity,
+          new_quantity: variantId ? newVarQty : newQuantity,
           quantity_change: quantityChange
         }]);
       
@@ -295,6 +321,36 @@ class ProductModel {
     });
     if (error) throw error;
     return data || [];
+  }
+
+  async getPriceRange(filters = {}) {
+    let query = supabase
+      .from('products')
+      .select('price')
+      .is('deleted_at', null);
+
+    if (filters.status)      query = query.eq('status', filters.status);
+    if (filters.category_id) query = query.eq('category_id', filters.category_id);
+    if (filters.brand_id)    query = query.eq('brand_id', filters.brand_id);
+    if (filters.subcategory_id) query = query.eq('subcategory_id', filters.subcategory_id);
+    if (filters.is_featured !== undefined) query = query.eq('is_featured', filters.is_featured);
+
+    if (filters.search) {
+      query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%,sku.ilike.%${filters.search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return { minPrice: 0, maxPrice: 0 };
+    }
+
+    const prices = data.map(p => parseFloat(p.price));
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+
+    return { minPrice, maxPrice };
   }
 }
 

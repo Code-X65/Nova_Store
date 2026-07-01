@@ -185,6 +185,15 @@ class ProductController {
       next(error);
     }
   }
+
+  async getPriceRange(req, res, next) {
+    try {
+      const range = await productService.getPriceRange(req.query, req.user);
+      res.status(200).json({ success: true, data: range });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new ProductController();

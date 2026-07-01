@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('./utils/logger');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
@@ -8,7 +9,7 @@ const csrfProtection = require('./middlewares/csrf.middleware');
 const adminUploadRoutes = require('./routes/admin/upload.routes');
 const currencyRoutes = require('./routes/currency.routes');
 
-const { authLimiter, adminLoginLimiter, resetLimiter, refreshLimiter, adminLimiter, apiLimiter, healthLimiter } = require('./middlewares/rate-limit.middleware');
+const { authLimiter, adminLoginLimiter, swaggerLoginLimiter, resetLimiter, refreshLimiter, adminLimiter, apiLimiter, healthLimiter } = require('./middlewares/rate-limit.middleware');
 const cookieParser = require('cookie-parser');
 const requestIdMiddleware = require('./middlewares/request-id.middleware');
 const requestLogger = require('./middlewares/request-logger.middleware');
@@ -50,12 +51,14 @@ const swaggerSpec = require('./config/swagger');
 const xssSanitize = require('./middlewares/sanitize.middleware');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
+const { Pool } = require('pg');
 const requireAdmin = require('./middlewares/require-admin.middleware');
 const adminAuthRoutes = require('./routes/admin/auth.routes');
 const idempotencyMiddleware = require('./middlewares/idempotency.middleware');
 const invitationRoutes = require('./routes/admin/invitation.routes');
 const adminManagementRoutes = require('./routes/admin/admin-management.routes');
 const acceptInviteRoutes = require('./routes/public/accept-invite.routes');
+const swaggerAuth = require('./middlewares/swagger-auth.middleware');
 
 const { metricsMiddleware } = require('./middlewares/metrics.middleware');
 const compression = require('compression');
@@ -77,12 +80,32 @@ const { optionalAuth } = require('./middlewares/auth.middleware');
 app.use(optionalAuth);
 app.use(maintenanceMiddleware);
 
-app.use(session({
-  store: new pgSession({
-    pool: pgPool,
+// Dedicated session pool with a short connection timeout so an unreachable
+// database fails fast instead of blocking every request for 10+ seconds.
+const sessionPool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 5,
+  connectionTimeoutMillis: 2000, // give up after 2s — not 10s
+  idleTimeoutMillis: 30000,
+  ssl: { rejectUnauthorized: false },
+});
+
+// Build session store — fall back to in-memory if DB is unreachable on startup.
+let sessionStore;
+try {
+  sessionStore = new pgSession({
+    pool: sessionPool,
     tableName: 'admin_sessions',
     pruneSessionInterval: 60 * 60,
-  }),
+    errorLog: (...args) => logger.warn('Session store error:', ...args),
+  });
+} catch (e) {
+  logger.warn('Session store could not be initialised, falling back to MemoryStore');
+  sessionStore = new session.MemoryStore();
+}
+
+app.use(session({
+  store: sessionStore,
   secret: process.env.SESSION_SECRET.split(','),
   resave: false,
   saveUninitialized: false,
@@ -150,7 +173,14 @@ app.use(idempotencyMiddleware);
 app.use(csrfProtection);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs/login', (req, res, next) => {
+  if (req.method === 'POST') {
+    return swaggerLoginLimiter(req, res, next);
+  }
+  next();
+});
+
+app.use('/api-docs', swaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/health', healthLimiter, healthRoutes);
 

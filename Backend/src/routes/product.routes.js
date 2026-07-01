@@ -86,6 +86,65 @@ const router = express.Router();
  *         is_featured:
  *           type: boolean
  *           default: false
+ *         color:
+ *           type: string
+ *           nullable: true
+ *           example: "#1A73E8"
+ *           description: Primary product color (free-text — hex, name, or CSS value)
+ *         weight:
+ *           type: number
+ *           nullable: true
+ *           example: 0.25
+ *           description: Product weight in kilograms (used for shipping calculations)
+ *         dimensions_length:
+ *           type: number
+ *           nullable: true
+ *           example: 15.0
+ *           description: Box length in centimetres
+ *         dimensions_width:
+ *           type: number
+ *           nullable: true
+ *           example: 8.0
+ *           description: Box width in centimetres
+ *         dimensions_height:
+ *           type: number
+ *           nullable: true
+ *           example: 3.5
+ *           description: Box height in centimetres
+ *         cost_price:
+ *           type: number
+ *           nullable: true
+ *           example: 89.99
+ *           description: Internal cost price for profit-margin analytics (not exposed to customers)
+ *         allow_backorder:
+ *           type: boolean
+ *           default: false
+ *           description: Allow purchases even when stock_quantity reaches zero
+ *         track_inventory:
+ *           type: boolean
+ *           default: true
+ *           description: Enable stock-quantity tracking for this product
+ *         tags:
+ *           type: array
+ *           items:
+ *             type: string
+ *           example: ["wireless", "noise-cancelling"]
+ *           description: Searchable tags for discovery
+ *         meta_title:
+ *           type: string
+ *           nullable: true
+ *           example: "Wireless Earbuds Pro | SoundMax"
+ *           description: SEO title tag (max 60 chars)
+ *         meta_description:
+ *           type: string
+ *           nullable: true
+ *           example: "Shop the best noise-cancelling earbuds."
+ *           description: SEO meta description (max 160 chars)
+ *         meta_keywords:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: SEO keywords
  *         variants:
  *           type: array
  *           items:
@@ -140,6 +199,42 @@ const router = express.Router();
  *         currency:
  *           type: string
  *           description: ISO-4217 currency code
+ *         color:
+ *           type: string
+ *           nullable: true
+ *         weight:
+ *           type: number
+ *           nullable: true
+ *         dimensions_length:
+ *           type: number
+ *           nullable: true
+ *         dimensions_width:
+ *           type: number
+ *           nullable: true
+ *         dimensions_height:
+ *           type: number
+ *           nullable: true
+ *         cost_price:
+ *           type: number
+ *           nullable: true
+ *         allow_backorder:
+ *           type: boolean
+ *         track_inventory:
+ *           type: boolean
+ *         tags:
+ *           type: array
+ *           items:
+ *             type: string
+ *         meta_title:
+ *           type: string
+ *           nullable: true
+ *         meta_description:
+ *           type: string
+ *           nullable: true
+ *         meta_keywords:
+ *           type: array
+ *           items:
+ *             type: string
  */
 
 // --- Validation Schemas ---
@@ -148,21 +243,37 @@ const productSchema = {
   body: Joi.object({
     sku:               Joi.string().required().example('ELEC-001'),
     name:              Joi.string().min(2).max(200).required().example('Wireless Earbuds Pro'),
-    description:       Joi.string().example('Premium noise-cancelling earbuds with long battery life.'),
-    short_description: Joi.string().example('High-quality earbuds.'),
-    category:          Joi.string().example('electronics'),
+    description:       Joi.string().optional().allow('', null).example('Premium noise-cancelling earbuds with long battery life.'),
+    short_description: Joi.string().optional().allow('', null).example('High-quality earbuds.'),
+    category:          Joi.string().optional().example('electronics'),
     category_id:       Joi.string().uuid().required().example('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'),
     subcategory_id:    Joi.string().uuid().optional().allow(null),
-    brand:             Joi.string().example('SoundMax'),
+    brand:             Joi.string().optional().allow('', null).example('SoundMax'),
     brand_id:          Joi.string().uuid().optional().allow(null),
     price:             Joi.number().positive().required().example(199.99),
-    sale_price:        Joi.number().positive().allow(null).example(149.99),
+    sale_price:        Joi.number().positive().optional().allow(null).example(149.99),
+    cost_price:        Joi.number().positive().optional().allow(null).example(89.99),
     stock_quantity:    Joi.number().integer().min(0).default(0),
     status:            Joi.string().valid('draft', 'published', 'archived').default('draft'),
     is_featured:       Joi.boolean().default(false),
+    allow_backorder:   Joi.boolean().optional().default(false),
+    track_inventory:   Joi.boolean().optional().default(true),
     primary_image_url: Joi.string().uri().optional().allow(null, ''),
     thumbnail_url:     Joi.string().uri().optional().allow(null, ''),
+    image_gallery:     Joi.array().items(Joi.string().uri()).optional(),
     currency:          Joi.string().length(3).uppercase().default('USD'),
+    // Physical attributes (for shipping)
+    color:             Joi.string().max(50).optional().allow(null, '').example('#1A73E8'),
+    weight:            Joi.number().positive().optional().allow(null).example(0.25),
+    dimensions_length: Joi.number().positive().optional().allow(null).example(15.0),
+    dimensions_width:  Joi.number().positive().optional().allow(null).example(8.0),
+    dimensions_height: Joi.number().positive().optional().allow(null).example(3.5),
+    // Discovery
+    tags:              Joi.array().items(Joi.string()).max(20).optional(),
+    // SEO
+    meta_title:        Joi.string().max(60).optional().allow(null, ''),
+    meta_description:  Joi.string().max(160).optional().allow(null, ''),
+    meta_keywords:     Joi.array().items(Joi.string()).optional(),
     variants: Joi.array().items(Joi.object({
       sku:           Joi.string().required(),
       name:          Joi.string().required(),
@@ -189,12 +300,28 @@ const productUpdateSchema = {
     brand_id:          Joi.string().uuid().optional().allow(null),
     price:             Joi.number().positive().optional(),
     sale_price:        Joi.number().positive().optional().allow(null),
+    cost_price:        Joi.number().positive().optional().allow(null),
     stock_quantity:    Joi.number().integer().min(0).optional(),
     status:            Joi.string().valid('draft', 'published', 'archived', 'out_of_stock').optional(),
     is_featured:       Joi.boolean().optional(),
+    allow_backorder:   Joi.boolean().optional(),
+    track_inventory:   Joi.boolean().optional(),
     primary_image_url: Joi.string().uri().optional().allow(null, ''),
     thumbnail_url:     Joi.string().uri().optional().allow(null, ''),
+    image_gallery:     Joi.array().items(Joi.string().uri()).optional(),
     currency:          Joi.string().length(3).uppercase().optional(),
+    // Physical attributes (for shipping)
+    color:             Joi.string().max(50).optional().allow(null, ''),
+    weight:            Joi.number().positive().optional().allow(null),
+    dimensions_length: Joi.number().positive().optional().allow(null),
+    dimensions_width:  Joi.number().positive().optional().allow(null),
+    dimensions_height: Joi.number().positive().optional().allow(null),
+    // Discovery
+    tags:              Joi.array().items(Joi.string()).max(20).optional(),
+    // SEO
+    meta_title:        Joi.string().max(60).optional().allow(null, ''),
+    meta_description:  Joi.string().max(160).optional().allow(null, ''),
+    meta_keywords:     Joi.array().items(Joi.string()).optional(),
     // Dynamic category-specific attributes (partial update: only submitted keys are saved)
     attributes: Joi.object().pattern(Joi.string(), Joi.alternatives().try(
       Joi.string(), Joi.number(), Joi.boolean()
@@ -320,6 +447,7 @@ router.get('/recommendations', recommendationController.getRecommendations);
  *         description: Ranked search results returned successfully
  */
 router.get('/search', productController.search);
+router.get('/price-range', productController.getPriceRange);
 
 /**
  * @swagger

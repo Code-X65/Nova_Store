@@ -69,5 +69,8 @@ router.delete('/:productId', wishlistController.removeFromWishlist);
  *         description: Check result
  */
 router.get('/:productId/check', wishlistController.checkInWishlist);
+router.post('/merge', wishlistController.mergeWishlist);
+router.post('/move-to-cart', wishlistController.moveItemToCart);
+router.post('/move-all-to-cart', wishlistController.moveAllToCart);
 
 module.exports = router;
