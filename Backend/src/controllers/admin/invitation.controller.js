@@ -2,9 +2,10 @@ const invitationService = require('../../services/invitation.service');
 const logger = require('../../utils/logger');
 
 /**
- * Invitation Controller — SUPER_ADMIN only
+ * Invitation Controller — STORE_OWNER & MANAGER
  *
- * All routes require requireSuperAdmin middleware (mounted in invitation.routes.js).
+ * All routes require requireStoreOwner middleware (mounted in invitation.routes.js).
+ * MANAGER can invite lower staff (ORDER_STAFF, INVENTORY_STAFF) only.
  */
 class InvitationController {
   /**
@@ -46,13 +47,15 @@ class InvitationController {
   async listInvitations(req, res, next) {
     try {
       const { status, search, page = 1, limit = 20 } = req.query;
-      const requesterId = req.admin.id;
-      const isSuperAdmin = req.admin.role === 'SUPER_ADMIN';
+      const requesterId  = req.admin.id;
+      // STORE_OWNER sees all invitations; MANAGER sees only their own sent invitations
+      const isStoreOwner = req.admin.hasRole('STORE_OWNER');
 
       const result = await invitationService.listInvitations(
         { status, search, page: parseInt(page), limit: parseInt(limit) },
         requesterId,
-        isSuperAdmin
+        isStoreOwner,
+        req.admin.store_id
       );
 
       return res.json({ success: true, data: result });
@@ -68,10 +71,10 @@ class InvitationController {
   async getInvitation(req, res, next) {
     try {
       const { id } = req.params;
-      const requesterId = req.admin.id;
-      const isSuperAdmin = req.admin.role === 'SUPER_ADMIN';
+      const requesterId  = req.admin.id;
+      const isStoreOwner = req.admin.hasRole('STORE_OWNER');
 
-      const invitation = await invitationService.getInvitation(id, requesterId, isSuperAdmin);
+      const invitation = await invitationService.getInvitation(id, requesterId, isStoreOwner, req.admin.store_id);
       return res.json({ success: true, data: invitation });
     } catch (err) {
       next(err);
@@ -85,10 +88,10 @@ class InvitationController {
   async revokeInvitation(req, res, next) {
     try {
       const { id } = req.params;
-      const requesterId = req.admin.id;
-      const isSuperAdmin = req.admin.role === 'SUPER_ADMIN';
+      const requesterId  = req.admin.id;
+      const isStoreOwner = req.admin.hasRole('STORE_OWNER');
 
-      await invitationService.revokeInvitation(id, requesterId, isSuperAdmin, req);
+      await invitationService.revokeInvitation(id, requesterId, isStoreOwner, req.admin.store_id, req);
       return res.json({ success: true, message: 'Invitation revoked.' });
     } catch (err) {
       next(err);
@@ -102,10 +105,10 @@ class InvitationController {
   async resendInvitation(req, res, next) {
     try {
       const { id } = req.params;
-      const requesterId = req.admin.id;
-      const isSuperAdmin = req.admin.role === 'SUPER_ADMIN';
+      const requesterId  = req.admin.id;
+      const isStoreOwner = req.admin.hasRole('STORE_OWNER');
 
-      await invitationService.resendInvitation(id, requesterId, isSuperAdmin, req);
+      await invitationService.resendInvitation(id, requesterId, isStoreOwner, req.admin.store_id, req);
       return res.json({ success: true, message: 'Invitation resent.' });
     } catch (err) {
       next(err);

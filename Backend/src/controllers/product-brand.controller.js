@@ -5,7 +5,7 @@ const AuditService = require('../services/audit.service');
 class ProductBrandController {
   async getAllBrands(req, res, next) {
     try {
-      const brands = await brandModel.findAll(req.query);
+      const brands = await brandModel.findAll({ ...req.query, store_id: req.store?.id });
       res.status(200).json({ success: true, data: { brands } });
     } catch (error) {
       next(error);
@@ -14,7 +14,7 @@ class ProductBrandController {
 
   async getBrandById(req, res, next) {
     try {
-      const brand = await brandModel.findById(req.params.id);
+      const brand = await brandModel.findById(req.params.id, req.store?.id);
       if (!brand) {
         return res.status(404).json({ success: false, message: 'Brand not found' });
       }
@@ -26,7 +26,7 @@ class ProductBrandController {
 
   async getBrandBySlug(req, res, next) {
     try {
-      const brand = await brandModel.findBySlug(req.params.slug);
+      const brand = await brandModel.findBySlug(req.params.slug, req.store?.id);
       if (!brand) {
         return res.status(404).json({ success: false, message: 'Brand not found' });
       }
@@ -42,7 +42,7 @@ class ProductBrandController {
       let slug = slugify(name);
 
       // Guard against duplicate names/slugs before hitting the DB constraint
-      const existingBySlug = await brandModel.findBySlug(slug);
+      const existingBySlug = await brandModel.findBySlug(slug, req.store?.id);
       if (existingBySlug) {
         return res.status(409).json({ success: false, message: `A brand with the name "${name}" already exists` });
       }
@@ -51,7 +51,8 @@ class ProductBrandController {
         ...rest,
         name,
         slug,
-        created_by: req.user.id
+        created_by: req.user.id,
+        store_id: req.store?.id
       });
 
       AuditService.log(req, 'brand.created', 'brand', brand.id, null, {
@@ -72,8 +73,11 @@ class ProductBrandController {
   async updateBrand(req, res, next) {
     try {
       const { id } = req.params;
-      const oldBrand = await brandModel.findById(id);
-      const brand = await brandModel.update(id, req.body);
+      const oldBrand = await brandModel.findById(id, req.store?.id);
+      if (!oldBrand) {
+        return res.status(404).json({ success: false, message: 'Brand not found' });
+      }
+      const brand = await brandModel.update(id, req.body, req.store?.id);
 
       const oldValues = oldBrand ? {
         name: oldBrand.name,
@@ -103,7 +107,11 @@ class ProductBrandController {
   async deleteBrand(req, res, next) {
     try {
       const { id } = req.params;
-      await brandModel.softDelete(id);
+      const brand = await brandModel.findById(id, req.store?.id);
+      if (!brand) {
+        return res.status(404).json({ success: false, message: 'Brand not found' });
+      }
+      await brandModel.softDelete(id, req.store?.id);
       AuditService.log(req, 'brand.deleted', 'brand', id);
       res.status(200).json({ success: true, message: 'Brand archived' });
     } catch (error) {

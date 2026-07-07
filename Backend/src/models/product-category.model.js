@@ -8,6 +8,7 @@ class ProductCategoryModel {
       .is('deleted_at', null)
       .order('sort_order', { ascending: true });
 
+    if (options.store_id) query = query.eq('store_id', options.store_id);
     if (options.activeOnly) query = query.eq('is_active', true);
     if (options.parentId !== undefined) {
       if (options.parentId === null) query = query.is('parent_id', null);
@@ -19,34 +20,40 @@ class ProductCategoryModel {
     return data;
   }
 
-  async findById(id) {
-    const { data, error } = await supabase
+  async findById(id, storeId = null) {
+    let query = supabase
       .from('product_categories')
       .select('*, parent:parent_id(*)')
       .eq('id', id)
-      .is('deleted_at', null)
-      .single();
+      .is('deleted_at', null);
+
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query.single();
 
     if (error && error.code !== 'PGRST116') throw error;
     return data;
   }
 
-  async findBySlug(slug) {
-    const { data, error } = await supabase
+  async findBySlug(slug, storeId = null) {
+    let query = supabase
       .from('product_categories')
       .select('*, parent:parent_id(*)')
       .eq('slug', slug)
-      .is('deleted_at', null)
-      .single();
+      .is('deleted_at', null);
+
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query.single();
 
     if (error && error.code !== 'PGRST116') throw error;
     return data;
   }
 
-  async findByParentSlug(parentSlug) {
-    const parent = await this.findBySlug(parentSlug);
+  async findByParentSlug(parentSlug, storeId = null) {
+    const parent = await this.findBySlug(parentSlug, storeId);
     if (!parent) return [];
-    return this.findAll({ parentId: parent.id, activeOnly: true });
+    return this.findAll({ parentId: parent.id, activeOnly: true, store_id: storeId });
   }
 
   async create(categoryData) {

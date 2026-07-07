@@ -1,0 +1,16 @@
+{
+    "name":  "nova-store",
+    "version":  "1.0.0",
+    "scripts":  {
+                    "dev:admin":  "npm run dev --workspace=apps/admin",
+                    "dev:storefront":  "npm run dev --workspace=apps/storefront",
+                    "build:admin":  "npm run build --workspace=apps/admin",
+                    "build:storefront":  "npm run build --workspace=apps/storefront",
+                    "lint":  "npm run lint --workspaces --if-present",
+                    "typecheck":  "npm run typecheck --workspaces --if-present"
+                },
+    "engines":  {
+                    "node":  "\u003e=20.0.0",
+                    "npm":  "\u003e=10.0.0"
+                }
+}

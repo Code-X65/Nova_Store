@@ -38,8 +38,8 @@ class InventoryService {
     return results;
   }
 
-  async getLowStockItems() {
-    return await ProductModel.getLowStockProducts();
+  async getLowStockItems(storeId = null) {
+    return await ProductModel.getLowStockProducts(storeId);
   }
 
   async getInventoryHistory(filters, pagination) {

@@ -47,6 +47,10 @@ describe('OrderService', () => {
       first_name: 'John',
       last_name: 'Doe'
     });
+    UserModel.getUserRolesAndPermissions.mockResolvedValue({
+      roles: ['STORE_OWNER'],
+      permissions: ['*']
+    });
     AuditService.log.mockResolvedValue(undefined);
   });
 
@@ -57,7 +61,7 @@ describe('OrderService', () => {
 
       const result = await orderService.getUserOrders(mockUserId, { status: 'pending' }, { page: 1, limit: 10 });
       expect(result).toEqual(mockResult);
-      expect(OrderModel.findByUserId).toHaveBeenCalledWith(mockUserId, { status: 'pending' }, { page: 1, limit: 10 });
+      expect(OrderModel.findByUserId).toHaveBeenCalledWith(mockUserId, { status: 'pending' }, { page: 1, limit: 10 }, null);
     });
   });
 
@@ -71,7 +75,7 @@ describe('OrderService', () => {
 
       const result = await orderService.getOrderDetails(mockOrder.id, mockUserId, false);
       expect(result).toEqual({ ...mockOrder, history: mockHistory, dispatches: mockDispatches });
-      expect(OrderModel.findById).toHaveBeenCalledWith(mockOrder.id);
+      expect(OrderModel.findById).toHaveBeenCalledWith(mockOrder.id, null);
       expect(OrderStatusHistoryModel.findByOrderId).toHaveBeenCalledWith(mockOrder.id);
     });
 
@@ -128,6 +132,18 @@ describe('OrderService', () => {
 
       await expect(orderService.cancelOrder(shippedOrder.id, mockUserId, 'Reason')).rejects.toThrow('Order cannot be cancelled in current status: shipped');
     });
+
+    it('should reject cancelOrder as admin if caller has ORDER_STAFF role only', async () => {
+      UserModel.getUserRolesAndPermissions.mockResolvedValueOnce({
+        roles: ['ORDER_STAFF'],
+        permissions: ['order:write']
+      });
+      OrderModel.findById.mockResolvedValue(mockOrder);
+
+      await expect(
+        orderService.cancelOrder(mockOrder.id, mockAdminId, 'Stock issue', true)
+      ).rejects.toThrow('Order Staff are not authorized to cancel orders');
+    });
   });
 
   describe('reorder', () => {
@@ -140,8 +156,8 @@ describe('OrderService', () => {
       const result = await orderService.reorder(mockOrder.id, mockUserId);
       expect(result).toEqual(mockCart);
       expect(CartService.addItem).toHaveBeenCalledTimes(2);
-      expect(CartService.addItem).toHaveBeenNthCalledWith(1, mockUserId, null, 'prod-1', undefined, 2);
-      expect(CartService.addItem).toHaveBeenNthCalledWith(2, mockUserId, null, 'prod-2', undefined, 1);
+      expect(CartService.addItem).toHaveBeenNthCalledWith(1, mockUserId, null, 'prod-1', undefined, 2, null);
+      expect(CartService.addItem).toHaveBeenNthCalledWith(2, mockUserId, null, 'prod-2', undefined, 1, null);
     });
   });
 
@@ -174,6 +190,36 @@ describe('OrderService', () => {
         trackingNumber: 'TRK123',
         carrier: 'DHL'
       }, null, null, { async: true });
+    });
+
+    it('should allow valid transitions for ORDER_STAFF', async () => {
+      UserModel.getUserRolesAndPermissions.mockResolvedValueOnce({
+        roles: ['ORDER_STAFF'],
+        permissions: ['order:write']
+      });
+      const localMockOrder = { ...mockOrder, status: 'pending' };
+      OrderModel.findById.mockResolvedValue(localMockOrder);
+      OrderModel.updateStatus.mockResolvedValue({ ...localMockOrder, status: 'confirmed' });
+
+      const result = await orderService.updateOrderStatus(localMockOrder.id, {
+        status: 'confirmed',
+        note: 'Confirmed'
+      }, mockAdminId);
+
+      expect(result.status).toBe('confirmed');
+    });
+
+    it('should reject invalid transitions for ORDER_STAFF', async () => {
+      UserModel.getUserRolesAndPermissions.mockResolvedValueOnce({
+        roles: ['ORDER_STAFF'],
+        permissions: ['order:write']
+      });
+      const localMockOrder = { ...mockOrder, status: 'pending' };
+      OrderModel.findById.mockResolvedValue(localMockOrder);
+
+      await expect(
+        orderService.updateOrderStatus(localMockOrder.id, { status: 'cancelled' }, mockAdminId)
+      ).rejects.toThrow(/Order Staff are not authorized to transition order status/);
     });
   });
 
@@ -306,6 +352,19 @@ describe('OrderService', () => {
         note: 'Initiating refund',
         changed_by: mockAdminId
       });
+    });
+
+    it('should reject processReturn if caller has ORDER_STAFF role only', async () => {
+      UserModel.getUserRolesAndPermissions.mockResolvedValueOnce({
+        roles: ['ORDER_STAFF'],
+        permissions: ['order:write']
+      });
+      const returnedOrder = { ...mockOrder, status: 'returned', return_status: 'requested' };
+      OrderModel.findById.mockResolvedValue(returnedOrder);
+
+      await expect(
+        orderService.processReturn(returnedOrder.id, { action: 'approve', note: 'Looks good' }, mockAdminId)
+      ).rejects.toThrow('Order Staff are not authorized to process returns');
     });
   });
 
@@ -688,7 +747,7 @@ describe('OrderService', () => {
 
       const result = await orderService.claimGuestOrders(mockUserId, mockEmail, {});
       expect(result).toEqual(mockClaimedOrders);
-      expect(OrderModel.claimGuestOrders).toHaveBeenCalledWith(mockUserId, mockEmail);
+      expect(OrderModel.claimGuestOrders).toHaveBeenCalledWith(mockUserId, mockEmail, null);
       expect(AuditService.log).toHaveBeenCalledWith({}, 'orders.guest_claimed', 'user', mockUserId, null, {
         email: mockEmail,
         claimedCount: 1,

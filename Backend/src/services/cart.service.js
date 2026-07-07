@@ -3,18 +3,19 @@ const CartItemModel = require('../models/cart-item.model');
 const ProductModel = require('../models/product.model');
 
 class CartService {
-  async getOrCreateCart(userId, sessionId) {
+  async getOrCreateCart(userId, sessionId, storeId = null) {
     let cart;
     if (userId) {
-      cart = await CartModel.findByUserId(userId);
+      cart = await CartModel.findByUserId(userId, storeId);
     } else if (sessionId) {
-      cart = await CartModel.findBySessionId(sessionId);
+      cart = await CartModel.findBySessionId(sessionId, storeId);
     }
 
     if (!cart) {
       cart = await CartModel.create({
         user_id: userId || null,
-        session_id: userId ? null : sessionId
+        session_id: userId ? null : sessionId,
+        store_id: storeId || null
       });
       cart.items = [];
     }
@@ -22,11 +23,11 @@ class CartService {
     return this.formatCartResponse(cart);
   }
 
-  async addItem(userId, sessionId, productId, variantId, quantity) {
-    const cart = await this.getOrCreateCart(userId, sessionId);
+  async addItem(userId, sessionId, productId, variantId, quantity, storeId = null) {
+    const cart = await this.getOrCreateCart(userId, sessionId, storeId);
     
     // Validate product existence and stock
-    const product = await ProductModel.findById(productId);
+    const product = await ProductModel.findById(productId, storeId);
     if (!product) throw new Error('Product not found');
 
     const existingItem = await CartItemModel.findExisting(cart.id, productId, variantId);
@@ -62,10 +63,10 @@ class CartService {
       });
     }
 
-    return await this.getOrCreateCart(userId, sessionId);
+    return await this.getOrCreateCart(userId, sessionId, storeId);
   }
 
-  async updateItemQuantity(cartItemId, quantity) {
+  async updateItemQuantity(cartItemId, quantity, storeId = null) {
     if (quantity <= 0) {
       return await CartItemModel.delete(cartItemId);
     }
@@ -73,7 +74,7 @@ class CartService {
     const cartItem = await CartItemModel.findById(cartItemId);
     if (!cartItem) throw new Error('Cart item not found');
 
-    const product = await ProductModel.findById(cartItem.product_id);
+    const product = await ProductModel.findById(cartItem.product_id, storeId);
     if (!product) throw new Error('Product not found');
 
     this.verifyStockAvailability(product, cartItem.variant_id, quantity);
@@ -100,22 +101,22 @@ class CartService {
     return await CartItemModel.delete(cartItemId);
   }
 
-  async clearCart(userId, sessionId) {
-    const cart = await this.getOrCreateCart(userId, sessionId);
+  async clearCart(userId, sessionId, storeId = null) {
+    const cart = await this.getOrCreateCart(userId, sessionId, storeId);
     return await CartItemModel.deleteByCartId(cart.id);
   }
 
-  async mergeCarts(userId, sessionId) {
-    const guestCart = await CartModel.findBySessionId(sessionId);
+  async mergeCarts(userId, sessionId, storeId = null) {
+    const guestCart = await CartModel.findBySessionId(sessionId, storeId);
     if (!guestCart || !guestCart.items || guestCart.items.length === 0) {
-      return await this.getOrCreateCart(userId, null);
+      return await this.getOrCreateCart(userId, null, storeId);
     }
 
-    const userCart = await this.getOrCreateCart(userId, null);
+    const userCart = await this.getOrCreateCart(userId, null, storeId);
 
     // 1. Validate stock availability for all merged quantities first
     for (const item of guestCart.items) {
-      const product = await ProductModel.findById(item.product_id);
+      const product = await ProductModel.findById(item.product_id, storeId);
       if (!product) throw new Error('Product not found');
 
       const existing = await CartItemModel.findExisting(userCart.id, item.product_id, item.variant_id);
@@ -146,7 +147,7 @@ class CartService {
     // Delete guest cart
     await CartModel.delete(guestCart.id);
 
-    return await this.getOrCreateCart(userId, null);
+    return await this.getOrCreateCart(userId, null, storeId);
   }
 
   verifyStockAvailability(product, variantId, quantity) {

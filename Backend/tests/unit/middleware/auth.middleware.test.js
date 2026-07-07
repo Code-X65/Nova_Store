@@ -42,7 +42,7 @@ describe('Auth Middleware - protect', () => {
 
       userModel.findById.mockResolvedValue(mockAdmin);
       userModel.getUserRolesAndPermissions.mockResolvedValue({
-        roles: ['ADMIN'],
+        roles: ['STORE_OWNER'],
         permissions: ['*']
       });
 
@@ -55,15 +55,18 @@ describe('Auth Middleware - protect', () => {
         email: 'admin@novastore.com',
         firstName: 'System',
         lastName: 'Admin',
-        role: 'ADMIN',
-        roles: ['ADMIN'],
-        permissions: ['*']
+        role: 'STORE_OWNER',
+        roles: ['STORE_OWNER'],
+        store_id: null,
+        permissions: ['*'],
+        hasRole: expect.any(Function)
       });
       expect(req.user).toEqual({
         id: 'admin-uuid-123',
         email: 'admin@novastore.com',
-        role: 'ADMIN',
-        roles: ['ADMIN'],
+        role: 'STORE_OWNER',
+        roles: ['STORE_OWNER'],
+        store_id: null,
         permissions: ['*']
       });
       expect(next).toHaveBeenCalled();

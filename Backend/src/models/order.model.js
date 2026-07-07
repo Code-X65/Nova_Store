@@ -34,23 +34,27 @@ class OrderModel {
     }
   }
 
-  async findById(id) {
-    const { data, error } = await supabase
+  async findById(id, storeId = null) {
+    let query = supabase
       .from('orders')
-      .select('*, items:order_items(*)')
-      .eq('id', id)
-      .single();
+      .select('*, items:order_items(*)');
+
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query.eq('id', id).single();
 
     if (error) throw error;
     return data;
   }
 
-  async findByOrderNumber(orderNumber) {
-    const { data, error } = await supabase
+  async findByOrderNumber(orderNumber, storeId = null) {
+    let query = supabase
       .from('orders')
-      .select('*, items:order_items(*)')
-      .eq('order_number', orderNumber)
-      .single();
+      .select('*, items:order_items(*)');
+
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query.eq('order_number', orderNumber).single();
 
     if (error) throw error;
     return data;
@@ -90,6 +94,7 @@ class OrderModel {
       .select('*', { count: 'exact' })
       .eq('user_id', userId);
 
+    if (filters.store_id) query = query.eq('store_id', filters.store_id);
     if (filters.status) query = query.eq('status', filters.status);
 
     const { data, error, count } = await query
@@ -116,6 +121,7 @@ class OrderModel {
       .from('orders')
       .select('*, user:users(first_name, last_name, email)', { count: 'exact' });
 
+    if (filters.store_id) query = query.eq('store_id', filters.store_id);
     if (filters.status) query = query.eq('status', filters.status);
     if (filters.userId) query = query.eq('user_id', filters.userId);
     if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);
@@ -172,6 +178,7 @@ class OrderModel {
       .select('*, user:users(first_name, last_name, email)', { count: 'exact' })
       .in('status', ['confirmed', 'processing', 'ready_for_dispatch', 'dispatched', 'out_for_delivery', 'delivery_attempted']);
 
+    if (filters.store_id)        query = query.eq('store_id', filters.store_id);
     if (filters.status)          query = query.eq('status', filters.status);
     if (filters.deliveryStatus)  query = query.eq('delivery_status', filters.deliveryStatus);
     if (filters.dateFrom)        query = query.gte('created_at', filters.dateFrom);
@@ -199,14 +206,16 @@ class OrderModel {
     };
   }
 
-  async claimGuestOrders(userId, email) {
-    const { data, error } = await supabase
+  async claimGuestOrders(userId, email, storeId = null) {
+    let query = supabase
       .from('orders')
       .update({ user_id: userId, updated_at: new Date().toISOString() })
       .is('user_id', null)
-      .eq('customer_email', email)
-      .select();
+      .eq('customer_email', email);
 
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query.select();
     if (error) throw error;
     return data;
   }
@@ -216,6 +225,7 @@ class OrderModel {
       .from('orders')
       .select('*, user:users(first_name, last_name, email)');
 
+    if (filters.store_id) query = query.eq('store_id', filters.store_id);
     if (filters.status) query = query.eq('status', filters.status);
     if (filters.userId) query = query.eq('user_id', filters.userId);
     if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);

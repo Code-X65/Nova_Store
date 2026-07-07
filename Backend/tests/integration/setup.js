@@ -81,12 +81,20 @@ jest.mock('../../src/config/supabase', () => {
     then: jest.fn((resolve) => resolve({ data: [], error: null }))
   };
 
-  return {
+  const client = {
     from: jest.fn().mockReturnValue(mockQuery),
     rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
     auth: {
       signUp: jest.fn().mockResolvedValue({ data: {}, error: null }),
       signInWithPassword: jest.fn().mockResolvedValue({ data: {}, error: null }),
     }
+  };
+
+  return {
+    supabase: client,
+    supabaseAdmin: client,
+    from: client.from,
+    rpc: client.rpc,
+    auth: client.auth
   };
 });

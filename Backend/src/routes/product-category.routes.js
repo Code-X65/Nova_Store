@@ -4,6 +4,7 @@ const { protect } = require('../middlewares/auth.middleware');
 const { hasPermission } = require('../middlewares/permission.middleware');
 const validate = require('../middlewares/validate.middleware');
 const categoryValidator = require('../validators/category.validator');
+const scopeToStore = require('../middlewares/scope-to-store.middleware');
 
 const router = express.Router();
 
@@ -201,6 +202,7 @@ router.get('/:id/subcategories', categoryController.getSubcategories);
 
 // Admin Routes
 router.use(protect);
+router.use(scopeToStore);
 
 /**
  * @swagger

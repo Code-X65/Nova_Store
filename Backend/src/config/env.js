@@ -14,7 +14,7 @@ const envSchema = Joi.object({
   JWT_REFRESH_SECRET: Joi.string().required(),
   SESSION_SECRET: Joi.string().required(),
   REDIS_URL: Joi.string().default('redis://localhost:6379'),
-  CLIENT_URL: Joi.string().uri().default('http://localhost:5173'),
+  CLIENT_URL: Joi.string().default('http://localhost:5173'),
   EMAIL_FROM: Joi.string().email().required(),
   SMTP_HOST: Joi.string().required(),
   SMTP_PORT: Joi.number().required(),

@@ -33,16 +33,21 @@ const login = async (req, res, next) => {
           { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '8h' }
         );
 
-        return res.status(200).json({
-          success: true,
-          message: 'Login successful.',
-          data: {
-            email:       admin.email,
-            accessToken,
-            tokenType:   'Bearer',
-            expiresIn:   process.env.JWT_ACCESS_EXPIRES_IN || '8h',
-          },
-        });
+          return res.status(200).json({
+            success: true,
+            message: 'Login successful.',
+            data: {
+              id:          admin.id,
+              email:       admin.email,
+              name:        `${admin.firstName || ''} ${admin.lastName || ''}`.trim() || 'Admin User',
+              role:        admin.role,
+              store_id:    admin.store_id,
+              storeName:   admin.store_id ? `Store #${admin.store_id}` : 'Nova Store Admin',
+              accessToken,
+              tokenType:   'Bearer',
+              expiresIn:   process.env.JWT_ACCESS_EXPIRES_IN || '8h',
+            },
+          });
       });
     });
   } catch (error) {
@@ -83,7 +88,15 @@ const verify = async (req, res) => {
   // req.admin is attached by requireAdmin middleware
   return res.status(200).json({
     success: true,
-    data: { email: req.admin.email },
+    data: { 
+      id: req.admin.id,
+      email: req.admin.email,
+      name: `${req.admin.firstName || ''} ${req.admin.lastName || ''}`.trim() || 'Admin User',
+      role: req.admin.role,
+      store_id: req.admin.store_id,
+      storeName: req.admin.store_id ? `Store #${req.admin.store_id}` : 'Nova Store Admin',
+      permissions: req.admin.permissions
+    },
   });
 };
 

@@ -6,16 +6,16 @@ const AuditService = require('../../services/audit.service');
 const logger = require('../../utils/logger');
 
 /**
- * AdminManagementController — SUPER_ADMIN only
+ * AdminManagementController — STORE_OWNER & MANAGER
  *
- * Handles CRUD operations on admin users:
+ * Handles CRUD operations on admin/staff users:
  *   GET    /admin/admins               - listAdmins
  *   GET    /admin/admins/:id           - getAdmin
  *   PATCH  /admin/admins/:id/roles     - updateAdminRoles
- *   PATCH  /admin/admins/:id/permissions - updateAdminPermissions (via role assignment)
+ *   PATCH  /admin/admins/:id/permissions - updateAdminPermissions
  *   DELETE /admin/admins/:id           - revokeAdminAccess (soft delete)
  *   GET    /admin/admins/:id/permissions - getAdminPermissions
- *   GET    /admin/my-permissions       - getMyPermissions (any admin)
+ *   GET    /admin/my-permissions       - getMyPermissions (any staff)
  */
 class AdminManagementController {
   /**
@@ -48,11 +48,20 @@ class AdminManagementController {
         return res.status(404).json({ success: false, error: 'Admin user not found.' });
       }
 
-      // Must be an admin-grade user
+      // Must be a staff-grade user
       const { roles, permissions } = await userModel.getUserRolesAndPermissions(id);
-      const hasAdminRole = roles.some(r => r === 'ADMIN' || r === 'SUPER_ADMIN');
+      const STAFF_ROLES = ['STORE_OWNER', 'MANAGER', 'ORDER_STAFF', 'INVENTORY_STAFF'];
+      const hasAdminRole = roles.some(r => STAFF_ROLES.includes(r));
       if (!hasAdminRole) {
         return res.status(404).json({ success: false, error: 'Admin user not found.' });
+      }
+
+      const requesterRoles = req.admin.roles || [];
+      const isStoreOwner = requesterRoles.includes('STORE_OWNER');
+
+      // A manager cannot view details of STORE_OWNER or other MANAGER accounts (except self)
+      if (!isStoreOwner && (roles.includes('STORE_OWNER') || roles.includes('MANAGER')) && id !== req.admin.id) {
+        return res.status(403).json({ success: false, error: 'Forbidden: Managers cannot view other managers or owners.' });
       }
 
       const { password_hash: _ph, ...safeUser } = user;
@@ -78,7 +87,7 @@ class AdminManagementController {
         return res.status(400).json({ success: false, error: 'roleIds must be a non-empty array of UUIDs.' });
       }
 
-      // Prevent a SUPER_ADMIN from demoting themselves
+      // Prevent a user from modifying their own roles
       if (id === req.admin.id) {
         return res.status(400).json({ success: false, error: 'You cannot modify your own roles.' });
       }
@@ -86,6 +95,31 @@ class AdminManagementController {
       const user = await userModel.findById(id);
       if (!user) {
         return res.status(404).json({ success: false, error: 'Admin user not found.' });
+      }
+
+      const targetRoleObjs = [];
+      for (const roleId of roleIds) {
+        const role = await roleModel.findById(roleId);
+        if (!role) {
+          return res.status(400).json({ success: false, error: `Role with ID ${roleId} not found.` });
+        }
+        targetRoleObjs.push(role);
+      }
+
+      const { roles: currentRoles } = await userModel.getUserRolesAndPermissions(id);
+      const requesterRoles = req.admin.roles || [];
+      const isStoreOwner = requesterRoles.includes('STORE_OWNER');
+
+      // A manager cannot update roles for STORE_OWNER or other MANAGERs
+      if (!isStoreOwner) {
+        if (currentRoles.includes('STORE_OWNER') || currentRoles.includes('MANAGER')) {
+          return res.status(403).json({ success: false, error: 'Forbidden: Managers cannot modify roles of other managers or owners.' });
+        }
+        // A manager cannot assign STORE_OWNER or MANAGER roles
+        const assigningHighRole = targetRoleObjs.some(r => r.name === 'STORE_OWNER' || r.name === 'MANAGER');
+        if (assigningHighRole) {
+          return res.status(403).json({ success: false, error: 'Forbidden: Managers cannot assign Manager or Owner roles.' });
+        }
       }
 
       // Remove all existing roles
@@ -100,13 +134,10 @@ class AdminManagementController {
       }
 
       // Update users.role column to highest assigned role
-      const newRoles = await userRoleModel.getUserRoles(id);
-      const roleNames = newRoles.map(r => r.name);
-      const primaryRole = roleNames.includes('SUPER_ADMIN')
-        ? 'SUPER_ADMIN'
-        : roleNames.includes('ADMIN')
-          ? 'ADMIN'
-          : roleNames[0] || 'CUSTOMER';
+      const newRoles     = await userRoleModel.getUserRoles(id);
+      const roleNames    = newRoles.map(r => r.name);
+      const hierarchy    = ['ORDER_STAFF', 'INVENTORY_STAFF', 'MANAGER', 'STORE_OWNER'];
+      const primaryRole  = hierarchy.findLast(r => roleNames.includes(r)) || roleNames[0] || 'ORDER_STAFF';
       await userModel.update(id, { role: primaryRole });
 
       await AuditService.log(req, 'admin_roles_updated', 'user', id, null, { roleIds, newRole: primaryRole }).catch(() => {});
@@ -124,13 +155,6 @@ class AdminManagementController {
   /**
    * PATCH /api/v1/admin/admins/:id/permissions
    * Body: { permissions: string[] }   — extra permission slugs added to the admin
-   *
-   * This works by assigning a dynamically created or matching role containing
-   * exactly those permissions. Alternatively, you can extend this to use a
-   * dedicated admin_extra_permissions table. For now we store them as a
-   * custom 'CUSTOM' role scoped to the user.
-   *
-   * Simpler approach: just update invitation.permissions JSONB and read in middleware.
    */
   async updateAdminPermissions(req, res, next) {
     try {
@@ -141,11 +165,22 @@ class AdminManagementController {
         return res.status(400).json({ success: false, error: 'permissions must be an array of permission slugs.' });
       }
 
+      const { roles: targetRoles } = await userModel.getUserRolesAndPermissions(id);
+      const requesterRoles = req.admin.roles || [];
+      const isStoreOwner = requesterRoles.includes('STORE_OWNER');
+
+      // A manager cannot modify permissions for STORE_OWNER or other MANAGERs
+      if (!isStoreOwner) {
+        if (targetRoles.includes('STORE_OWNER') || targetRoles.includes('MANAGER')) {
+          return res.status(403).json({ success: false, error: 'Forbidden: Managers cannot modify permissions of other managers or owners.' });
+        }
+      }
+
       // Validate all permission slugs exist in DB
       const allPerms = await permissionModel.findAll ? await permissionModel.findAll() : [];
-      const validNames = new Set(allPerms.map(p => p.name));
+      const validKeys = new Set(allPerms.map(p => p.key));
 
-      const invalid = permissions.filter(p => p !== '*' && !validNames.has(p));
+      const invalid = permissions.filter(p => p !== '*' && !validKeys.has(p));
       if (invalid.length > 0) {
         return res.status(400).json({
           success: false,
@@ -185,6 +220,18 @@ class AdminManagementController {
         return res.status(404).json({ success: false, error: 'Admin user not found.' });
       }
 
+      // Check roles of target and requester
+      const { roles: targetRoles } = await userModel.getUserRolesAndPermissions(id);
+      const requesterRoles = req.admin.roles || [];
+      const isStoreOwner = requesterRoles.includes('STORE_OWNER');
+
+      // A manager cannot revoke STORE_OWNER or other MANAGER accounts
+      if (!isStoreOwner) {
+        if (targetRoles.includes('STORE_OWNER') || targetRoles.includes('MANAGER')) {
+          return res.status(403).json({ success: false, error: 'Forbidden: Managers cannot revoke other managers or owners.' });
+        }
+      }
+
       await userModel.update(id, { is_active: false });
 
       await AuditService.log(req, 'admin_access_revoked', 'user', id, null, { email: user.email }).catch(() => {});
@@ -205,6 +252,14 @@ class AdminManagementController {
     try {
       const { id } = req.params;
       const { roles, permissions } = await userModel.getUserRolesAndPermissions(id);
+      const requesterRoles = req.admin.roles || [];
+      const isStoreOwner = requesterRoles.includes('STORE_OWNER');
+
+      // A manager cannot view permissions of STORE_OWNER or other MANAGER accounts (except self)
+      if (!isStoreOwner && (roles.includes('STORE_OWNER') || roles.includes('MANAGER')) && id !== req.admin.id) {
+        return res.status(403).json({ success: false, error: 'Forbidden: Managers cannot view permissions of other managers or owners.' });
+      }
+
       return res.json({ success: true, data: { roles, permissions } });
     } catch (err) {
       next(err);

@@ -11,6 +11,11 @@ jest.mock('../../src/models/permission.model');
 jest.mock('../../src/models/product.model');
 jest.mock('../../src/services/order.service');
 jest.mock('jsonwebtoken');
+jest.mock('../../src/models/store.model', () => ({
+  findById: jest.fn().mockResolvedValue({ id: 'store-abc', name: 'Store ABC', slug: 'store-abc' }),
+  getDefaultStore: jest.fn().mockResolvedValue({ id: 'store-abc', name: 'Store ABC', slug: 'store-abc' }),
+  findUserStore: jest.fn().mockResolvedValue({ id: 'store-abc', name: 'Store ABC', slug: 'store-abc' })
+}));
 
 // Keep tracks of mocks we will change inside tests
 const userModel = require('../../src/models/user.model');
@@ -28,9 +33,10 @@ jest.mock('../../src/middlewares/require-admin.middleware', () => {
       role: 'ADMIN',
       roles: ['ADMIN'],
       is_active: true,
+      store_id: 'store-abc',
       permissions: ['*'] // Wildcard for test admin
     };
-    req.user = { id: 'admin-uuid-999', role: 'ADMIN', permissions: req.admin.permissions };
+    req.user = { id: 'admin-uuid-999', role: 'ADMIN', store_id: 'store-abc', permissions: req.admin.permissions };
     next();
   };
 });
@@ -45,8 +51,8 @@ jest.mock('../../src/config/supabase', () => {
     is: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),
     limit: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-    maybeSingle: jest.fn(),
+    single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
     then: function(resolve) {
       resolve({ data: this._data || [], error: this._error || null });
     }
@@ -55,9 +61,11 @@ jest.mock('../../src/config/supabase', () => {
   const client = {
     from: jest.fn().mockReturnValue(queryBuilder),
     rpc: jest.fn(),
-    supabaseAdmin: null
+    supabaseAdmin: null,
+    supabase: null
   };
   client.supabaseAdmin = client;
+  client.supabase = client;
   return client;
 });
 
@@ -90,8 +98,8 @@ describe('Missing Features Integration Tests', () => {
       is: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
-      single: jest.fn(),
-      maybeSingle: jest.fn(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       then: function(resolve) {
         resolve({ data: this._data || [], error: this._error || null });
       }
@@ -190,7 +198,7 @@ describe('Missing Features Integration Tests', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toEqual(mockResults);
-      expect(productModel.search).toHaveBeenCalledWith('gaming', 5);
+      expect(productModel.search).toHaveBeenCalledWith('gaming', 5, 'store-abc');
     });
   });
 

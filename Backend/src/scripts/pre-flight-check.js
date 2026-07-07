@@ -40,11 +40,11 @@ async function runPreFlightCheck() {
       const migRes = await client.query("SELECT COUNT(*) FROM schema_migrations");
       const count = parseInt(migRes.rows[0].count, 10);
       console.log(`   ✓ Found ${count} applied migrations.`);
-      if (count < 55) {
-        console.error(`   ✗ FAIL: Only ${count}/55 migrations are applied. Run 'npm run db:migrate' to update schema.`);
+      if (count < 59) {
+        console.error(`   ✗ FAIL: Only ${count}/59 migrations are applied. Run 'npm run db:migrate' to update schema.`);
         overallPassed = false;
       } else {
-        console.log('   ✓ PASS: All migrations up to 048 are applied.');
+        console.log('   ✓ PASS: All migrations up to 054 (single-store architecture) are applied.');
       }
 
       // Check core roles

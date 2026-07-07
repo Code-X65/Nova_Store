@@ -13,6 +13,11 @@ jest.mock('../../src/models/product-variant.model');
 jest.mock('../../src/models/product-brand.model');
 jest.mock('../../src/models/product-attribute.model');
 jest.mock('../../src/models/audit-log.model');
+jest.mock('../../src/models/store.model', () => ({
+  findById: jest.fn().mockResolvedValue({ id: 'store-abc', name: 'Store ABC', slug: 'store-abc' }),
+  getDefaultStore: jest.fn().mockResolvedValue({ id: 'store-abc', name: 'Store ABC', slug: 'store-abc' }),
+  findUserStore: jest.fn().mockResolvedValue({ id: 'store-abc', name: 'Store ABC', slug: 'store-abc' })
+}));
 jest.mock('../../src/middlewares/require-admin.middleware', () => {
   return (req, res, next) => {
     req.admin = {
@@ -21,13 +26,14 @@ jest.mock('../../src/middlewares/require-admin.middleware', () => {
       role: 'ADMIN',
       roles: ['ADMIN'],
       is_active: true,
+      store_id: 'store-abc',
       permissions: [
         'category:create', 'category:write',
         'product:create', 'product:write',
         'audit:read'
       ]
     };
-    req.user = { id: 'admin-uuid-999', role: 'ADMIN', permissions: req.admin.permissions };
+    req.user = { id: 'admin-uuid-999', role: 'ADMIN', store_id: 'store-abc', permissions: req.admin.permissions };
     next();
   };
 });
@@ -43,14 +49,18 @@ jest.mock('../../src/config/supabase', () => {
     is: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),
     maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+    single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    limit: jest.fn().mockReturnThis(),
     then: (resolve) => resolve({ data: [], error: null })
   };
 
   const client = {
     from: jest.fn().mockReturnValue(mockQueryBuilder),
-    supabaseAdmin: null
+    supabaseAdmin: null,
+    supabase: null
   };
   client.supabaseAdmin = client;
+  client.supabase = client;
   return client;
 });
 jest.mock('jsonwebtoken');
@@ -64,7 +74,8 @@ describe('Category & Product Upload Integration Tests', () => {
   const adminUser = {
     id: 'f69cc976-7e47-4742-b656-7ebc68364048', // seeded admin ID
     email: 'admin@example.com',
-    role: 'ADMIN'
+    role: 'ADMIN',
+    store_id: 'store-abc'
   };
   const accessToken = 'mock-admin-token';
 

@@ -6,7 +6,7 @@ class CartController {
       const userId = req.user ? req.user.id : null;
       const sessionId = req.headers['x-session-id'] || req.query.sessionId;
       
-      const cart = await CartService.getOrCreateCart(userId, sessionId);
+      const cart = await CartService.getOrCreateCart(userId, sessionId, req.store?.id);
       res.status(200).json({ success: true, data: { cart } });
     } catch (error) {
       next(error);
@@ -23,7 +23,7 @@ class CartController {
         return res.status(400).json({ success: false, message: 'Product ID and quantity are required' });
       }
 
-      const cart = await CartService.addItem(userId, sessionId, productId, variantId, quantity);
+      const cart = await CartService.addItem(userId, sessionId, productId, variantId, quantity, req.store?.id);
       res.status(200).json({ success: true, data: { cart } });
     } catch (error) {
       next(error);
@@ -39,12 +39,12 @@ class CartController {
         return res.status(400).json({ success: false, message: 'Quantity is required' });
       }
 
-      await CartService.updateItemQuantity(id, quantity);
+      await CartService.updateItemQuantity(id, quantity, req.store?.id);
       
       // Return updated cart
       const userId = req.user ? req.user.id : null;
       const sessionId = req.headers['x-session-id'] || req.query.sessionId;
-      const cart = await CartService.getOrCreateCart(userId, sessionId);
+      const cart = await CartService.getOrCreateCart(userId, sessionId, req.store?.id);
       
       res.status(200).json({ success: true, data: { cart } });
     } catch (error) {
@@ -59,7 +59,7 @@ class CartController {
       
       const userId = req.user ? req.user.id : null;
       const sessionId = req.headers['x-session-id'] || req.query.sessionId;
-      const cart = await CartService.getOrCreateCart(userId, sessionId);
+      const cart = await CartService.getOrCreateCart(userId, sessionId, req.store?.id);
       
       res.status(200).json({ success: true, data: { cart } });
     } catch (error) {
@@ -72,7 +72,7 @@ class CartController {
       const userId = req.user ? req.user.id : null;
       const sessionId = req.headers['x-session-id'] || req.query.sessionId;
       
-      await CartService.clearCart(userId, sessionId);
+      await CartService.clearCart(userId, sessionId, req.store?.id);
       res.status(200).json({ success: true, message: 'Cart cleared' });
     } catch (error) {
       next(error);
@@ -88,7 +88,7 @@ class CartController {
         return res.status(400).json({ success: false, message: 'Session ID is required for merge' });
       }
 
-      const cart = await CartService.mergeCarts(userId, sessionId);
+      const cart = await CartService.mergeCarts(userId, sessionId, req.store?.id);
       res.status(200).json({ success: true, data: { cart }, message: 'Carts merged successfully' });
     } catch (error) {
       next(error);

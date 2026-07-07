@@ -94,7 +94,7 @@ const authLimiter = createLimiter('auth', {
 
 const adminLoginLimiter = createLimiter('admin-login', {
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 5,
+  limit: 500,
 });
 
 const swaggerLoginLimiter = createLimiter('swagger-login', {

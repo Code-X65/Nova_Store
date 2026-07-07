@@ -46,9 +46,9 @@ class InventoryController {
 
   async getTransactions(req, res, next) {
     try {
-      const { productId, type, page, limit } = req.query;
-      const filters = { productId, type };
-      const pagination = { page: page || 1, limit: limit || 20 };
+       const { productId, type, page, limit } = req.query;
+       const filters = { productId, type, store_id: req.store?.id };
+       const pagination = { page: page || 1, limit: limit || 20 };
 
       const result = await InventoryService.getInventoryHistory(filters, pagination);
       res.status(200).json({ success: true, data: result });
@@ -59,8 +59,8 @@ class InventoryController {
 
   async getLowStock(req, res, next) {
     try {
-      const products = await InventoryService.getLowStockItems();
-      res.status(200).json({ success: true, data: { products } });
+       const products = await InventoryService.getLowStockItems(req.store?.id);
+       res.status(200).json({ success: true, data: { products } });
     } catch (error) {
       next(error);
     }

@@ -4,6 +4,7 @@ const { protect } = require('../middlewares/auth.middleware');
 const { hasPermission } = require('../middlewares/permission.middleware');
 const validate = require('../middlewares/validate.middleware');
 const Joi = require('joi');
+const requireInventoryStaff = require('../middlewares/require-inventory-staff.middleware');
 
 const router = express.Router();
 
@@ -67,7 +68,7 @@ router.use(protect);
  *       400:
  *         description: Invalid input
  */
-router.post('/stock', hasPermission('inventory:write'), validate(stockUpdateSchema), inventoryController.addStock);
+router.post('/stock', requireInventoryStaff, validate(stockUpdateSchema), inventoryController.addStock);
 
 /**
  * @swagger
@@ -95,7 +96,7 @@ router.post('/stock', hasPermission('inventory:write'), validate(stockUpdateSche
  *       200:
  *         description: Stock reduced successfully
  */
-router.post('/reduce', hasPermission('inventory:write'), validate(reduceStockSchema), inventoryController.reduceStock);
+router.post('/reduce', requireInventoryStaff, validate(reduceStockSchema), inventoryController.reduceStock);
 
 /**
  * @swagger
@@ -165,7 +166,7 @@ router.get('/low-stock', hasPermission('inventory:read'), inventoryController.ge
  *       200:
  *         description: Bulk update completed
  */
-router.post('/bulk-update', hasPermission('inventory:write'), inventoryController.bulkUpdate);
+router.post('/bulk-update', requireInventoryStaff, inventoryController.bulkUpdate);
 
 /**
  * @swagger
@@ -203,7 +204,7 @@ router.post('/bulk-update', hasPermission('inventory:write'), inventoryControlle
  *         description: Alert configured successfully
  */
 router.get('/alerts', hasPermission('inventory:read'), inventoryController.getAlerts);
-router.post('/alerts', hasPermission('inventory:alert'), inventoryController.configureAlerts);
+router.post('/alerts', requireInventoryStaff, inventoryController.configureAlerts);
 
 /**
  * @swagger
@@ -251,6 +252,6 @@ router.get('/:id', hasPermission('inventory:read'), inventoryController.getProdu
  *       200:
  *         description: Threshold updated
  */
-router.put('/:id/threshold', hasPermission('inventory:write'), inventoryController.updateThreshold);
+router.put('/:id/threshold', requireInventoryStaff, inventoryController.updateThreshold);
 
 module.exports = router;

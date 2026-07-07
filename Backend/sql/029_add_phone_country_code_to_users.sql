@@ -1,1 +1,1 @@
-ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_country_code TEXT;
+-- Duplicate migration, consolidated into 029_add_phone_columns_to_users.sql

@@ -42,6 +42,8 @@ const adminCouponRoutes = require('./routes/admin/coupon.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const adminNotificationRoutes = require('./routes/admin/notification.routes');
 const adminAnalyticsRoutes = require('./routes/admin/analytics.routes');
+const adminSalesRoutes = require('./routes/admin/sales.routes');
+const adminDashboardRoutes = require('./routes/admin/dashboard.routes');
 const adminUserRoutes = require('./routes/admin/user.routes');
 const publicSettingRoutes = require('./routes/public/setting.routes');
 const adminSettingRoutes = require('./routes/admin/setting.routes');
@@ -53,6 +55,8 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const { Pool } = require('pg');
 const requireAdmin = require('./middlewares/require-admin.middleware');
+const storeContext = require('./middlewares/store-context.middleware');
+const scopeToStore = require('./middlewares/scope-to-store.middleware');
 const adminAuthRoutes = require('./routes/admin/auth.routes');
 const idempotencyMiddleware = require('./middlewares/idempotency.middleware');
 const invitationRoutes = require('./routes/admin/invitation.routes');
@@ -123,25 +127,28 @@ app.use((req, res, next) => {
   next();
 });
 
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map(u => u.trim())
+  : ['http://localhost:5173'];
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`, process.env.CLIENT_URL || 'http://localhost:5173'],
+      scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`, ...allowedOrigins],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", process.env.CLIENT_URL || 'http://localhost:5173'],
-      fontSrc: ["'self'"],
+      connectSrc: ["'self'", ...allowedOrigins],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"],
       baseUri: ["'self'"]
     }
   },
-  crossOriginEmbedderPolicy: true,
-  crossOriginOpenerPolicy: true,
+  crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  dnsPrefetchControl: true,
+  dnsPrefetchControl: { allow: false },
   frameguard: { action: 'deny' },
   hidePoweredBy: true,
   hsts: true,
@@ -153,7 +160,14 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(null, false); // Or pass an Error: new Error('CORS blocked')
+    }
+    return callback(null, true);
+  },
   credentials: true,
 }));
 
@@ -184,8 +198,11 @@ app.use('/api-docs', swaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 app.use('/health', healthLimiter, healthRoutes);
 
+app.use('/api/v1', storeContext);
 app.use('/api/v1/admin', adminAuthRoutes);
 app.use('/api/v1/admin', requireAdmin);
+app.use('/api/v1/admin', storeContext);
+app.use('/api/v1/admin', scopeToStore);
 app.use('/api/v1/admin/sessions', require('./routes/admin/session.routes'));
 app.use('/api/v1/admin/migrations', require('./routes/admin/migration.routes'));
 app.use('/api/v1/admin/audit', require('./routes/admin/audit.routes'));
@@ -196,6 +213,8 @@ app.use('/api/v1/admin/review-reports', adminReviewReportRoutes);
 app.use('/api/v1/admin/coupons', adminCouponRoutes);
 app.use('/api/v1/admin/notifications', adminNotificationRoutes);
 app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
+app.use('/api/v1/admin/sales', adminSalesRoutes);
+app.use('/api/v1/admin/dashboard', adminDashboardRoutes);
 app.use('/api/v1/admin/settings', adminSettingRoutes);
 app.use('/api/v1/admin/upload', adminUploadRoutes);
 app.use('/api/v1/admin/invitations', invitationRoutes);

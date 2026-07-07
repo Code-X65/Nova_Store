@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const requireAdmin = require('../../middlewares/require-admin.middleware');
-const requireSuperAdmin = require('../../middlewares/require-super-admin.middleware');
+const requireManager = require('../../middlewares/require-manager.middleware');
+const requireStoreOwner = require('../../middlewares/require-store-owner.middleware');
 const adminController = require('../../controllers/admin/admin-management.controller');
 
 /**
  * @swagger
  * tags:
  *   name: Admin Management
- *   description: SuperAdmin-only administrative operations and general admin utilities
+ *   description: Owner and Manager staff management utilities
  */
 
 /**
@@ -31,7 +32,7 @@ router.get('/my-permissions', requireAdmin, adminController.getMyPermissions.bin
  * @swagger
  * /admin:
  *   get:
- *     summary: List all admin users (SuperAdmin only)
+ *     summary: List all admin users (Owner/Manager only)
  *     tags: [Admin Management]
  *     security:
  *       - bearerAuth: []
@@ -60,15 +61,15 @@ router.get('/my-permissions', requireAdmin, adminController.getMyPermissions.bin
  *       200:
  *         description: Paginated list of admin users
  *       403:
- *         description: Forbidden (Only SUPER_ADMIN)
+ *         description: Forbidden (Only STORE_OWNER or MANAGER)
  */
-router.get('/', requireSuperAdmin, adminController.listAdmins.bind(adminController));
+router.get('/', requireManager, adminController.listAdmins.bind(adminController));
 
 /**
  * @swagger
  * /admin/{id}:
  *   get:
- *     summary: Retrieve details of a specific admin user (SuperAdmin only)
+ *     summary: Retrieve details of a specific admin user (Owner/Manager only)
  *     tags: [Admin Management]
  *     security:
  *       - bearerAuth: []
@@ -85,13 +86,13 @@ router.get('/', requireSuperAdmin, adminController.listAdmins.bind(adminControll
  *       404:
  *         description: Admin user not found
  */
-router.get('/:id', requireSuperAdmin, adminController.getAdmin.bind(adminController));
+router.get('/:id', requireManager, adminController.getAdmin.bind(adminController));
 
 /**
  * @swagger
  * /admin/{id}/roles:
  *   patch:
- *     summary: Update roles of a specific admin user (SuperAdmin only)
+ *     summary: Update roles of a specific admin user (Owner/Manager only)
  *     tags: [Admin Management]
  *     security:
  *       - bearerAuth: []
@@ -123,13 +124,13 @@ router.get('/:id', requireSuperAdmin, adminController.getAdmin.bind(adminControl
  *       404:
  *         description: Admin user not found
  */
-router.patch('/:id/roles', requireSuperAdmin, adminController.updateAdminRoles.bind(adminController));
+router.patch('/:id/roles', requireManager, adminController.updateAdminRoles.bind(adminController));
 
 /**
  * @swagger
  * /admin/{id}/permissions:
  *   patch:
- *     summary: Update granular extra permissions for a specific admin user (SuperAdmin only)
+ *     summary: Update granular extra permissions for a specific admin user (Owner/Manager only)
  *     tags: [Admin Management]
  *     security:
  *       - bearerAuth: []
@@ -160,13 +161,13 @@ router.patch('/:id/roles', requireSuperAdmin, adminController.updateAdminRoles.b
  *       404:
  *         description: Admin user not found
  */
-router.patch('/:id/permissions', requireSuperAdmin, adminController.updateAdminPermissions.bind(adminController));
+router.patch('/:id/permissions', requireManager, adminController.updateAdminPermissions.bind(adminController));
 
 /**
  * @swagger
  * /admin/{id}:
  *   delete:
- *     summary: Revoke access for a specific admin user (SuperAdmin only)
+ *     summary: Revoke access for a specific admin user (Owner/Manager only)
  *     tags: [Admin Management]
  *     security:
  *       - bearerAuth: []
@@ -185,13 +186,13 @@ router.patch('/:id/permissions', requireSuperAdmin, adminController.updateAdminP
  *       404:
  *         description: Admin user not found
  */
-router.delete('/:id', requireSuperAdmin, adminController.revokeAdminAccess.bind(adminController));
+router.delete('/:id', requireStoreOwner, adminController.revokeAdminAccess.bind(adminController));
 
 /**
  * @swagger
  * /admin/{id}/permissions:
  *   get:
- *     summary: Retrieve effective roles and permissions for a specific admin (SuperAdmin only)
+ *     summary: Retrieve effective roles and permissions for a specific admin (Owner/Manager only)
  *     tags: [Admin Management]
  *     security:
  *       - bearerAuth: []
@@ -208,6 +209,6 @@ router.delete('/:id', requireSuperAdmin, adminController.revokeAdminAccess.bind(
  *       404:
  *         description: Admin user not found
  */
-router.get('/:id/permissions', requireSuperAdmin, adminController.getAdminPermissions.bind(adminController));
+router.get('/:id/permissions', requireManager, adminController.getAdminPermissions.bind(adminController));
 
 module.exports = router;

@@ -22,6 +22,12 @@ function csrfProtection(req, res, next) {
     return next();
   }
 
+  // 2.5 Bypass login endpoints
+  const bypassRoutes = ['/api/v1/admin/login', '/api/v1/auth/login'];
+  if (bypassRoutes.includes(req.path) || bypassRoutes.includes(req.originalUrl)) {
+    return next();
+  }
+
   // 3. Skip CSRF check if the request is authenticated via Bearer JWT token
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {

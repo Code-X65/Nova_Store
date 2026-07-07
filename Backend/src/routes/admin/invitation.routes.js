@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const requireSuperAdmin = require('../../middlewares/require-super-admin.middleware');
+const requireManager = require('../../middlewares/require-manager.middleware');
 const invitationController = require('../../controllers/admin/invitation.controller');
 const { inviteLimiter } = require('../../middlewares/rate-limit.middleware');
 
@@ -8,14 +8,14 @@ const { inviteLimiter } = require('../../middlewares/rate-limit.middleware');
  * @swagger
  * tags:
  *   name: Admin Invitations
- *   description: SuperAdmin-only administrative invitations
+ *   description: Store Owner and Manager administrative invitations
  */
 
 /**
  * @swagger
  * /admin/invitations:
  *   post:
- *     summary: Create and send a new admin invitation (SuperAdmin only)
+ *     summary: Create and send a new admin invitation (Owner/Manager only)
  *     tags: [Admin Invitations]
  *     security:
  *       - bearerAuth: []
@@ -34,7 +34,7 @@ const { inviteLimiter } = require('../../middlewares/rate-limit.middleware');
  *               roleId:
  *                 type: string
  *                 format: uuid
- *                 description: Optional. Role UUID to assign. Defaults to ADMIN role.
+ *                 description: Optional. Role UUID to assign. Defaults to ORDER_STAFF role.
  *               permissions:
  *                 type: array
  *                 items:
@@ -46,17 +46,17 @@ const { inviteLimiter } = require('../../middlewares/rate-limit.middleware');
  *       400:
  *         description: Validation error
  *       403:
- *         description: Forbidden (Only SUPER_ADMIN)
+ *         description: Forbidden (Only STORE_OWNER or MANAGER)
  *       409:
  *         description: Conflict (User or pending invite already exists)
  */
-router.post('/', requireSuperAdmin, inviteLimiter, invitationController.createInvitation.bind(invitationController));
+router.post('/', requireManager, inviteLimiter, invitationController.createInvitation.bind(invitationController));
 
 /**
  * @swagger
  * /admin/invitations:
  *   get:
- *     summary: List all admin invitations (SuperAdmin only)
+ *     summary: List all admin invitations (Owner/Manager only)
  *     tags: [Admin Invitations]
  *     security:
  *       - bearerAuth: []
@@ -87,13 +87,13 @@ router.post('/', requireSuperAdmin, inviteLimiter, invitationController.createIn
  *       403:
  *         description: Forbidden
  */
-router.get('/', requireSuperAdmin, invitationController.listInvitations.bind(invitationController));
+router.get('/', requireManager, invitationController.listInvitations.bind(invitationController));
 
 /**
  * @swagger
  * /admin/invitations/{id}:
  *   get:
- *     summary: Get a single invitation by ID (SuperAdmin only)
+ *     summary: Get a single invitation by ID (Owner/Manager only)
  *     tags: [Admin Invitations]
  *     security:
  *       - bearerAuth: []
@@ -110,13 +110,13 @@ router.get('/', requireSuperAdmin, invitationController.listInvitations.bind(inv
  *       404:
  *         description: Invitation not found
  */
-router.get('/:id', requireSuperAdmin, invitationController.getInvitation.bind(invitationController));
+router.get('/:id', requireManager, invitationController.getInvitation.bind(invitationController));
 
 /**
  * @swagger
  * /admin/invitations/{id}:
  *   delete:
- *     summary: Revoke a pending invitation (SuperAdmin only)
+ *     summary: Revoke a pending invitation (Owner/Manager only)
  *     tags: [Admin Invitations]
  *     security:
  *       - bearerAuth: []
@@ -135,13 +135,13 @@ router.get('/:id', requireSuperAdmin, invitationController.getInvitation.bind(in
  *       404:
  *         description: Invitation not found
  */
-router.delete('/:id', requireSuperAdmin, invitationController.revokeInvitation.bind(invitationController));
+router.delete('/:id', requireManager, invitationController.revokeInvitation.bind(invitationController));
 
 /**
  * @swagger
  * /admin/invitations/{id}/resend:
  *   post:
- *     summary: Resend and extend a pending invitation (SuperAdmin only)
+ *     summary: Resend and extend a pending invitation (Owner/Manager only)
  *     tags: [Admin Invitations]
  *     security:
  *       - bearerAuth: []
@@ -160,6 +160,6 @@ router.delete('/:id', requireSuperAdmin, invitationController.revokeInvitation.b
  *       404:
  *         description: Invitation not found
  */
-router.post('/:id/resend', requireSuperAdmin, invitationController.resendInvitation.bind(invitationController));
+router.post('/:id/resend', requireManager, invitationController.resendInvitation.bind(invitationController));
 
 module.exports = router;

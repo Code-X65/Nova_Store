@@ -1,10 +1,12 @@
 const express = require('express');
 const orderController = require('../controllers/order.controller');
 const { protect } = require('../middlewares/auth.middleware');
-const { hasPermission } = require('../middlewares/permission.middleware');
+const { hasPermission, hasAnyPermission } = require('../middlewares/permission.middleware');
 const validate = require('../middlewares/validate.middleware');
 const deliveryValidator = require('../validators/delivery.validator');
 const returnEvidenceRouter = require('./order-return-evidence.routes');
+const requireOrderStaff = require('../middlewares/require-order-staff.middleware');
+const requireManager = require('../middlewares/require-manager.middleware');
 
 const router = express.Router();
 
@@ -126,8 +128,8 @@ router.post('/:id/reorder', orderController.reorder);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/admin/list', hasPermission('order:read'), orderController.getAllOrders);
-router.get('/admin/export', hasPermission('order:read'), orderController.exportOrders);
+router.get('/admin/list', hasAnyPermission('order:read', 'sales:read'), orderController.getAllOrders);
+router.get('/admin/export', hasAnyPermission('order:read', 'sales:read'), orderController.exportOrders);
 
 /**
  * @swagger
@@ -157,7 +159,7 @@ router.get('/admin/export', hasPermission('order:read'), orderController.exportO
  *         name: limit
  *         schema: { type: integer }
  */
-router.get('/admin/dispatch-queue', hasPermission('order:read'), orderController.getDispatchQueue);
+router.get('/admin/dispatch-queue', requireOrderStaff, orderController.getDispatchQueue);
 
 /**
  * @swagger
@@ -184,7 +186,7 @@ router.get('/admin/dispatch-queue', hasPermission('order:read'), orderController
  *               carrier: { type: string }
  *               note: { type: string }
  */
-router.patch('/admin/:id', hasPermission('order:write'), orderController.updateOrderStatus);
+router.patch('/admin/:id', requireOrderStaff, orderController.updateOrderStatus);
 
 /**
  * @swagger
@@ -209,7 +211,7 @@ router.patch('/admin/:id', hasPermission('order:write'), orderController.updateO
  *               note: { type: string }
  */
 router.post('/admin/:id/ready',
-  hasPermission('order:write'),
+  requireOrderStaff,
   validate(deliveryValidator.deliveryMilestoneNote),
   orderController.markReadyForDispatch
 );
@@ -242,7 +244,7 @@ router.post('/admin/:id/ready',
  *               deliveryWindow: { type: string, enum: [morning, afternoon, evening, custom] }
  */
 router.post('/admin/:id/dispatch',
-  hasPermission('order:write'),
+  requireOrderStaff,
   validate(deliveryValidator.dispatchOrder),
   orderController.dispatchOrder
 );
@@ -270,7 +272,7 @@ router.post('/admin/:id/dispatch',
  *               note: { type: string }
  */
 router.post('/admin/:id/picked-up',
-  hasPermission('order:write'),
+  requireOrderStaff,
   validate(deliveryValidator.deliveryMilestoneNote),
   orderController.markPickedUp
 );
@@ -298,7 +300,7 @@ router.post('/admin/:id/picked-up',
  *               note: { type: string }
  */
 router.post('/admin/:id/out-for-delivery',
-  hasPermission('order:write'),
+  requireOrderStaff,
   validate(deliveryValidator.deliveryMilestoneNote),
   orderController.markOutForDelivery
 );
@@ -326,7 +328,7 @@ router.post('/admin/:id/out-for-delivery',
  *               note: { type: string }
  */
 router.post('/admin/:id/delivery-attempted',
-  hasPermission('order:write'),
+  requireOrderStaff,
   validate(deliveryValidator.deliveryMilestoneNote),
   orderController.markDeliveryAttempted
 );
@@ -356,7 +358,7 @@ router.post('/admin/:id/delivery-attempted',
  *               note:     { type: string }
  */
 router.post('/admin/:id/deliver',
-  hasPermission('order:write'),
+  requireOrderStaff,
   validate(deliveryValidator.markDelivered),
   orderController.deliverOrder
 );
@@ -384,7 +386,7 @@ router.post('/admin/:id/deliver',
  *               note: { type: string }
  */
 router.post('/admin/:id/returned-to-store',
-  hasPermission('order:write'),
+  requireOrderStaff,
   validate(deliveryValidator.deliveryMilestoneNote),
   orderController.markReturnedToStore
 );
@@ -430,13 +432,13 @@ router.post('/admin/:id/returned-to-store',
  *               qcNotes:      { type: string }
  */
 router.post('/admin/:id/return',
-  hasPermission('order:write'),
+  requireManager,
   validate(deliveryValidator.processReturn),
   orderController.processReturn
 );
 
 // Legacy alias — ship endpoint forwards to the generic status updater
-router.post('/admin/:id/ship', hasPermission('order:write'), orderController.updateOrderStatus);
+router.post('/admin/:id/ship', requireOrderStaff, orderController.updateOrderStatus);
 
 /**
  * @swagger
@@ -483,7 +485,7 @@ router.post('/claim-guest-orders', orderController.claimGuestOrders);
  *         description: Bulk action executed successfully
  */
 router.post('/admin/bulk-action',
-  hasPermission('order:write'),
+  requireOrderStaff,
   validate(deliveryValidator.bulkOrderAction),
   orderController.bulkAction
 );

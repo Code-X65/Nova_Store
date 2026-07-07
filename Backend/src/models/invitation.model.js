@@ -19,21 +19,24 @@ class InvitationModel {
    * @param {Date}   params.expiresAt     - Expiry date/time
    * @returns {object} Created invitation record
    */
-  async create({ email, roleId, permissions = [], invitedBy, expiresAt }) {
+  async create({ email, roleId, permissions = [], invitedBy, expiresAt, store_id = null }) {
     // 64-char hex token (32 random bytes → 256 bits of entropy)
     const token = crypto.randomBytes(32).toString('hex');
 
+    const insertData = {
+      email: email.toLowerCase().trim(),
+      token,
+      role_id: roleId,
+      permissions: permissions,
+      invited_by: invitedBy,
+      expires_at: expiresAt instanceof Date ? expiresAt.toISOString() : expiresAt,
+      status: 'pending'
+    };
+    if (store_id) insertData.store_id = store_id;
+
     const { data, error } = await supabaseAdmin
       .from('invitations')
-      .insert([{
-        email: email.toLowerCase().trim(),
-        token,
-        role_id: roleId,
-        permissions: permissions,
-        invited_by: invitedBy,
-        expires_at: expiresAt instanceof Date ? expiresAt.toISOString() : expiresAt,
-        status: 'pending'
-      }])
+      .insert([insertData])
       .select()
       .single();
 
@@ -153,7 +156,7 @@ class InvitationModel {
    * @param {number} [filters.limit=20]
    * @returns {{ invitations: object[], total: number, page: number, limit: number }}
    */
-  async list({ status, search, invitedBy, page = 1, limit = 20 } = {}) {
+  async list({ status, search, invitedBy, store_id, page = 1, limit = 20 } = {}) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -168,6 +171,7 @@ class InvitationModel {
 
     if (status) query = query.eq('status', status);
     if (invitedBy) query = query.eq('invited_by', invitedBy);
+    if (store_id) query = query.eq('store_id', store_id);
     if (search) query = query.ilike('email', `%${search}%`);
 
     const { data, error, count } = await query;

@@ -12,7 +12,7 @@ class OrderController {
   async getMyOrders(req, res, next) {
     try {
       const { status, page, limit } = req.query;
-      const result = await OrderService.getUserOrders(req.user.id, { status }, { page: page || 1, limit: limit || 10 });
+      const result = await OrderService.getUserOrders(req.user.id, { status }, { page: page || 1, limit: limit || 10 }, req.store?.id);
       res.status(200).json({ success: true, ...result });
     } catch (error) {
       next(error);
@@ -24,7 +24,7 @@ class OrderController {
       const { id } = req.params;
       const isAdmin = (req.user.role && req.user.role.toUpperCase() === 'ADMIN') ||
                       (req.user.roles && (req.user.roles.includes('admin') || req.user.roles.includes('ADMIN')));
-      const order = await OrderService.getOrderDetails(id, req.user.id, isAdmin);
+      const order = await OrderService.getOrderDetails(id, req.user.id, isAdmin, req.store?.id);
       res.status(200).json({ success: true, data: { order } });
     } catch (error) {
       next(error);
@@ -35,7 +35,7 @@ class OrderController {
     try {
       const { id } = req.params;
       const { reason } = req.body;
-      const order = await OrderService.cancelOrder(id, req.user.id, reason);
+      const order = await OrderService.cancelOrder(id, req.user.id, reason, false, req.store?.id);
       AuditService.log(req, 'order.cancelled', 'order', id, null, { reason, orderNumber: order.order_number });
       res.status(200).json({ success: true, data: { order }, message: 'Order cancelled successfully' });
     } catch (error) {
@@ -51,7 +51,7 @@ class OrderController {
     try {
       const { id } = req.params;
       const { reason, evidenceUrls = [], evidenceNotes } = req.body;
-      const order = await OrderService.requestReturn(id, req.user.id, reason, evidenceUrls, evidenceNotes);
+      const order = await OrderService.requestReturn(id, req.user.id, reason, evidenceUrls, evidenceNotes, req.store?.id);
       AuditService.log(req, 'order.return_requested', 'order', id, null, { reason, orderNumber: order.order_number });
       res.status(200).json({ success: true, data: { order }, message: 'Return requested successfully' });
     } catch (error) {
@@ -65,7 +65,7 @@ class OrderController {
   async reorder(req, res, next) {
     try {
       const { id } = req.params;
-      const cart = await OrderService.reorder(id, req.user.id);
+      const cart = await OrderService.reorder(id, req.user.id, req.store?.id);
       AuditService.log(req, 'order.reordered', 'order', id);
       res.status(200).json({ success: true, data: { cart }, message: 'Items added to cart' });
     } catch (error) {
@@ -81,7 +81,7 @@ class OrderController {
     try {
       const { status, userId, dateFrom, dateTo, page, limit } = req.query;
       const filters = { status, userId, dateFrom, dateTo };
-      const result = await OrderService.getAllOrders(filters, { page: page || 1, limit: limit || 10 });
+      const result = await OrderService.getAllOrders(filters, { page: page || 1, limit: limit || 10 }, req.store?.id);
       res.status(200).json({ success: true, ...result });
     } catch (error) {
       next(error);
@@ -97,7 +97,8 @@ class OrderController {
       const { status, deliveryStatus, dateFrom, dateTo, staleSinceMinutes, page, limit } = req.query;
       const result = await OrderService.getDispatchQueue(
         { status, deliveryStatus, dateFrom, dateTo, staleSinceMinutes },
-        { page: page || 1, limit: limit || 20 }
+        { page: page || 1, limit: limit || 20 },
+        req.store?.id
       );
       res.status(200).json({ success: true, ...result });
     } catch (error) {
@@ -108,7 +109,7 @@ class OrderController {
   async updateOrderStatus(req, res, next) {
     try {
       const { id } = req.params;
-      const order = await OrderService.updateOrderStatus(id, req.body, req.user.id);
+      const order = await OrderService.updateOrderStatus(id, req.body, req.user.id, req.store?.id);
       AuditService.log(req, 'order.status.updated', 'order', id, null, { newStatus: order.status });
       res.status(200).json({ success: true, data: { order }, message: 'Order status updated' });
     } catch (error) {
@@ -128,7 +129,7 @@ class OrderController {
     try {
       const { id } = req.params;
       const { note } = req.body;
-      const order = await OrderService.markReadyForDispatch(id, note, req.user.id);
+      const order = await OrderService.markReadyForDispatch(id, note, req.user.id, req.store?.id);
       AuditService.log(req, 'order.ready_for_dispatch', 'order', id);
       res.status(200).json({ success: true, data: { order }, message: 'Order marked as ready for dispatch' });
     } catch (error) {
@@ -144,7 +145,7 @@ class OrderController {
     try {
       const { id } = req.params;
       const { driverName, driverPhone, dispatchNotes, deliveryWindow } = req.body;
-      const order = await OrderService.dispatchOrder(id, { driverName, driverPhone, dispatchNotes, deliveryWindow }, req.user.id);
+      const order = await OrderService.dispatchOrder(id, { driverName, driverPhone, dispatchNotes, deliveryWindow }, req.user.id, req.store?.id);
       AuditService.log(req, 'order.dispatched', 'order', id, null, { driverName });
       res.status(200).json({ success: true, data: { order }, message: `Order dispatched to driver: ${driverName}` });
     } catch (error) {
@@ -160,7 +161,7 @@ class OrderController {
     try {
       const { id } = req.params;
       const { note } = req.body;
-      const order = await OrderService.markPickedUp(id, note, req.user.id);
+      const order = await OrderService.markPickedUp(id, note, req.user.id, req.store?.id);
       AuditService.log(req, 'order.picked_up', 'order', id);
       res.status(200).json({ success: true, data: { order }, message: 'Order marked as picked up by driver' });
     } catch (error) {
@@ -176,7 +177,7 @@ class OrderController {
     try {
       const { id } = req.params;
       const { note } = req.body;
-      const order = await OrderService.markOutForDelivery(id, note, req.user.id);
+      const order = await OrderService.markOutForDelivery(id, note, req.user.id, req.store?.id);
       AuditService.log(req, 'order.out_for_delivery', 'order', id);
       res.status(200).json({ success: true, data: { order }, message: 'Order marked as out for delivery' });
     } catch (error) {
@@ -192,7 +193,7 @@ class OrderController {
     try {
       const { id } = req.params;
       const { note } = req.body;
-      const order = await OrderService.markDeliveryAttempted(id, note, req.user.id);
+      const order = await OrderService.markDeliveryAttempted(id, note, req.user.id, req.store?.id);
       AuditService.log(req, 'order.delivery_attempted', 'order', id, null, { note });
       res.status(200).json({ success: true, data: { order }, message: 'Delivery attempt recorded' });
     } catch (error) {
@@ -208,7 +209,7 @@ class OrderController {
     try {
       const { id } = req.params;
       const { podType, podValue, note } = req.body;
-      const order = await OrderService.markDelivered(id, { podType, podValue, note }, req.user.id);
+      const order = await OrderService.markDelivered(id, { podType, podValue, note }, req.user.id, req.store?.id);
       AuditService.log(req, 'order.delivered', 'order', id, null, { podType });
       res.status(200).json({ success: true, data: { order }, message: 'Order marked as delivered' });
     } catch (error) {
@@ -224,7 +225,7 @@ class OrderController {
     try {
       const { id } = req.params;
       const { note } = req.body;
-      const order = await OrderService.markReturnedToStore(id, note, req.user.id);
+      const order = await OrderService.markReturnedToStore(id, note, req.user.id, req.store?.id);
       AuditService.log(req, 'order.returned_to_store', 'order', id, null, { note });
       res.status(200).json({ success: true, data: { order }, message: 'Order marked as returned to store' });
     } catch (error) {
@@ -249,7 +250,7 @@ class OrderController {
 
       let order;
       try {
-        order = await OrderService.processReturn(id, { action, note, refundAmount, qcOutcome, qcNotes }, req.user.id);
+        order = await OrderService.processReturn(id, { action, note, refundAmount, qcOutcome, qcNotes }, req.user.id, req.store?.id);
       } catch (err) {
         if (action === 'process_refund') {
           return res.status(502).json({
@@ -293,7 +294,7 @@ class OrderController {
       const isAdmin = (req.user.role && req.user.role.toUpperCase() === 'ADMIN') ||
                       (req.user.roles && (req.user.roles.includes('admin') || req.user.roles.includes('ADMIN')));
 
-      const order = await OrderService.getOrderDetails(id, req.user.id, isAdmin);
+      const order = await OrderService.getOrderDetails(id, req.user.id, isAdmin, req.store?.id);
       if (!order) {
         return res.status(404).json({ success: false, message: 'Order not found' });
       }
@@ -310,7 +311,7 @@ class OrderController {
 
   async claimGuestOrders(req, res, next) {
     try {
-      const claimed = await OrderService.claimGuestOrders(req.user.id, req.user.email, req);
+      const claimed = await OrderService.claimGuestOrders(req.user.id, req.user.email, req, req.store?.id);
       res.status(200).json({
         success: true,
         data: {
@@ -327,7 +328,7 @@ class OrderController {
   async bulkAction(req, res, next) {
     try {
       const { orderIds, action, extraData } = req.body;
-      const result = await OrderService.bulkOrderAction(orderIds, action, extraData, req.user.id, req);
+      const result = await OrderService.bulkOrderAction(orderIds, action, extraData, req.user.id, req, req.store?.id);
       res.status(200).json({
         success: true,
         data: result,
@@ -343,7 +344,7 @@ class OrderController {
       const { status, userId, dateFrom, dateTo, format } = req.query;
       const filters = { status, userId, dateFrom, dateTo };
 
-      const fileData = await OrderService.exportOrders(filters, format || 'csv');
+      const fileData = await OrderService.exportOrders(filters, format || 'csv', req.store?.id);
 
       if (format === 'pdf') {
         res.setHeader('Content-Type', 'application/pdf');

@@ -1,21 +1,27 @@
 const supabase = require('../config/supabase');
 
 class WishlistModel {
-  async findByUserId(userId) {
-    const { data, error } = await supabase
+  async findByUserId(userId, storeId = null) {
+    let query = supabase
       .from('wishlists')
       .select('*, items:wishlist_items(*, product:products(*))')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', userId);
+
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query.maybeSingle();
 
     if (error) throw error;
     return data;
   }
 
-  async create(userId) {
+  async create(userId, storeId = null) {
+    const insertData = { user_id: userId };
+    if (storeId) insertData.store_id = storeId;
+
     const { data, error } = await supabase
       .from('wishlists')
-      .insert([{ user_id: userId }])
+      .insert([insertData])
       .select()
       .single();
 

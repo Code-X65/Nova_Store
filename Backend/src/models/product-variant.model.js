@@ -1,6 +1,17 @@
 const supabase = require('../config/supabase');
 
 class ProductVariantModel {
+  async findById(id) {
+    const { data, error } = await supabase
+      .from('product_variants')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  }
+
   async findByProductId(productId) {
     const { data, error } = await supabase
       .from('product_variants')

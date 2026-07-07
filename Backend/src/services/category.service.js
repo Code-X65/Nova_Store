@@ -2,13 +2,13 @@ const categoryModel = require('../models/product-category.model');
 const slugify = require('../utils/slug-generator');
 
 class CategoryService {
-  async createCategory(adminId, categoryData) {
+  async createCategory(adminId, categoryData, storeId = null) {
     const { name, parentId, ...rest } = categoryData;
     
     const targetParentId = parentId === '' ? null : (parentId || null);
 
     // 1. Duplicate check: same parent, same name (case-insensitive)
-    const siblings = await categoryModel.findAll({ parentId: targetParentId });
+    const siblings = await categoryModel.findAll({ parentId: targetParentId, store_id: storeId });
     const hasDuplicateName = siblings.some(
       sibling => sibling.name.toLowerCase() === name.toLowerCase()
     );
@@ -20,7 +20,7 @@ class CategoryService {
 
     // 2. Generate Slug
     let slug = slugify(name);
-    const existing = await categoryModel.findBySlug(slug);
+    const existing = await categoryModel.findBySlug(slug, storeId);
     if (existing) {
       slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
     }
@@ -30,7 +30,7 @@ class CategoryService {
     let fullPath = [];
     
     if (targetParentId) {
-      const parent = await categoryModel.findById(targetParentId);
+      const parent = await categoryModel.findById(targetParentId, storeId);
       if (!parent) {
         const error = new Error('Parent category not found');
         error.statusCode = 400;
@@ -47,15 +47,16 @@ class CategoryService {
       level,
       full_path: fullPath,
       parent_id: targetParentId,
-      created_by: adminId
+      created_by: adminId,
+      store_id: storeId
     });
   }
 
-  async createBulkCategories(adminId, categoryTree) {
+  async createBulkCategories(adminId, categoryTree, storeId = null) {
     const crypto = require('crypto');
 
     // Fetch existing categories to perform duplicate & slug uniqueness checks in-memory
-    const existing = await categoryModel.findAll();
+    const existing = await categoryModel.findAll({ store_id: storeId });
     const existingSlugs = new Set(existing.map(c => c.slug));
     const existingNamesByParent = new Map();
 
@@ -111,6 +112,7 @@ class CategoryService {
         full_path: fullPath,
         parent_id: parentId,
         created_by: adminId,
+        store_id: storeId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -133,8 +135,8 @@ class CategoryService {
     return await categoryModel.createMany(flatCategories);
   }
 
-  async updateCategory(id, updateData) {
-    const category = await categoryModel.findById(id);
+  async updateCategory(id, updateData, storeId = null) {
+    const category = await categoryModel.findById(id, storeId);
     if (!category) {
       const error = new Error('Category not found');
       error.statusCode = 404;
@@ -148,7 +150,7 @@ class CategoryService {
     const nameToCheck = name || category.name;
     
     if (name || parentId !== undefined) {
-      const siblings = await categoryModel.findAll({ parentId: targetParentId });
+      const siblings = await categoryModel.findAll({ parentId: targetParentId, store_id: storeId });
       const hasDuplicateName = siblings.some(
         sibling => sibling.id !== id && sibling.name.toLowerCase() === nameToCheck.toLowerCase()
       );
@@ -164,7 +166,7 @@ class CategoryService {
     let slugChanged = false;
     if (name && name !== category.name) {
       slug = slugify(name);
-      const existing = await categoryModel.findBySlug(slug);
+      const existing = await categoryModel.findBySlug(slug, storeId);
       if (existing && existing.id !== id) {
         slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
       }
@@ -195,7 +197,7 @@ class CategoryService {
         level = 0;
         fullPath = [];
       } else {
-        const parent = await categoryModel.findById(newParentId);
+        const parent = await categoryModel.findById(newParentId, storeId);
         if (!parent) {
           const error = new Error('Parent category not found');
           error.statusCode = 400;
@@ -226,14 +228,14 @@ class CategoryService {
 
     // 4. Update Descendants if path/level changed
     if (parentIdChanged || slugChanged) {
-      await this.updateDescendantsPaths(id, [...fullPath, slug], level);
+      await this.updateDescendantsPaths(id, [...fullPath, slug], level, storeId);
     }
 
     return updated;
   }
 
-  async deleteCategory(categoryId, options = {}) {
-    const category = await categoryModel.findById(categoryId);
+  async deleteCategory(categoryId, options = {}, storeId = null) {
+    const category = await categoryModel.findById(categoryId, storeId);
     if (!category) {
       const error = new Error('Category not found');
       error.statusCode = 404;
@@ -243,7 +245,7 @@ class CategoryService {
     const { cascade = false } = options;
 
     if (!cascade) {
-      const children = await categoryModel.findAll({ parentId: categoryId });
+      const children = await categoryModel.findAll({ parentId: categoryId, store_id: storeId });
       if (children.length > 0) {
         const error = new Error('Cannot delete category with subcategories. Use cascade=true to delete all subcategories.');
         error.statusCode = 409;
@@ -251,22 +253,22 @@ class CategoryService {
       }
     } else {
       // Cascade soft-delete: recursively soft-delete children
-      await this.cascadeSoftDelete(categoryId);
+      await this.cascadeSoftDelete(categoryId, storeId);
     }
 
     return await categoryModel.softDelete(categoryId);
   }
 
-  async cascadeSoftDelete(parentId) {
-    const children = await categoryModel.findAll({ parentId });
+  async cascadeSoftDelete(parentId, storeId = null) {
+    const children = await categoryModel.findAll({ parentId, store_id: storeId });
     for (const child of children) {
-      await this.cascadeSoftDelete(child.id);
+      await this.cascadeSoftDelete(child.id, storeId);
       await categoryModel.softDelete(child.id);
     }
   }
 
-  async updateDescendantsPaths(parentId, parentPath, parentLevel) {
-    const children = await categoryModel.findAll({ parentId });
+  async updateDescendantsPaths(parentId, parentPath, parentLevel, storeId = null) {
+    const children = await categoryModel.findAll({ parentId, store_id: storeId });
     for (const child of children) {
       const childLevel = parentLevel + 1;
       const childPath = parentPath;
@@ -277,12 +279,12 @@ class CategoryService {
       });
 
       // Recurse into children of this child, appending this child's slug to the parent path
-      await this.updateDescendantsPaths(child.id, [...childPath, child.slug], childLevel);
+      await this.updateDescendantsPaths(child.id, [...childPath, child.slug], childLevel, storeId);
     }
   }
 
-  async getCategoryTree() {
-    const all = await categoryModel.findAll();
+  async getCategoryTree(storeId = null) {
+    const all = await categoryModel.findAll({ store_id: storeId });
     
     const buildTree = (parentId = null) => {
       return all

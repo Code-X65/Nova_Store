@@ -6,7 +6,7 @@ const slugify                = require('../utils/slug-generator');
 const attributeService       = require('./attribute.service');
 
 class ProductService {
-  async createProduct(adminId, productData) {
+  async createProduct(adminId, productData, storeId = null) {
     const { variants, attributes, ...baseData } = productData;
     
     // Validate category existence
@@ -77,6 +77,14 @@ class ProductService {
     }
 
     // 3. Create Product row
+    if (storeId) {
+      baseData.store_id = storeId;
+    } else if (!baseData.store_id) {
+      const userModel = require('../models/user.model');
+      const adminUser = await userModel.findById(adminId);
+      baseData.store_id = adminUser?.store_id || null;
+    }
+
     const product = await productModel.create({
       ...baseData,
       created_by: adminId,
@@ -101,7 +109,7 @@ class ProductService {
     return product;
   }
 
-  async getProducts(query, user) {
+  async getProducts(query, user, storeId = null) {
     const filters = {
       status:         query.status,
       category_id:    query.category_id,
@@ -114,7 +122,8 @@ class ProductService {
       minPrice:    query.minPrice  ? parseFloat(query.minPrice)  : undefined,
       maxPrice:    query.maxPrice  ? parseFloat(query.maxPrice)  : undefined,
       minRating:   query.minRating ? parseFloat(query.minRating) : undefined,
-      attrFilters: query.attrFilters || {} // passed from controller after parsing attr_* params
+      attrFilters: query.attrFilters || {}, // passed from controller after parsing attr_* params
+      store_id:    storeId || undefined
     };
 
     // Resolve category slug to category_id
@@ -161,11 +170,16 @@ class ProductService {
     return await productModel.findAll(filters, pagination);
   }
 
-  async updateProduct(productId, updateData) {
+  async updateProduct(productId, updateData, storeId = null) {
     const { attributes, ...baseUpdate } = updateData;
 
     // Resolve the effective category_id (from update payload or existing product)
-    const existing = await productModel.findById(productId);
+    const existing = await productModel.findById(productId, storeId);
+    if (!existing) {
+      const error = new Error('Product not found');
+      error.statusCode = 404;
+      throw error;
+    }
     let effectiveCategoryId = baseUpdate.category_id || existing?.category_id;
 
     if (baseUpdate.category_id) {
@@ -252,16 +266,16 @@ class ProductService {
     return product;
   }
 
-  async addImageToGallery(productId, imageUrl) {
-    const product = await productModel.findById(productId);
+  async addImageToGallery(productId, imageUrl, storeId = null) {
+    const product = await productModel.findById(productId, storeId);
     if (!product) throw new Error('Product not found');
     const gallery = product.image_gallery || [];
     gallery.push(imageUrl);
     return await productModel.update(productId, { image_gallery: gallery });
   }
 
-  async removeImageFromGallery(productId, index) {
-    const product = await productModel.findById(productId);
+  async removeImageFromGallery(productId, index, storeId = null) {
+    const product = await productModel.findById(productId, storeId);
     if (!product) throw new Error('Product not found');
     const gallery = product.image_gallery || [];
     const idx = parseInt(index);
@@ -280,19 +294,20 @@ class ProductService {
     return await variantModel.delete(variantId);
   }
 
-  async searchProducts(query, limit = 10) {
+  async searchProducts(query, limit = 10, storeId = null) {
     if (!query) throw new Error('Search query is required');
-    return await productModel.search(query, limit);
+    return await productModel.search(query, limit, storeId);
   }
 
-  async getPriceRange(query, user) {
+  async getPriceRange(query, user, storeId = null) {
     const filters = {
       status:         query.status,
       category_id:    query.category_id,
       brand_id:       query.brand_id,
       subcategory_id: query.subcategory_id,
       is_featured: query.featured === 'true' ? true : undefined,
-      search:      query.search
+      search:      query.search,
+      store_id:    storeId || undefined
     };
 
     // Resolve category slug to category_id

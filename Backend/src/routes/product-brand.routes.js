@@ -4,6 +4,7 @@ const { protect } = require('../middlewares/auth.middleware');
 const { hasPermission } = require('../middlewares/permission.middleware');
 const validate = require('../middlewares/validate.middleware');
 const brandValidator = require('../validators/brand.validator');
+const scopeToStore = require('../middlewares/scope-to-store.middleware');
 
 const router = express.Router();
 
@@ -162,6 +163,7 @@ router.get('/:id', brandController.getBrandById);
 
 // Admin Routes
 router.use(protect);
+router.use(scopeToStore);
 
 /**
  * @swagger

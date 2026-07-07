@@ -13,8 +13,8 @@ const crypto = require('crypto');
 const supabase = require('../config/supabase');
 
 class CheckoutService {
-  async validateCheckout(userId, sessionId, cartId, address = null) {
-    const cart = await CartService.getOrCreateCart(userId, sessionId);
+  async validateCheckout(userId, sessionId, cartId, address = null, storeId = null) {
+    const cart = await CartService.getOrCreateCart(userId, sessionId, storeId);
     
     if (!cart.items || cart.items.length === 0) {
       throw new Error('Cart is empty');
@@ -24,7 +24,7 @@ class CheckoutService {
     const validatedItems = [];
 
     for (const item of cart.items) {
-      const product = await ProductModel.findById(item.productId);
+      const product = await ProductModel.findById(item.productId, storeId);
       
       if (!product) {
         issues.push(`Product ${item.product?.name || 'Unknown'} is no longer available`);
@@ -100,11 +100,11 @@ class CheckoutService {
 
 
 
-  async createCheckoutSession(userId, sessionId, checkoutData) {
+  async createCheckoutSession(userId, sessionId, checkoutData, storeId = null) {
     const { cartId, shippingOption, address, couponCode, notes } = checkoutData;
     
     // 1. Validate cart again
-    const validation = await this.validateCheckout(userId, sessionId, cartId, address);
+    const validation = await this.validateCheckout(userId, sessionId, cartId, address, storeId);
     if (!validation.valid) {
       throw new Error(`Checkout validation failed: ${validation.issues.join(', ')}`);
     }
@@ -142,7 +142,8 @@ class CheckoutService {
       customer_email: address.email || (userId ? null : checkoutData.email), // Should be provided
       customer_phone: address.phone,
       notes: notes,
-      checkout_session_id: checkoutSessionId
+      checkout_session_id: checkoutSessionId,
+      store_id: storeId || null
     };
 
     const orderItems = validation.cart.items.map(item => ({

@@ -1,11 +1,12 @@
 const productService = require('../services/product.service');
 const productModel = require('../models/product.model');
+const variantModel = require('../models/product-variant.model');
 const AuditService = require('../services/audit.service');
 
 class ProductController {
   async createProduct(req, res, next) {
     try {
-      const product = await productService.createProduct(req.user.id, req.body);
+      const product = await productService.createProduct(req.user.id, req.body, req.store?.id);
       AuditService.log(req, 'product.created', 'product', product.id, null, { name: product.name, sku: product.sku, status: product.status });
       res.status(201).json({ success: true, data: { product } });
     } catch (error) {
@@ -24,7 +25,7 @@ class ProductController {
         }
       }
 
-      const result = await productService.getProducts({ ...req.query, attrFilters }, req.user);
+      const result = await productService.getProducts({ ...req.query, attrFilters }, req.user, req.store?.id);
       res.status(200).json({ 
         success: true, 
         data: { 
@@ -44,7 +45,7 @@ class ProductController {
 
   async getProductById(req, res, next) {
     try {
-      const product = await productModel.findById(req.params.id);
+      const product = await productModel.findById(req.params.id, req.store?.id);
       if (!product) {
         return res.status(404).json({ success: false, message: 'Product not found' });
       }
@@ -57,8 +58,11 @@ class ProductController {
   async updateProduct(req, res, next) {
     try {
       const { id } = req.params;
-      const oldProduct = await productModel.findById(id);
-      const product = await productService.updateProduct(id, req.body);
+      const oldProduct = await productModel.findById(id, req.store?.id);
+      if (!oldProduct) {
+        return res.status(404).json({ success: false, message: 'Product not found' });
+      }
+      const product = await productService.updateProduct(id, req.body, req.store?.id);
       
       const oldValues = oldProduct ? { name: oldProduct.name, sku: oldProduct.sku, status: oldProduct.status } : null;
       const newValues = { name: product.name, sku: product.sku, status: product.status };
@@ -73,6 +77,10 @@ class ProductController {
   async deleteProduct(req, res, next) {
     try {
       const { id } = req.params;
+      const product = await productModel.findById(id, req.store?.id);
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found' });
+      }
       await productModel.softDelete(id);
       AuditService.log(req, 'product.deleted', 'product', id);
       res.status(200).json({ success: true, message: 'Product archived successfully' });
@@ -83,7 +91,7 @@ class ProductController {
 
   async getProductBySlug(req, res, next) {
     try {
-      const product = await productModel.findBySlug(req.params.slug);
+      const product = await productModel.findBySlug(req.params.slug, req.store?.id);
       if (!product) {
         return res.status(404).json({ success: false, message: 'Product not found' });
       }
@@ -96,7 +104,7 @@ class ProductController {
   async getFeaturedProducts(req, res, next) {
     try {
       const limit = parseInt(req.query.limit) || 10;
-      const products = await productModel.getFeatured(limit);
+      const products = await productModel.getFeatured(limit, req.store?.id);
       res.status(200).json({ success: true, data: { products } });
     } catch (error) {
       next(error);
@@ -105,6 +113,10 @@ class ProductController {
 
   async checkStock(req, res, next) {
     try {
+      const productExists = await productModel.findById(req.params.id, req.store?.id);
+      if (!productExists) {
+        return res.status(404).json({ success: false, message: 'Product not found' });
+      }
       const product = await productModel.getStockByProductId(req.params.id);
       if (!product) {
         return res.status(404).json({ success: false, message: 'Product not found' });
@@ -135,7 +147,11 @@ class ProductController {
       if (!imageUrl) {
         return res.status(400).json({ success: false, message: 'imageUrl is required' });
       }
-      const product = await productService.addImageToGallery(id, imageUrl);
+      const productExists = await productModel.findById(id, req.store?.id);
+      if (!productExists) {
+        return res.status(404).json({ success: false, message: 'Product not found' });
+      }
+      const product = await productService.addImageToGallery(id, imageUrl, req.store?.id);
       AuditService.log(req, 'product.image.added', 'product', id, null, { imageUrl });
       res.status(200).json({ success: true, data: { product }, message: 'Image added to gallery' });
     } catch (error) {
@@ -146,7 +162,11 @@ class ProductController {
   async removeProductImage(req, res, next) {
     try {
       const { id, index } = req.params;
-      const product = await productService.removeImageFromGallery(id, index);
+      const productExists = await productModel.findById(id, req.store?.id);
+      if (!productExists) {
+        return res.status(404).json({ success: false, message: 'Product not found' });
+      }
+      const product = await productService.removeImageFromGallery(id, index, req.store?.id);
       AuditService.log(req, 'product.image.removed', 'product', id, null, { index: parseInt(index) });
       res.status(200).json({ success: true, data: { product }, message: 'Image removed from gallery' });
     } catch (error) {
@@ -157,6 +177,14 @@ class ProductController {
   async updateProductVariant(req, res, next) {
     try {
       const { variantId } = req.params;
+      const variantRecord = await variantModel.findById(variantId);
+      if (!variantRecord) {
+        return res.status(404).json({ success: false, message: 'Variant not found' });
+      }
+      const product = await productModel.findById(variantRecord.product_id, req.store?.id);
+      if (!product) {
+        return res.status(403).json({ success: false, message: 'Forbidden: Variant does not belong to this store' });
+      }
       const variant = await productService.updateVariant(variantId, req.body);
       AuditService.log(req, 'product.variant.updated', 'product_variant', variantId, null, req.body);
       res.status(200).json({ success: true, data: { variant }, message: 'Variant updated successfully' });
@@ -168,6 +196,14 @@ class ProductController {
   async deleteProductVariant(req, res, next) {
     try {
       const { variantId } = req.params;
+      const variantRecord = await variantModel.findById(variantId);
+      if (!variantRecord) {
+        return res.status(404).json({ success: false, message: 'Variant not found' });
+      }
+      const product = await productModel.findById(variantRecord.product_id, req.store?.id);
+      if (!product) {
+        return res.status(403).json({ success: false, message: 'Forbidden: Variant does not belong to this store' });
+      }
       await productService.deleteVariant(variantId);
       AuditService.log(req, 'product.variant.deleted', 'product_variant', variantId);
       res.status(200).json({ success: true, message: 'Variant deleted successfully' });
@@ -179,7 +215,7 @@ class ProductController {
   async search(req, res, next) {
     try {
       const { q, limit } = req.query;
-      const products = await productService.searchProducts(q, limit ? parseInt(limit) : 10);
+      const products = await productService.searchProducts(q, limit ? parseInt(limit) : 10, req.store?.id);
       res.status(200).json({ success: true, data: products });
     } catch (error) {
       next(error);
@@ -188,7 +224,7 @@ class ProductController {
 
   async getPriceRange(req, res, next) {
     try {
-      const range = await productService.getPriceRange(req.query, req.user);
+      const range = await productService.getPriceRange(req.query, req.user, req.store?.id);
       res.status(200).json({ success: true, data: range });
     } catch (error) {
       next(error);

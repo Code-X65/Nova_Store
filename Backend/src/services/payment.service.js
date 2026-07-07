@@ -105,7 +105,13 @@ class PaymentService {
         }
       }
 
-      // Send Confirmation Email (TODO)
+      // 6. Send Confirmation Email
+      try {
+        const NotificationService = require('./notification.service');
+        await NotificationService.sendOrderConfirmation(order.user_id, order.order_number, order.total_amount);
+      } catch (notifErr) {
+        console.error(`Failed to send confirmation email for order ${orderId}:`, notifErr.message);
+      }
     }
   }
 

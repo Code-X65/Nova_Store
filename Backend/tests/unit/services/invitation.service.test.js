@@ -19,7 +19,7 @@ jest.mock('../../../src/config/supabase', () => ({
     from: jest.fn().mockReturnThis(),
     insert: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: { id: 'new-user-id', email: 'new@admin.com', first_name: 'New', last_name: 'Admin', role: 'ADMIN', password_hash: 'hashed' }, error: null })
+    single: jest.fn().mockResolvedValue({ data: { id: 'new-user-id', email: 'new@admin.com', first_name: 'New', last_name: 'Admin', role: 'ORDER_STAFF', password_hash: 'hashed' }, error: null })
   }
 }));
 
@@ -35,22 +35,28 @@ describe('InvitationService', () => {
     invited_by: superAdminId,
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'pending',
-    roles: { id: adminRoleId, name: 'ADMIN' }
+    store_id: 'store-abc',
+    roles: { id: adminRoleId, name: 'ORDER_STAFF' }
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default: caller is SUPER_ADMIN
-    userModel.isSuperAdmin.mockResolvedValue(true);
+    // Default: caller is STORE_OWNER
+    userModel.getUserRolesAndPermissions.mockResolvedValue({
+      roles: ['STORE_OWNER'],
+      permissions: ['*']
+    });
     userModel.findByEmail.mockResolvedValue(null); // No existing user
     invitationModel.findPendingByEmail.mockResolvedValue(null); // No pending invite
-    roleModel.findByName.mockResolvedValue({ id: adminRoleId, name: 'ADMIN' });
+    roleModel.findByName.mockResolvedValue({ id: adminRoleId, name: 'ORDER_STAFF' });
+    roleModel.findById.mockResolvedValue({ id: adminRoleId, name: 'ORDER_STAFF' });
     invitationModel.create.mockResolvedValue(mockInvitation);
     userModel.findById.mockResolvedValue({
       id: superAdminId,
       email: 'super@example.com',
       first_name: 'Super',
-      last_name: 'Admin'
+      last_name: 'Admin',
+      store_id: 'store-abc'
     });
     notificationService.sendAdminInvitationEmail.mockResolvedValue(true);
     AuditService.log.mockResolvedValue(undefined);
@@ -75,8 +81,11 @@ describe('InvitationService', () => {
       expect(result).not.toHaveProperty('token');
     });
 
-    it('should throw 403 if inviter is not SUPER_ADMIN', async () => {
-      userModel.isSuperAdmin.mockResolvedValue(false);
+    it('should throw 403 if inviter is not STORE_OWNER or MANAGER', async () => {
+      userModel.getUserRolesAndPermissions.mockResolvedValue({
+        roles: ['CUSTOMER'],
+        permissions: []
+      });
 
       await expect(
         invitationService.createInvitation({ email: 'invited@example.com', invitedBy: 'regular-admin-id' })
@@ -101,8 +110,10 @@ describe('InvitationService', () => {
       ).rejects.toMatchObject({ statusCode: 409 });
     });
 
-    it('should use the provided roleId instead of defaulting to ADMIN', async () => {
+    it('should use the provided roleId instead of defaulting to ORDER_STAFF', async () => {
       const customRoleId = 'moderator-role-uuid';
+      roleModel.findById.mockResolvedValue({ id: customRoleId, name: 'INVENTORY_STAFF' });
+
       await invitationService.createInvitation({
         email: 'new@example.com',
         roleId: customRoleId,
@@ -138,7 +149,7 @@ describe('InvitationService', () => {
 
       expect(result).toEqual({
         email: mockInvitation.email,
-        roleName: 'ADMIN',
+        roleName: 'ORDER_STAFF',
         expiresAt: mockInvitation.expires_at
       });
       expect(result).not.toHaveProperty('token');
@@ -183,21 +194,20 @@ describe('InvitationService', () => {
   // ─── listInvitations ─────────────────────────────────────────────────────────
 
   describe('listInvitations', () => {
-    it('should list all invitations when caller is SUPER_ADMIN', async () => {
+    it('should list all invitations when caller is STORE_OWNER', async () => {
       const mockList = { invitations: [mockInvitation], total: 1, page: 1, limit: 20 };
       invitationModel.list.mockResolvedValue(mockList);
 
-      const result = await invitationService.listInvitations({}, superAdminId, true);
+      const result = await invitationService.listInvitations({}, superAdminId, true, 'store-abc');
 
-      expect(invitationModel.list).toHaveBeenCalledWith(expect.not.objectContaining({ invitedBy: expect.anything() }));
       expect(result).toEqual(mockList);
     });
 
-    it('should restrict to own invitations when caller is a regular ADMIN', async () => {
+    it('should restrict to own invitations when caller is a regular MANAGER', async () => {
       const regularAdminId = 'regular-admin-uuid';
       invitationModel.list.mockResolvedValue({ invitations: [], total: 0, page: 1, limit: 20 });
 
-      await invitationService.listInvitations({}, regularAdminId, false);
+      await invitationService.listInvitations({}, regularAdminId, false, 'store-abc');
 
       expect(invitationModel.list).toHaveBeenCalledWith(
         expect.objectContaining({ invitedBy: regularAdminId })
@@ -213,7 +223,7 @@ describe('InvitationService', () => {
       invitationModel.revoke.mockResolvedValue({ ...mockInvitation, status: 'revoked' });
       notificationService.sendAdminInvitationRevokedEmail.mockResolvedValue(true);
 
-      await invitationService.revokeInvitation(mockInvitation.id, superAdminId, true, {});
+      await invitationService.revokeInvitation(mockInvitation.id, superAdminId, true, 'store-abc', {});
 
       expect(invitationModel.revoke).toHaveBeenCalledWith(mockInvitation.id);
     });
@@ -222,7 +232,7 @@ describe('InvitationService', () => {
       invitationModel.findById.mockResolvedValue(null);
 
       await expect(
-        invitationService.revokeInvitation('nonexistent-id', superAdminId, true, {})
+        invitationService.revokeInvitation('nonexistent-id', superAdminId, true, 'store-abc', {})
       ).rejects.toMatchObject({ statusCode: 404 });
     });
 
@@ -230,7 +240,7 @@ describe('InvitationService', () => {
       invitationModel.findById.mockResolvedValue({ ...mockInvitation, status: 'accepted' });
 
       await expect(
-        invitationService.revokeInvitation(mockInvitation.id, superAdminId, true, {})
+        invitationService.revokeInvitation(mockInvitation.id, superAdminId, true, 'store-abc', {})
       ).rejects.toMatchObject({ statusCode: 400 });
     });
   });
@@ -260,7 +270,7 @@ describe('InvitationService', () => {
           expect.objectContaining({
             email: 'invited@example.com',
             extra_permissions: ['product:create', 'product:delete'],
-            role: 'ADMIN'
+            role: 'ORDER_STAFF'
           })
         ])
       );

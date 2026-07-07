@@ -31,10 +31,20 @@ class InvitationService {
   async createInvitation({ email, roleId, permissions = [], invitedBy, expiryDays, req }) {
     const normalizedEmail = email.toLowerCase().trim();
 
-    // 1. Check inviter is SUPER_ADMIN
-    const isSuperAdmin = await userModel.isSuperAdmin(invitedBy);
-    if (!isSuperAdmin) {
-      const err = new Error('Only SUPER_ADMIN users can send invitations.');
+    // 1. Check inviter is STORE_OWNER or MANAGER
+    const inviter = await userModel.findById(invitedBy);
+    if (!inviter) {
+      const err = new Error('Inviter user not found.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const { roles: inviterRoles } = await userModel.getUserRolesAndPermissions(invitedBy);
+    const isStoreOwner = inviterRoles.includes('STORE_OWNER');
+    const isManager = inviterRoles.includes('MANAGER');
+
+    if (!isStoreOwner && !isManager) {
+      const err = new Error('Only Store Owners and Managers can send invitations.');
       err.statusCode = 403;
       throw err;
     }
@@ -55,21 +65,53 @@ class InvitationService {
       throw err;
     }
 
-    // 4. Resolve role (default to ADMIN)
+    // 4. Resolve role (default to ORDER_STAFF)
     let resolvedRoleId = roleId;
-    if (!resolvedRoleId) {
-      const adminRole = await roleModel.findByName('ADMIN');
-      if (!adminRole) {
-        const err = new Error('Default ADMIN role not found. Run migration 045.');
+    let resolvedRole = null;
+    if (resolvedRoleId) {
+      resolvedRole = await roleModel.findById(resolvedRoleId);
+      if (!resolvedRole) {
+        const err = new Error('Requested role not found.');
+        err.statusCode = 404;
+        throw err;
+      }
+    } else {
+      const orderStaffRole = await roleModel.findByName('ORDER_STAFF');
+      if (!orderStaffRole) {
+        const err = new Error('Default ORDER_STAFF role not found.');
         err.statusCode = 500;
         throw err;
       }
-      resolvedRoleId = adminRole.id;
+      resolvedRoleId = orderStaffRole.id;
+      resolvedRole = orderStaffRole;
+    }
+
+    // Validate permission scopes for the resolved role:
+    // If the inviter is a MANAGER, they can only invite to 'ORDER_STAFF' or 'INVENTORY_STAFF'
+    if (isManager && !isStoreOwner) {
+      if (resolvedRole.name !== 'ORDER_STAFF' && resolvedRole.name !== 'INVENTORY_STAFF') {
+        const err = new Error('Managers can only invite Order Staff or Inventory Staff.');
+        err.statusCode = 403;
+        throw err;
+      }
+    }
+
+    // If the inviter is STORE_OWNER, they can invite MANAGER, ORDER_STAFF, or INVENTORY_STAFF.
+    if (isStoreOwner) {
+      if (resolvedRole.name !== 'MANAGER' && resolvedRole.name !== 'ORDER_STAFF' && resolvedRole.name !== 'INVENTORY_STAFF') {
+        const err = new Error('Store Owners can only invite Managers, Order Staff, or Inventory Staff.');
+        err.statusCode = 403;
+        throw err;
+      }
     }
 
     // 5. Calculate expiry
     const days = expiryDays || DEFAULT_EXPIRY_DAYS;
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+    const inviterName = inviter
+      ? `${inviter.first_name || ''} ${inviter.last_name || ''}`.trim() || inviter.email
+      : 'Nova Store';
 
     // 6. Create invitation record
     const invitation = await invitationModel.create({
@@ -77,14 +119,11 @@ class InvitationService {
       roleId: resolvedRoleId,
       permissions,
       invitedBy,
-      expiresAt
+      expiresAt,
+      store_id: inviter?.store_id || null
     });
 
     // 7. Send email
-    const inviter = await userModel.findById(invitedBy);
-    const inviterName = inviter
-      ? `${inviter.first_name || ''} ${inviter.last_name || ''}`.trim() || inviter.email
-      : 'Nova Store';
 
     const acceptLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/accept-invite/${invitation.token}`;
 
@@ -185,7 +224,8 @@ class InvitationService {
         is_active: true,
         failed_login_attempts: 0,
         extra_permissions: invitation.permissions || [],
-        referral_code: referralCode
+        referral_code: referralCode,
+        store_id: invitation.store_id || null
       }])
       .select()
       .single();
@@ -228,8 +268,11 @@ class InvitationService {
    * @param {string} requesterId
    * @param {boolean} isSuperAdmin
    */
-  async listInvitations(filters, requesterId, isSuperAdmin) {
+  async listInvitations(filters, requesterId, isSuperAdmin, storeId = null) {
     const effectiveFilters = { ...filters };
+    if (storeId) {
+      effectiveFilters.store_id = storeId;
+    }
     if (!isSuperAdmin) {
       effectiveFilters.invitedBy = requesterId;
     }
@@ -242,12 +285,19 @@ class InvitationService {
    * @param {string} id          - Invitation UUID
    * @param {string} requesterId - Requester's user_id
    * @param {boolean} isSuperAdmin
+   * @param {string} [storeId]   - Requester's store_id
    */
-  async getInvitation(id, requesterId, isSuperAdmin) {
+  async getInvitation(id, requesterId, isSuperAdmin, storeId = null) {
     const invitation = await invitationModel.findById(id);
     if (!invitation) {
       const err = new Error('Invitation not found.');
       err.statusCode = 404;
+      throw err;
+    }
+
+    if (storeId && invitation.store_id !== storeId) {
+      const err = new Error('Access denied: store mismatch.');
+      err.statusCode = 403;
       throw err;
     }
 
@@ -266,12 +316,19 @@ class InvitationService {
    * @param {string} id
    * @param {string} requesterId
    * @param {boolean} isSuperAdmin
+   * @param {string} [storeId]   - Requester's store_id
    */
-  async revokeInvitation(id, requesterId, isSuperAdmin, req) {
+  async revokeInvitation(id, requesterId, isSuperAdmin, storeId = null, req) {
     const invitation = await invitationModel.findById(id);
     if (!invitation) {
       const err = new Error('Invitation not found.');
       err.statusCode = 404;
+      throw err;
+    }
+
+    if (storeId && invitation.store_id !== storeId) {
+      const err = new Error('Access denied: store mismatch.');
+      err.statusCode = 403;
       throw err;
     }
 
@@ -306,11 +363,17 @@ class InvitationService {
    * @param {string} requesterId
    * @param {boolean} isSuperAdmin
    */
-  async resendInvitation(id, requesterId, isSuperAdmin, req) {
+  async resendInvitation(id, requesterId, isSuperAdmin, storeId = null, req) {
     const invitation = await invitationModel.findById(id);
     if (!invitation) {
       const err = new Error('Invitation not found.');
       err.statusCode = 404;
+      throw err;
+    }
+
+    if (storeId && invitation.store_id !== storeId) {
+      const err = new Error('Access denied: store mismatch.');
+      err.statusCode = 403;
       throw err;
     }
 

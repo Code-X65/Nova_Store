@@ -8,11 +8,11 @@ class ProductCategoryController {
       const { type, parentId } = req.query;
 
       if (type === 'tree') {
-        const tree = await categoryService.getCategoryTree();
+        const tree = await categoryService.getCategoryTree(req.store?.id);
         return res.status(200).json({ success: true, data: { categories: tree } });
       }
 
-      const categories = await categoryModel.findAll({ parentId });
+      const categories = await categoryModel.findAll({ parentId, store_id: req.store?.id });
       res.status(200).json({ success: true, data: { categories } });
     } catch (error) {
       next(error);
@@ -21,7 +21,7 @@ class ProductCategoryController {
 
   async getCategoryById(req, res, next) {
     try {
-      const category = await categoryModel.findById(req.params.id);
+      const category = await categoryModel.findById(req.params.id, req.store?.id);
       if (!category) {
         return res.status(404).json({ success: false, message: 'Category not found' });
       }
@@ -33,7 +33,7 @@ class ProductCategoryController {
 
   async getCategoryBySlug(req, res, next) {
     try {
-      const category = await categoryModel.findBySlug(req.params.slug);
+      const category = await categoryModel.findBySlug(req.params.slug, req.store?.id);
       if (!category) {
         return res.status(404).json({ success: false, message: 'Category not found' });
       }
@@ -45,7 +45,7 @@ class ProductCategoryController {
 
   async createCategory(req, res, next) {
     try {
-      const category = await categoryService.createCategory(req.user.id, req.body);
+      const category = await categoryService.createCategory(req.user.id, req.body, req.store?.id);
 
       AuditService.log(req, 'category.created', 'category', category.id, null, {
         name: category.name,
@@ -63,7 +63,7 @@ class ProductCategoryController {
 
   async createBulkCategories(req, res, next) {
     try {
-      const categories = await categoryService.createBulkCategories(req.user.id, req.body);
+      const categories = await categoryService.createBulkCategories(req.user.id, req.body, req.store?.id);
 
       AuditService.log(req, 'category.bulk_created', 'category', null, null, {
         count: categories.length
@@ -78,8 +78,11 @@ class ProductCategoryController {
   async updateCategory(req, res, next) {
     try {
       const { id } = req.params;
-      const oldCategory = await categoryModel.findById(id);
-      const category = await categoryService.updateCategory(id, req.body);
+      const oldCategory = await categoryModel.findById(id, req.store?.id);
+      if (!oldCategory) {
+        return res.status(404).json({ success: false, message: 'Category not found' });
+      }
+      const category = await categoryService.updateCategory(id, req.body, req.store?.id);
 
       const oldValues = oldCategory ? {
         name: oldCategory.name,
@@ -109,7 +112,7 @@ class ProductCategoryController {
       const { id } = req.params;
       const cascade = req.query.cascade === 'true';
 
-      await categoryService.deleteCategory(id, { cascade });
+      await categoryService.deleteCategory(id, { cascade }, req.store?.id);
       AuditService.log(req, 'category.deleted', 'category', id);
       res.status(200).json({ success: true, message: 'Category archived' });
     } catch (error) {
@@ -120,7 +123,11 @@ class ProductCategoryController {
   async getSubcategories(req, res, next) {
     try {
       const { id } = req.params;
-      const subcategories = await categoryModel.findAll({ parentId: id });
+      const parentExists = await categoryModel.findById(id, req.store?.id);
+      if (!parentExists) {
+        return res.status(404).json({ success: false, message: 'Category not found' });
+      }
+      const subcategories = await categoryModel.findAll({ parentId: id, store_id: req.store?.id });
       res.status(200).json({ success: true, data: { subcategories } });
     } catch (error) {
       next(error);

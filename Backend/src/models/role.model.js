@@ -33,6 +33,10 @@ class RoleModel {
     return data;
   }
 
+  async getRoleByName(name) {
+    return this.findByName(name);
+  }
+
   async create(roleData) {
     const { data, error } = await supabase
       .from('roles')

@@ -4,6 +4,7 @@ const { protect } = require('../middlewares/auth.middleware');
 const { hasPermission } = require('../middlewares/permission.middleware');
 const validate = require('../middlewares/validate.middleware');
 const Joi = require('joi');
+const scopeToStore = require('../middlewares/scope-to-store.middleware');
 
 const router = express.Router();
 
@@ -389,7 +390,7 @@ const productUpdateSchema = {
  *         description: Product created successfully
  */
 router.get('/', productController.getAllProducts);
-router.post('/', protect, hasPermission('product:create'), validate(productSchema), productController.createProduct);
+router.post('/', protect, hasPermission('product:create'), scopeToStore, validate(productSchema), productController.createProduct);
 
 /**
  * @swagger
@@ -516,8 +517,8 @@ router.get('/:id', productController.getProductById);
  */
 router.get('/:id/stock', productController.checkStock);
 
-router.patch('/:id', protect, hasPermission('product:write'), validate(productUpdateSchema), productController.updateProduct);
-router.delete('/:id', protect, hasPermission('product:delete'), productController.deleteProduct);
+router.patch('/:id', protect, hasPermission('product:write'), scopeToStore, validate(productUpdateSchema), productController.updateProduct);
+router.delete('/:id', protect, hasPermission('product:delete'), scopeToStore, productController.deleteProduct);
 
 // Image Gallery Sub-resource Routes
 
@@ -553,7 +554,7 @@ router.delete('/:id', protect, hasPermission('product:delete'), productControlle
  *       404:
  *         description: Product not found
  */
-router.post('/:id/images', protect, hasPermission('product:write'), productController.addProductImage);
+router.post('/:id/images', protect, hasPermission('product:write'), scopeToStore, productController.addProductImage);
 
 /**
  * @swagger
@@ -583,7 +584,7 @@ router.post('/:id/images', protect, hasPermission('product:write'), productContr
  *       404:
  *         description: Product not found
  */
-router.delete('/:id/images/:index', protect, hasPermission('product:write'), productController.removeProductImage);
+router.delete('/:id/images/:index', protect, hasPermission('product:write'), scopeToStore, productController.removeProductImage);
 
 // Product Variant Sub-resource Routes
 
@@ -646,8 +647,8 @@ router.delete('/:id/images/:index', protect, hasPermission('product:write'), pro
  *       404:
  *         description: Variant not found
  */
-router.put('/:id/variants/:variantId', protect, hasPermission('product:write'), productController.updateProductVariant);
-router.delete('/:id/variants/:variantId', protect, hasPermission('product:delete'), productController.deleteProductVariant);
+router.put('/:id/variants/:variantId', protect, hasPermission('product:write'), scopeToStore, productController.updateProductVariant);
+router.delete('/:id/variants/:variantId', protect, hasPermission('product:delete'), scopeToStore, productController.deleteProductVariant);
 
 /**
  * @swagger

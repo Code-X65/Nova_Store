@@ -56,9 +56,10 @@ async function checkMigrationState(client, fileName) {
   if (fileName.includes('028_review_reporting')) return await tableExists('review_reports');
   if (fileName.includes('029_phone_verification_tokens')) return await tableExists('phone_verification_tokens');
   if (fileName.includes('030_admin_auth')) return await tableExists('admins');
-  if (fileName.includes('030_registration_fields')) return await columnExists('users', 'home_address');
-  if (fileName.includes('031_telemetry_and_recommendations')) return await tableExists('user_search_logs');
+  if (fileName.includes('031_connect_products_categories')) return await tableExists('product_categories');
   if (fileName.includes('032_category_attributes')) return await tableExists('category_attributes');
+  if (fileName.includes('033_registration_fields')) return await columnExists('users', 'home_address');
+  if (fileName.includes('034_telemetry_and_recommendations')) return await tableExists('user_search_logs');
   if (fileName.includes('035_add_referrals')) return await columnExists('users', 'referral_code');
   if (fileName.includes('036_add_is_admin_to_sessions')) return await columnExists('admin_sessions', 'is_admin');
   if (fileName.includes('038_add_oauth_providers')) return await columnExists('users', 'google_id');
@@ -71,6 +72,11 @@ async function checkMigrationState(client, fileName) {
   if (fileName.includes('050_add_unique_constraint_to_checkout_session_id')) return await constraintExists('uq_orders_checkout_session_id');
   if (fileName.includes('051_optimize_fts_products')) return false;
   if (fileName.includes('052_add_release_expired_reservations')) return false;
+  if (fileName.includes('053_create_stores_table')) return await tableExists('stores');
+  if (fileName.includes('054_add_store_id_to_tables')) return await columnExists('products', 'store_id');
+  if (fileName.includes('055_update_create_order_rpc')) return false;
+  if (fileName.includes('056_add_store_id_to_rpcs')) return false;
+  if (fileName.includes('057_rbac_store_staff_roles')) return await columnExists('roles', 'name');
 
   const prefix = parseInt(fileName.split('_')[0], 10);
   if (!isNaN(prefix) && prefix < 25) {
@@ -221,8 +227,27 @@ async function runMigrations() {
       console.log('  ✓ Verified: Core notification templates exist.');
     }
 
+    // Verify store migration (053 + 054)
+    const storeTableCheck = await client.query("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname='public' AND tablename='stores')");
+    if (storeTableCheck.rows[0].exists) {
+      const storeCount = await client.query('SELECT COUNT(*) FROM stores');
+      const storeRows = parseInt(storeCount.rows[0].count, 10);
+      console.log(`  ✓ Verified: stores table exists with ${storeRows} store(s).`);
+
+      // Verify store_id backfill
+      const productCheck = await client.query("SELECT COUNT(*) FROM products WHERE store_id IS NULL");
+      const nullProducts = parseInt(productCheck.rows[0].count, 10);
+      if (nullProducts > 0) {
+        console.warn(`  ⚠️ WARNING: ${nullProducts} products have NULL store_id — backfill may be incomplete.`);
+      } else {
+        console.log('  ✓ Verified: All products have store_id set.');
+      }
+    } else {
+      console.warn('  ⚠️ WARNING: stores table does not exist — run migrations 053 and 054.');
+    }
+
   } catch (err) {
-    console.error('Migration runner failed:', err.message);
+    console.error('Migration runner failed:', err);
     process.exit(1);
   } finally {
     await client.end();

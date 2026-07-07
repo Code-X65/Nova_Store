@@ -21,6 +21,7 @@ class InventoryTransactionModel {
       .select('*, products(name, sku), product_variants(name, sku)', { count: 'exact' })
       .eq('product_id', productId);
 
+    if (filters.store_id) query = query.eq('store_id', filters.store_id);
     if (filters.type) query = query.eq('type', filters.type);
     if (filters.variantId) query = query.eq('variant_id', filters.variantId);
 
@@ -42,6 +43,7 @@ class InventoryTransactionModel {
       .from('inventory_transactions')
       .select('*, products(name, sku), product_variants(name, sku)', { count: 'exact' });
 
+    if (filters.store_id) query = query.eq('store_id', filters.store_id);
     if (filters.type) query = query.eq('type', filters.type);
     if (filters.productId) query = query.eq('product_id', filters.productId);
     if (filters.userId) query = query.eq('performed_by', filters.userId);
@@ -64,12 +66,15 @@ class InventoryTransactionModel {
     };
   }
 
-  async getRecentTransactions(limit = 10) {
-    const { data, error } = await supabase
+  async getRecentTransactions(limit = 10, storeId = null) {
+    let query = supabase
       .from('inventory_transactions')
       .select('*, products(name, sku)')
-      .order('created_at', { ascending: false })
-      .limit(limit);
+      .order('created_at', { ascending: false });
+
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query.limit(limit);
 
     if (error) throw error;
     return data;

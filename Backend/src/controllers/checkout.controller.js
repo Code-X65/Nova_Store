@@ -11,7 +11,7 @@ class CheckoutController {
       const sessionId = req.headers['x-session-id'];
       const { cartId } = req.body;
 
-      const result = await CheckoutService.validateCheckout(userId, sessionId, cartId);
+      const result = await CheckoutService.validateCheckout(userId, sessionId, cartId, null, req.store?.id);
       res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -25,7 +25,7 @@ class CheckoutController {
        const sessionId = req.headers['x-session-id'];
        
        // Get cart to calculate subtotal for shipping options
-       const cart = await CartService.getOrCreateCart(userId, sessionId, cartId);
+       const cart = await CartService.getOrCreateCart(userId, sessionId, req.store?.id);
        
        // Use the shipping service to calculate real shipping options
        const options = await shippingService.calculateShippingOptions(address, cart.subtotal);
@@ -52,7 +52,7 @@ class CheckoutController {
     try {
       const userId = req.user ? req.user.id : null;
       const sessionId = req.headers['x-session-id'];
-      const result = await CheckoutService.createCheckoutSession(userId, sessionId, req.body);
+      const result = await CheckoutService.createCheckoutSession(userId, sessionId, req.body, req.store?.id);
       AuditService.log(req, 'checkout.session_created', 'order', result.checkoutSession.orderId, null, { total: result.checkoutSession.total });
       res.status(201).json({ success: true, data: result });
     } catch (error) {

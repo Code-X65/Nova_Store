@@ -46,7 +46,14 @@ class AdminAuthService {
         logger.error('[AdminAuthService] Failed to write success auth log:', logErr.message);
       }
 
-      return { id: user.id, email: user.email, role: user.role };
+      return { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        store_id: user.store_id
+      };
     } catch (error) {
       const failureReason = resolveFailureReason(error.message);
 

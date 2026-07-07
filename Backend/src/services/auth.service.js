@@ -122,8 +122,8 @@ class AuthService {
    }
 
     async generateTokens(user) {
-      // Shorter token expiration for admin sessions
-      const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+      // Shorter token expiration for admin/staff sessions
+      const isAdmin = ['STORE_OWNER', 'MANAGER', 'ORDER_STAFF', 'INVENTORY_STAFF'].includes(user.role);
       const accessTokenExpiresIn = isAdmin ? (securityConfig?.admin?.session?.accessTokenExpiresIn || '15m') : '15m';
       const refreshTokenExpiresIn = isAdmin ? (securityConfig?.admin?.session?.refreshTokenExpiresIn || '8h') : '30d';
 
@@ -282,9 +282,10 @@ class AuthService {
         throw error;
       }
 
-      // Must have ADMIN or SUPER_ADMIN role in user_roles
+      // Must hold at least one admin-grade role in user_roles
       const { roles } = await userModel.getUserRolesAndPermissions(user.id);
-      const hasAdminRole = roles.some(r => r === 'ADMIN' || r === 'SUPER_ADMIN');
+      const ADMIN_ROLES = ['ORDER_STAFF', 'INVENTORY_STAFF', 'MANAGER', 'STORE_OWNER'];
+      const hasAdminRole = roles.some(r => ADMIN_ROLES.includes(r));
 
       if (!hasAdminRole) {
         logger.warn(`Non-admin user attempted admin login: ${email}`);
@@ -358,8 +359,9 @@ class AuthService {
       })).catch(() => {});
 
       // Set role on user object so generateTokens uses correct session config
-      const isSuperAdmin = roles.includes('SUPER_ADMIN');
-      user.role = isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+      const roleHierarchy = ['ORDER_STAFF', 'INVENTORY_STAFF', 'MANAGER', 'STORE_OWNER'];
+      const primaryRole = roleHierarchy.findLast(r => roles.includes(r));
+      user.role = primaryRole || roles[0] || 'ORDER_STAFF';
 
       const authTokens = await this.generateTokens(user);
       return { user, tokens: authTokens };

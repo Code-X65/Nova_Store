@@ -46,7 +46,7 @@ describe('Order Bulk and Guest claim Integration Tests', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.claimedCount).toBe(1);
       expect(res.body.data.orders).toEqual(mockClaimed);
-      expect(orderService.claimGuestOrders).toHaveBeenCalledWith(mockUser.id, mockUser.email, expect.any(Object));
+      expect(orderService.claimGuestOrders).toHaveBeenCalledWith(mockUser.id, mockUser.email, expect.any(Object), undefined);
     });
 
     it('should return error if service fails', async () => {
@@ -70,7 +70,8 @@ describe('Order Bulk and Guest claim Integration Tests', () => {
       extraData: { note: 'Packed carefully' }
     };
 
-    it('should reject requests without order:write permission', async () => {
+    it('should reject requests without order staff role', async () => {
+      userRoleModel.getUserRoles.mockResolvedValue([{ name: 'INVENTORY_STAFF' }]);
       permissionModel.getUserPermissions.mockResolvedValue(['order:read']);
 
       const res = await request(app)
@@ -80,10 +81,11 @@ describe('Order Bulk and Guest claim Integration Tests', () => {
 
       expect(res.statusCode).toBe(403);
       expect(res.body.success).toBe(false);
-      expect(res.body.error).toBe('Forbidden: Insufficient permissions.');
+      expect(res.body.error).toBe('Order staff access required.');
     });
 
-    it('should accept request and call service if user has order:write permission', async () => {
+    it('should accept request and call service if user has order staff role', async () => {
+      userRoleModel.getUserRoles.mockResolvedValue([{ name: 'ORDER_STAFF' }]);
       permissionModel.getUserPermissions.mockResolvedValue(['order:write']);
       const mockResult = {
         successCount: 2,
@@ -106,11 +108,13 @@ describe('Order Bulk and Guest claim Integration Tests', () => {
         validBody.action,
         validBody.extraData,
         mockUser.id,
-        expect.any(Object)
+        expect.any(Object),
+        undefined
       );
     });
 
     it('should fail Joi validation if action is invalid', async () => {
+      userRoleModel.getUserRoles.mockResolvedValue([{ name: 'ORDER_STAFF' }]);
       permissionModel.getUserPermissions.mockResolvedValue(['order:write']);
 
       const res = await request(app)
@@ -127,6 +131,7 @@ describe('Order Bulk and Guest claim Integration Tests', () => {
     });
 
     it('should fail Joi validation if orderIds is empty or not an array', async () => {
+      userRoleModel.getUserRoles.mockResolvedValue([{ name: 'ORDER_STAFF' }]);
       permissionModel.getUserPermissions.mockResolvedValue(['order:write']);
 
       const res = await request(app)

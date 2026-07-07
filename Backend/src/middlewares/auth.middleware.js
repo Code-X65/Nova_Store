@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const userModel = require('../models/user.model');
 const permissionModel = require('../models/permission.model');
 const userRoleModel = require('../models/user-role.model');
+const { ADMIN_ROLES, resolvePrimaryRole } = require('./require-admin.middleware');
 
 // Helper to verify JWT using a comma-separated list of rotation secrets
 function verifyToken(token) {
@@ -26,26 +27,29 @@ const protect = async (req, res, next) => {
       
       if (admin && admin.is_active) {
         const { roles, permissions } = await userModel.getUserRolesAndPermissions(admin.id);
-        const hasAdminRole = roles.some(r => r === 'ADMIN' || r === 'SUPER_ADMIN');
+        const hasAdminRole = roles.some(r => ADMIN_ROLES.includes(r));
 
         if (hasAdminRole) {
-          const isSuperAdmin = roles.includes('SUPER_ADMIN');
-          const primaryRole = isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+          const primaryRole  = resolvePrimaryRole(roles);
+          const isStoreOwner = primaryRole === 'STORE_OWNER';
 
           req.admin = {
-            id: admin.id,
-            email: admin.email,
-            firstName: admin.first_name,
-            lastName: admin.last_name,
-            role: primaryRole,
+            id:          admin.id,
+            email:       admin.email,
+            firstName:   admin.first_name,
+            lastName:    admin.last_name,
+            role:        primaryRole,
             roles,
-            permissions: isSuperAdmin ? ['*'] : permissions
+            store_id:    admin.store_id || null,
+            permissions: isStoreOwner ? ['*'] : permissions,
+            hasRole:     (...roleNames) => roleNames.some(r => roles.includes(r))
           };
           req.user = {
-            id: admin.id,
-            email: admin.email,
-            role: primaryRole,
+            id:          admin.id,
+            email:       admin.email,
+            role:        primaryRole,
             roles,
+            store_id:    admin.store_id || null,
             permissions: req.admin.permissions
           };
           return next();
@@ -162,26 +166,29 @@ const optionalAuth = async (req, res, next) => {
       const admin = await userModel.findById(req.session.adminId);
       if (admin && admin.is_active) {
         const { roles, permissions } = await userModel.getUserRolesAndPermissions(admin.id);
-        const hasAdminRole = roles.some(r => r === 'ADMIN' || r === 'SUPER_ADMIN');
+        const hasAdminRole = roles.some(r => ADMIN_ROLES.includes(r));
 
         if (hasAdminRole) {
-          const isSuperAdmin = roles.includes('SUPER_ADMIN');
-          const primaryRole = isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+          const primaryRole  = resolvePrimaryRole(roles);
+          const isStoreOwner = primaryRole === 'STORE_OWNER';
 
           req.admin = {
-            id: admin.id,
-            email: admin.email,
-            firstName: admin.first_name,
-            lastName: admin.last_name,
-            role: primaryRole,
+            id:          admin.id,
+            email:       admin.email,
+            firstName:   admin.first_name,
+            lastName:    admin.last_name,
+            role:        primaryRole,
             roles,
-            permissions: isSuperAdmin ? ['*'] : permissions
+            store_id:    admin.store_id || null,
+            permissions: isStoreOwner ? ['*'] : permissions,
+            hasRole:     (...roleNames) => roleNames.some(r => roles.includes(r))
           };
           req.user = {
-            id: admin.id,
-            email: admin.email,
-            role: primaryRole,
+            id:          admin.id,
+            email:       admin.email,
+            role:        primaryRole,
             roles,
+            store_id:    admin.store_id || null,
             permissions: req.admin.permissions
           };
           return next();

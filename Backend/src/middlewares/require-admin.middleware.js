@@ -1,25 +1,67 @@
 const userModel = require('../models/user.model');
 
 /**
- * requireAdmin middleware (REWRITTEN — v2)
+ * Admin-grade roles in ascending privilege order.
+ * Any user holding at least one of these can pass requireAdmin.
+ * Exported so role-specific middlewares can import this list.
+ */
+const ADMIN_ROLES = ['ORDER_STAFF', 'INVENTORY_STAFF', 'MANAGER', 'STORE_OWNER'];
+
+/**
+ * Resolve the highest-privilege role a user holds.
+ * The order in ADMIN_ROLES is the hierarchy (STORE_OWNER is highest).
  *
- * Replaces the legacy admins-table lookup with a users + user_roles lookup.
+ * @param {string[]} roles - All roles the user holds
+ * @returns {string|undefined}
+ */
+function resolvePrimaryRole(roles) {
+  // Walk from highest to lowest privilege
+  for (let i = ADMIN_ROLES.length - 1; i >= 0; i--) {
+    if (roles.includes(ADMIN_ROLES[i])) return ADMIN_ROLES[i];
+  }
+  return undefined;
+}
+
+/**
+ * requireAdmin middleware (v3 — RBAC staff roles)
  *
  * Flow:
- *  1. Read req.session.adminId  — the user UUID stored at login.
- *  2. Load user from users table.
- *  3. Verify user has ADMIN or SUPER_ADMIN role via user_roles.
- *  4. Load actual permissions from role_permissions (no wildcard bypass for ADMIN).
- *     SUPER_ADMIN always gets ['*'].
- *  5. Attach req.admin = { id, email, firstName, lastName, role, roles, permissions }.
+ *  1. Read req.session.adminId — set at admin login.
+ *  2. Load user from users table; reject if inactive.
+ *  3. Load roles + permissions from user_roles via getUserRolesAndPermissions.
+ *  4. Reject if user holds no admin-grade role.
+ *  5. Attach req.admin with identity, roles, permissions and a hasRole() helper.
+ *     STORE_OWNER always receives ['*'] as their permission set.
  *
- * Security:
- *  - No wildcard fallback for ADMIN — real permissions only.
- *  - SUPER_ADMIN wildcard is authoritative via role_permissions seeded in migration 045.
- *  - Stale sessions (deactivated/non-admin users) are destroyed.
+ * Exports:
+ *  - requireAdmin (default export)
+ *  - ADMIN_ROLES  (role list constant)
+ *  - resolvePrimaryRole (helper)
  */
 const requireAdmin = async (req, res, next) => {
   try {
+    if (req.user) {
+      const userRoles = req.user.roles || [];
+      const hasAdminRole = userRoles.some(r => ADMIN_ROLES.includes(r));
+      if (hasAdminRole) {
+        const primaryRole = resolvePrimaryRole(userRoles);
+        const isStoreOwner = primaryRole === 'STORE_OWNER';
+        
+        req.admin = {
+          id:          req.user.id,
+          email:       req.user.email,
+          firstName:   req.user.first_name,
+          lastName:    req.user.last_name,
+          role:        primaryRole,
+          roles:       userRoles,
+          store_id:    req.user.store_id || null,
+          permissions: isStoreOwner ? ['*'] : (req.user.permissions || []),
+          hasRole:     (...roleNames) => roleNames.some(r => userRoles.includes(r))
+        };
+        return next();
+      }
+    }
+
     const adminId = req.session?.adminId;
 
     if (!adminId) {
@@ -29,7 +71,7 @@ const requireAdmin = async (req, res, next) => {
       });
     }
 
-    // 1. Load user from users table
+    // 1. Load user
     const user = await userModel.findById(adminId);
 
     if (!user) {
@@ -48,11 +90,11 @@ const requireAdmin = async (req, res, next) => {
       });
     }
 
-    // 2. Load roles + permissions from user_roles
+    // 2. Load roles + permissions
     const { roles, permissions } = await userModel.getUserRolesAndPermissions(user.id);
 
-    // 3. Verify the user has at least one admin-grade role
-    const hasAdminRole = roles.some(r => r === 'ADMIN' || r === 'SUPER_ADMIN');
+    // 3. Must hold at least one admin-grade role
+    const hasAdminRole = roles.some(r => ADMIN_ROLES.includes(r));
 
     if (!hasAdminRole) {
       req.session.destroy(() => {});
@@ -62,29 +104,41 @@ const requireAdmin = async (req, res, next) => {
       });
     }
 
-    // 4. Determine the primary (highest) role
-    const isSuperAdmin = roles.includes('SUPER_ADMIN');
-    const primaryRole = isSuperAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+    // 4. Determine highest-privilege role
+    const primaryRole  = resolvePrimaryRole(roles);
+    const isStoreOwner = primaryRole === 'STORE_OWNER';
 
-    // 5. Attach req.admin — SUPER_ADMIN always gets wildcard, others get real permissions only
+    // 5. Attach req.admin
     req.admin = {
-      id: user.id,
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      role: primaryRole,
+      id:         user.id,
+      email:      user.email,
+      firstName:  user.first_name,
+      lastName:   user.last_name,
+      role:       primaryRole,
       roles,
-      permissions: isSuperAdmin ? ['*'] : permissions
+      store_id:   user.store_id || null,
+      // STORE_OWNER gets wildcard; all others get their real permission set
+      permissions: isStoreOwner ? ['*'] : permissions,
+      /**
+       * Convenience helper — check if this admin holds a specific role.
+       * @param {...string} roleNames
+       */
+      hasRole: (...roleNames) => roleNames.some(r => roles.includes(r))
     };
 
-    // Also set req.user for compatibility with shared middlewares (auth.middleware.js etc.)
-    req.user = req.user || {
-      id: user.id,
-      email: user.email,
-      role: primaryRole,
-      roles,
-      permissions: req.admin.permissions
-    };
+    // Mirror onto req.user for compatibility with shared middlewares
+    if (!req.user || Object.keys(req.user).length === 0) {
+      req.user = {
+        id:          user.id,
+        email:       user.email,
+        role:        primaryRole,
+        roles,
+        store_id:    user.store_id || null,
+        permissions: req.admin.permissions
+      };
+    } else {
+      req.user.store_id = user.store_id || null;
+    }
 
     next();
   } catch (error) {
@@ -93,3 +147,5 @@ const requireAdmin = async (req, res, next) => {
 };
 
 module.exports = requireAdmin;
+module.exports.ADMIN_ROLES       = ADMIN_ROLES;
+module.exports.resolvePrimaryRole = resolvePrimaryRole;

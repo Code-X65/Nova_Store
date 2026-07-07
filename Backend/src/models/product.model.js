@@ -26,6 +26,7 @@ class ProductModel {
       if (stdFilters.is_featured !== undefined) results = results.filter(p => p.is_featured === stdFilters.is_featured);
       if (stdFilters.minPrice)    results = results.filter(p => p.price >= stdFilters.minPrice);
       if (stdFilters.maxPrice)    results = results.filter(p => p.price <= stdFilters.maxPrice);
+      if (stdFilters.store_id)    results = results.filter(p => p.store_id === stdFilters.store_id);
       if (stdFilters.search) {
         const q = stdFilters.search.toLowerCase();
         results = results.filter(p =>
@@ -50,6 +51,7 @@ class ProductModel {
       .is('deleted_at', null);
 
     // Apply Filters
+    if (stdFilters.store_id)    query = query.eq('store_id', stdFilters.store_id);
     if (stdFilters.status)      query = query.eq('status', stdFilters.status);
     if (stdFilters.category_id) query = query.eq('category_id', stdFilters.category_id);
     if (stdFilters.brand_id)    query = query.eq('brand_id', stdFilters.brand_id);
@@ -97,13 +99,16 @@ class ProductModel {
     };
   }
 
-  async findById(id) {
-    const { data, error } = await supabase
+  async findById(id, storeId = null) {
+    let query = supabase
       .from('products')
       .select('*, variants:product_variants(*)')
       .eq('id', id)
-      .is('deleted_at', null)
-      .single();
+      .is('deleted_at', null);
+
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query.single();
 
     if (error && error.code !== 'PGRST116') throw error;
     if (!data) return null;
@@ -113,13 +118,16 @@ class ProductModel {
     return data;
   }
 
-  async findBySlug(slug) {
-    const { data, error } = await supabase
+  async findBySlug(slug, storeId = null) {
+    let query = supabase
       .from('products')
       .select('*, variants:product_variants(*)')
       .eq('slug', slug)
-      .is('deleted_at', null)
-      .single();
+      .is('deleted_at', null);
+
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query.single();
 
     if (error && error.code !== 'PGRST116') throw error;
     if (!data) return null;
@@ -129,13 +137,17 @@ class ProductModel {
     return data;
   }
 
-  async getFeatured(limit = 10) {
-    const { data, error } = await supabase
+  async getFeatured(limit = 10, storeId = null) {
+    let query = supabase
       .from('products')
       .select('*')
       .eq('is_featured', true)
       .eq('status', 'published')
-      .is('deleted_at', null)
+      .is('deleted_at', null);
+
+    if (storeId) query = query.eq('store_id', storeId);
+
+    const { data, error } = await query
       .order('featured_priority', { ascending: false })
       .limit(limit);
 
@@ -206,7 +218,8 @@ class ProductModel {
           product_id: productId,
           previous_quantity: variantId ? prevVarQty : previousQuantity,
           new_quantity: variantId ? newVarQty : newQuantity,
-          quantity_change: quantityChange
+          quantity_change: quantityChange,
+          store_id: updatedProduct?.store_id || transactionData.store_id || null
         }]);
       
       if (transError) throw transError;
@@ -215,33 +228,26 @@ class ProductModel {
     return updatedProduct;
   }
 
-  async getLowStockProducts() {
-    const { data, error } = await supabase
-      .from('products')
-      .select('id, name, sku, stock_quantity, low_stock_threshold')
-      .is('deleted_at', null)
-      .filter('stock_quantity', 'lte', 'low_stock_threshold');
-
-    // Supabase JS doesn't support comparing two columns directly in filter easily without raw RPC or complex syntax
-    // But we can use .or or .rpc if needed. 
-    // Actually, we can use a raw filter string if using Postgres syntax, or just filter in JS for now if the list is small, 
-    // but better to use a proper query.
-    
-    // Let's use a simpler approach or assuming we might need an RPC if it's complex.
-    // For now, let's use a raw query if possible or just filter by a fixed threshold if it was common, 
-    // but since it's per product, let's use .select with a filter.
-    
-    const { data: allLow, error: err } = await supabase
-      .rpc('get_low_stock_products');
+  async getLowStockProducts(storeId = null) {
+    let queryBuilder = supabase.rpc('get_low_stock_products');
+    if (storeId) {
+      queryBuilder = queryBuilder.eq('store_id', storeId);
+    }
+    const { data: allLow, error: err } = await queryBuilder;
     
     if (err) {
       // Fallback if RPC not defined
-      const { data: fallback, error: fallbackErr } = await supabase
+      let fallbackQuery = supabase
         .from('products')
         .select('id, name, sku, stock_quantity, low_stock_threshold')
         .is('deleted_at', null)
         .lt('stock_quantity', 10); // Default threshold fallback
       
+      if (storeId) {
+        fallbackQuery = fallbackQuery.eq('store_id', storeId);
+      }
+
+      const { data: fallback, error: fallbackErr } = await fallbackQuery;
       if (fallbackErr) throw fallbackErr;
       return fallback;
     }
@@ -314,11 +320,15 @@ class ProductModel {
     return data;
   }
 
-  async search(query, limit = 10) {
-    const { data, error } = await supabase.rpc('search_products', {
+  async search(query, limit = 10, storeId = null) {
+    let queryBuilder = supabase.rpc('search_products', {
       search_query: query,
       lim: limit
     });
+    if (storeId) {
+      queryBuilder = queryBuilder.eq('store_id', storeId);
+    }
+    const { data, error } = await queryBuilder;
     if (error) throw error;
     return data || [];
   }
@@ -329,6 +339,7 @@ class ProductModel {
       .select('price')
       .is('deleted_at', null);
 
+    if (filters.store_id)    query = query.eq('store_id', filters.store_id);
     if (filters.status)      query = query.eq('status', filters.status);
     if (filters.category_id) query = query.eq('category_id', filters.category_id);
     if (filters.brand_id)    query = query.eq('brand_id', filters.brand_id);

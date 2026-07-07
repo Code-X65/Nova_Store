@@ -133,7 +133,8 @@ class UserModel {
         google_id: userData.google_id || null,
         facebook_id: userData.facebook_id || null,
         apple_id: userData.apple_id || null,
-        avatar_url: userData.avatar_url || null
+        avatar_url: userData.avatar_url || null,
+        store_id: userData.store_id || null
       }])
       .select()
       .single();
@@ -210,15 +211,23 @@ class UserModel {
     return await this.update(user.id, updateData);
   }
 
-  async findAll(page = 1, limit = 10) {
+  async findAll(page = 1, limit = 10, options = {}) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from('users')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact' });
+
+    if (options.store_id) {
+      query = query.eq('store_id', options.store_id);
+    }
+
+    query = query
       .range(from, to)
       .order('created_at', { ascending: false });
+
+    const { data, error, count } = await query;
 
     if (error) throw error;
     return { users: data, total: count, page, limit };
@@ -228,7 +237,7 @@ class UserModel {
     const { count, error } = await supabase
       .from('users')
       .select('id', { count: 'exact', head: true })
-      .in('role', ['ADMIN', 'SUPER_ADMIN']);
+      .in('role', ['STORE_OWNER', 'MANAGER', 'ORDER_STAFF', 'INVENTORY_STAFF']);
 
     if (error) throw error;
     return (count || 0) > 0;
@@ -243,25 +252,28 @@ class UserModel {
    * @param {number} [opts.page=1]
    * @param {number} [opts.limit=20]
    */
-  async findAdmins({ role, search, page = 1, limit = 20 } = {}) {
+  async findAdmins({ role, search, page = 1, limit = 20, storeId = null } = {}) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
     let query = supabase
       .from('users')
       .select(
-        'id, email, first_name, last_name, role, is_active, created_at, last_login_at, ' +
+        'id, email, first_name, last_name, role, is_active, created_at, last_login_at, store_id, ' +
         'user_roles(role_id, roles(id, name))',
         { count: 'exact' }
       )
-      .in('role', ['ADMIN', 'SUPER_ADMIN'])
-      .order('created_at', { ascending: false })
-      .range(from, to);
+      .in('role', ['STORE_OWNER', 'MANAGER', 'ORDER_STAFF', 'INVENTORY_STAFF']);
 
-    if (role) query = query.eq('role', role);
+    if (storeId) query = query.eq('store_id', storeId);
+    if (role)    query = query.eq('role', role);
     if (search) {
       query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
     }
+
+    query = query
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     const { data, error, count } = await query;
     if (error) throw error;
@@ -270,13 +282,13 @@ class UserModel {
   }
 
   /**
-   * List all SUPER_ADMIN users.
+   * List all STORE_OWNER users.
    */
   async findSuperAdmins() {
     const { data, error } = await supabase
       .from('users')
       .select('id, email, first_name, last_name, role, is_active, created_at')
-      .eq('role', 'SUPER_ADMIN')
+      .eq('role', 'STORE_OWNER')
       .order('created_at', { ascending: true });
 
     if (error) throw error;
@@ -284,7 +296,7 @@ class UserModel {
   }
 
   /**
-   * Check whether a user holds the SUPER_ADMIN role in user_roles.
+   * Check whether a user holds the STORE_OWNER role in user_roles.
    *
    * @param {string} userId
    * @returns {boolean}
@@ -296,7 +308,7 @@ class UserModel {
       .eq('user_id', userId);
 
     if (error) throw error;
-    return (data || []).some(ur => ur.roles?.name === 'SUPER_ADMIN');
+    return (data || []).some(ur => ur.roles?.name === 'STORE_OWNER');
   }
 
   /**
