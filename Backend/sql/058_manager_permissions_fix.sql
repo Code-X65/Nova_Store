@@ -24,7 +24,9 @@ BEGIN
     'settings:read', 'settings:write',
     'shipping:read', 'shipping:write',
     'review:read', 'review:write',
-    'audit:read'
+    'audit:read',
+    'coupon:create', 'coupon:write', 'coupon:delete', 'coupon:read',
+    'notification:read', 'notification:write'
   )
   ON CONFLICT DO NOTHING;
 

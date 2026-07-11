@@ -9,6 +9,7 @@ const PaymentService = require('./payment.service');
 const NotificationTemplateModel = require('../models/notification-template.model');
 const logger = require('../utils/logger');
 const AuditService = require('./audit.service');
+const { SINGLE_STORE_ID } = require('../config/store');
 
 /** Days after delivery within which a return can be requested (hard rule). */
 const RETURN_WINDOW_DAYS = 7;
@@ -68,12 +69,12 @@ class OrderService {
   // Customer order methods
   // ─────────────────────────────────────────────────────────────────────────────
 
-  async getUserOrders(userId, filters, pagination, storeId = null) {
-    return await OrderModel.findByUserId(userId, filters, pagination, storeId);
+  async getUserOrders(userId, filters, pagination) {
+    return await OrderModel.findByUserId(userId, filters, pagination, SINGLE_STORE_ID);
   }
 
-  async getOrderDetails(orderId, userId = null, isAdmin = false, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async getOrderDetails(orderId, userId = null, isAdmin = false) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
     if (!isAdmin && order.user_id !== userId) {
@@ -85,8 +86,8 @@ class OrderService {
     return { ...order, history, dispatches };
   }
 
-  async cancelOrder(orderId, userId, reason, isAdmin = false, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async cancelOrder(orderId, userId, reason, isAdmin = false) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
     if (!isAdmin && order.user_id !== userId) throw new Error('Unauthorized');
 
@@ -129,40 +130,40 @@ class OrderService {
     return updatedOrder;
   }
 
-  async reorder(orderId, userId, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async reorder(orderId, userId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
     for (const item of order.items) {
-      await CartService.addItem(userId, null, item.product_id, item.variant_id, item.quantity, storeId);
+      await CartService.addItem(userId, null, item.product_id, item.variant_id, item.quantity, SINGLE_STORE_ID);
     }
 
-    return await CartService.getOrCreateCart(userId, null, storeId);
+    return await CartService.getOrCreateCart(userId, null, SINGLE_STORE_ID);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Admin — general order management
   // ─────────────────────────────────────────────────────────────────────────────
 
-  async getAllOrders(filters, pagination, storeId = null) {
+  async getAllOrders(filters, pagination) {
     const effectiveFilters = { ...filters };
-    if (storeId) effectiveFilters.store_id = storeId;
+    effectiveFilters.store_id = SINGLE_STORE_ID;
     return await OrderModel.findAll(effectiveFilters, pagination);
   }
 
-  async getDispatchQueue(filters, pagination, storeId = null) {
+  async getDispatchQueue(filters, pagination) {
     const effectiveFilters = { ...filters };
-    if (storeId) effectiveFilters.store_id = storeId;
+    effectiveFilters.store_id = SINGLE_STORE_ID;
     return await OrderModel.getDispatchQueue(effectiveFilters, pagination);
   }
 
   /**
    * Generic status updater — used for simple transitions the controller exposes.
    */
-  async updateOrderStatus(orderId, updateData, adminId, storeId = null) {
+  async updateOrderStatus(orderId, updateData, adminId) {
     const { status, trackingNumber, carrier, note } = updateData;
 
-    const currentOrder = await OrderModel.findById(orderId, storeId);
+    const currentOrder = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!currentOrder) throw new Error('Order not found');
 
     const { roles } = await UserModel.getUserRolesAndPermissions(adminId);
@@ -229,8 +230,8 @@ class OrderService {
   /**
    * Mark an order as ready for dispatch (warehouse has packed it).
    */
-  async markReadyForDispatch(orderId, note, adminId, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async markReadyForDispatch(orderId, note, adminId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
     const allowed = ['pending', 'confirmed', 'processing'];
@@ -255,8 +256,8 @@ class OrderService {
    * Assign a driver and create a dispatch record.
    * Transitions order to status=dispatched, delivery_status=assigned.
    */
-  async dispatchOrder(orderId, { driverName, driverPhone, dispatchNotes, deliveryWindow }, adminId, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async dispatchOrder(orderId, { driverName, driverPhone, dispatchNotes, deliveryWindow }, adminId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
     const allowed = ['confirmed', 'processing', 'ready_for_dispatch'];
@@ -297,8 +298,8 @@ class OrderService {
   /**
    * Driver has physically collected the package.
    */
-  async markPickedUp(orderId, note, adminId, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async markPickedUp(orderId, note, adminId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
     if (order.status !== 'dispatched') {
       throw new Error(`Cannot mark as picked_up from status: ${order.status}`);
@@ -324,8 +325,8 @@ class OrderService {
    * Driver is en route to the customer.
    * Transitions: status=out_for_delivery, delivery_status=out_for_delivery.
    */
-  async markOutForDelivery(orderId, note, adminId, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async markOutForDelivery(orderId, note, adminId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
     const allowedStatuses = ['dispatched', 'delivery_attempted'];
@@ -362,8 +363,8 @@ class OrderService {
   /**
    * Delivery attempt failed (customer unavailable, wrong address, etc.).
    */
-  async markDeliveryAttempted(orderId, note, adminId, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async markDeliveryAttempted(orderId, note, adminId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
     if (order.status !== 'out_for_delivery') {
       throw new Error(`Cannot mark delivery_attempted from status: ${order.status}`);
@@ -391,8 +392,8 @@ class OrderService {
    * Order successfully delivered to the customer.
    * Sets return window expiry to delivered_at + RETURN_WINDOW_DAYS.
    */
-  async markDelivered(orderId, { podType, podValue, note } = {}, adminId, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async markDelivered(orderId, { podType, podValue, note } = {}, adminId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
     const allowed = ['out_for_delivery', 'delivery_attempted', 'dispatched'];
@@ -430,8 +431,8 @@ class OrderService {
    * Driver returned the undelivered package to the store.
    * Re-queues the order as 'processing' so admin knows it needs a new delivery attempt.
    */
-  async markReturnedToStore(orderId, note, adminId, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async markReturnedToStore(orderId, note, adminId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
     const now = new Date().toISOString();
@@ -457,8 +458,8 @@ class OrderService {
    * Customer initiates a return request.
    * Hard-enforces the 7-day return window from delivered_at.
    */
-  async requestReturn(orderId, userId, reason, evidenceUrls = [], evidenceNotes = null, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async requestReturn(orderId, userId, reason, evidenceUrls = [], evidenceNotes = null) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
     if (order.user_id !== userId) throw new Error('Unauthorized');
 
@@ -522,8 +523,8 @@ class OrderService {
    *   process_refund  → return_status = refund_pending
    *   complete        → return_status = refund_completed + sets refunded_at
    */
-  async processReturn(orderId, { action, note, refundAmount, qcOutcome, qcNotes }, adminId, storeId = null) {
-    const order = await OrderModel.findById(orderId, storeId);
+  async processReturn(orderId, { action, note, refundAmount, qcOutcome, qcNotes }, adminId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
     const { roles } = await UserModel.getUserRolesAndPermissions(adminId);
@@ -634,7 +635,7 @@ class OrderService {
     return updatedOrder;
   }
 
-  async claimGuestOrders(userId, email, reqContext, storeId = null) {
+  async claimGuestOrders(userId, email, reqContext) {
     if (!email) throw new Error('Email is required to claim guest orders');
 
     // 1. Fetch user to verify they exist and are verified
@@ -645,7 +646,7 @@ class OrderService {
     }
 
     // 2. Perform database update
-    const claimedOrders = await OrderModel.claimGuestOrders(userId, email, storeId);
+    const claimedOrders = await OrderModel.claimGuestOrders(userId, email, SINGLE_STORE_ID);
     
     // 3. Log audit event
     if (claimedOrders.length > 0) {
@@ -659,7 +660,7 @@ class OrderService {
     return claimedOrders;
   }
 
-  async bulkOrderAction(orderIds, action, extraData = {}, adminId, reqContext, storeId = null) {
+  async bulkOrderAction(orderIds, action, extraData = {}, adminId, reqContext) {
     const validActions = ['pack', 'dispatch', 'deliver', 'cancel'];
     if (!validActions.includes(action)) {
       throw new Error(`Invalid action: ${action}. Valid choices: ${validActions.join(', ')}`);
@@ -672,13 +673,13 @@ class OrderService {
       try {
         let result;
         if (action === 'pack') {
-          result = await this.markReadyForDispatch(orderId, extraData.note, adminId, storeId);
+          result = await this.markReadyForDispatch(orderId, extraData.note, adminId);
         } else if (action === 'dispatch') {
-          result = await this.dispatchOrder(orderId, extraData, adminId, storeId);
+          result = await this.dispatchOrder(orderId, extraData, adminId);
         } else if (action === 'deliver') {
-          result = await this.markDelivered(orderId, extraData, adminId, storeId);
+          result = await this.markDelivered(orderId, extraData, adminId);
         } else if (action === 'cancel') {
-          result = await this.cancelOrder(orderId, adminId, extraData.reason, true, storeId);
+          result = await this.cancelOrder(orderId, adminId, extraData.reason, true);
         }
         successes.push(orderId);
       } catch (err) {
@@ -707,12 +708,12 @@ class OrderService {
     };
   }
 
-  async exportOrders(filters, format = 'csv', storeId = null) {
+  async exportOrders(filters, format = 'csv') {
     const reportExporter = require('../utils/report-exporter');
     const PDFDocument = require('pdfkit');
 
     const effectiveFilters = { ...filters };
-    if (storeId) effectiveFilters.store_id = storeId;
+    effectiveFilters.store_id = SINGLE_STORE_ID;
     const orders = await OrderModel.findAllWithoutPagination(effectiveFilters);
     
     if (format === 'pdf') {

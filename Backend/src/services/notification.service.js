@@ -219,6 +219,44 @@ class NotificationService {
       return false;
     }
   }
+
+  /**
+   * Notify the staff member that their role has been updated.
+   *
+   * @param {object} params
+   * @param {string} params.to - Staff member's email
+   * @param {string} params.newRole - The new assigned role
+   */
+  async sendAdminRoleUpdatedEmail({ to, newRole }) {
+    try {
+      await EmailService.sendTemplate('admin_role_updated', to, {
+        newRole,
+        storeName: process.env.STORE_NAME || 'Nova Store'
+      });
+      return true;
+    } catch (err) {
+      logger.error(`[NotificationService] Failed to send role updated email to ${to}:`, err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Notify the staff member that their access has been revoked.
+   *
+   * @param {object} params
+   * @param {string} params.to - Departed staff member's email
+   */
+  async sendAdminAccessRevokedEmail({ to }) {
+    try {
+      await EmailService.sendTemplate('admin_access_revoked', to, {
+        storeName: process.env.STORE_NAME || 'Nova Store'
+      });
+      return true;
+    } catch (err) {
+      logger.error(`[NotificationService] Failed to send access revoked email to ${to}:`, err.message);
+      return false;
+    }
+  }
 }
 
 module.exports = new NotificationService();

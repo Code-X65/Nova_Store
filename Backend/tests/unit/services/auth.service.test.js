@@ -10,7 +10,9 @@ jest.mock('../../../src/services/email.service');
 jest.mock('../../../src/services/audit.service');
 jest.mock('../../../src/services/notification.service');
 jest.mock('../../../src/services/registration.service');
-jest.mock('../../../src/config/redis', () => ({ redisClient: { isOpen: false } }));
+jest.mock('../../../src/config/redis', () => ({ redisClient: {
+    on: jest.fn(),
+    publish: jest.fn().mockResolvedValue(1), isOpen: false } }));
 jest.mock('bcrypt');
 jest.mock('jsonwebtoken');
 

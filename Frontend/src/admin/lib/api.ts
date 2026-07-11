@@ -1,7 +1,7 @@
-import { createCookieClient, setCsrfToken, clearCsrfToken } from '@/shared/api';
+import { createCookieClient, setCsrfToken, clearCsrfToken, setAdminAccessToken, clearAdminAccessToken } from '@/shared/api';
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Singleton admin API client Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-const BASE_URL = '/api/v1';
+const BASE_URL = import.meta.env.VITE_ADMIN_API_URL || '/api/v1';
 
 export const api = createCookieClient(BASE_URL);
 
@@ -10,9 +10,9 @@ export const api = createCookieClient(BASE_URL);
  * Call this once after login/verify.
  */
 export async function refreshCsrfToken(): Promise<void> {
-  const { data } = await api.get<{ data: { token: string } }>('/auth/csrf-token');
-  const token = data?.data?.token;
+  const { data } = await api.get<{ success: boolean; csrfToken: string }>('/auth/csrf-token');
+  const token = data?.csrfToken;
   if (token) setCsrfToken(token);
 }
 
-export { setCsrfToken, clearCsrfToken };
+export { setCsrfToken, clearCsrfToken, setAdminAccessToken, clearAdminAccessToken };

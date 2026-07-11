@@ -5,6 +5,8 @@ const logger = require('../../src/utils/logger');
 
 jest.mock('../../src/config/redis', () => ({
   redisClient: {
+    on: jest.fn(),
+    publish: jest.fn().mockResolvedValue(1),
     zAdd: jest.fn().mockResolvedValue(1),
     zRangeByScore: jest.fn(),
     multi: jest.fn(),

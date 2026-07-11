@@ -1,5 +1,6 @@
 const OrderService = require('../services/order.service');
 const AuditService = require('../services/audit.service');
+const eventBus = require('../realtime/event-bus');
 const PaymentService = require('../services/payment.service');
 const InvoiceService = require('../services/invoice.service');
 const OrderModel = require('../models/order.model');
@@ -110,7 +111,24 @@ class OrderController {
     try {
       const { id } = req.params;
       const order = await OrderService.updateOrderStatus(id, req.body, req.user.id, req.store?.id);
-      AuditService.log(req, 'order.status.updated', 'order', id, null, { newStatus: order.status });
+      const actorName = req.actor?.fullName || 'an admin';
+      AuditService.log(req, 'order.status.updated', 'order', id, null, { newStatus: order.status }, {
+        actionType: 'STATUS_CHANGE',
+        summary: `Status changed to ${order.status} by Admin ${actorName}`,
+      });
+      if (order.status === 'shipped') {
+        eventBus.emit('order.shipped', {
+          actor: req.actor || { id: req.user?.id, fullName: actorName, role: req.user?.role },
+          resourceType: 'order',
+          resourceId: id,
+          actionType: 'STATUS_CHANGE',
+          severity: 'info',
+          title: 'Order shipped',
+          message: `Order #${order.order_number} was shipped by ${actorName}.`,
+          data: { orderId: id, orderNumber: order.order_number },
+          deepLink: `/orders/${id}`,
+        });
+      }
       res.status(200).json({ success: true, data: { order }, message: 'Order status updated' });
     } catch (error) {
       next(error);

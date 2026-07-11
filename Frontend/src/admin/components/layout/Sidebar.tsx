@@ -3,35 +3,43 @@ import { clsx } from 'clsx';
 import {
   HomeIcon, ShoppingBagIcon, ArchiveBoxIcon, TagIcon, UsersIcon,
   TicketIcon, TruckIcon, StarIcon, UserGroupIcon, ChartBarIcon,
-  CogIcon, ShieldCheckIcon, BellIcon, DocumentTextIcon,
+  CogIcon, ShieldCheckIcon, BellIcon, DocumentTextIcon, Squares2X2Icon,
+  SparklesIcon, CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 import { useMyPermissions } from '@/admin/hooks/useMyPermissions';
+import { useAdminStore } from '@/admin/hooks/useAdminStore';
 import { hasPermission, hasAnyPermission, isOwner, isManager } from '@/admin/lib/permissions';
+import { UserMenu } from './UserMenu';
 
 interface NavItem {
   label:  string;
   to:     string;
   icon:   React.ComponentType<{ className?: string }>;
-  /** If provided, item only shows when user has this permission */
   perm?:  string;
-  /** Alternative: show if user has ANY of these permissions */
   anyOf?: string[];
+  roles?: string[];
+  group: 'MAIN MENU' | 'MANAGEMENT';
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard',    to: '/dashboard',          icon: HomeIcon },
-  { label: 'Orders',       to: '/orders',             icon: ShoppingBagIcon,  perm: 'order:read' },
-  { label: 'Inventory',    to: '/inventory',          icon: ArchiveBoxIcon,   perm: 'inventory:read' },
-  { label: 'Catalog',      to: '/catalog/products',   icon: TagIcon,          perm: 'product:read' },
-  { label: 'Customers',    to: '/customers',          icon: UsersIcon,        anyOf: ['user:read', 'role:manage'] }, // MANAGER has role:manage
-  { label: 'Coupons',      to: '/coupons',            icon: TicketIcon,       perm: 'coupon:read' },
-  { label: 'Shipping',     to: '/shipping',           icon: TruckIcon,        perm: 'shipping:read' },
-  { label: 'Reviews',      to: '/reviews',            icon: StarIcon,         perm: 'review:read' },
-  { label: 'Staff',        to: '/staff',              icon: UserGroupIcon,    anyOf: ['admin:invite', 'role:manage'] }, // MANAGER/OWNER only
-  { label: 'Sales',        to: '/sales',              icon: ChartBarIcon,     perm: 'sales:read' },
-  { label: 'Settings',     to: '/settings',           icon: CogIcon,          perm: 'settings:read' },
-  { label: 'Audit',        to: '/audit',              icon: ShieldCheckIcon,  perm: 'audit:read' },
-  { label: 'Notifications',to: '/notifications/admin',icon: BellIcon,         anyOf: ['settings:write', 'notification:write'] },
+  { label: 'Dashboard',    to: '/dashboard',          icon: HomeIcon, group: 'MAIN MENU' },
+  { label: 'Products',     to: '/catalog/products',   icon: TagIcon,          perm: 'product:read', group: 'MAIN MENU' },
+  { label: 'Categories',   to: '/catalog/categories', icon: Squares2X2Icon,   anyOf: ['category:read', 'category:write'], group: 'MAIN MENU' },
+  { label: 'Brands',       to: '/catalog/brands',     icon: SparklesIcon,     anyOf: ['brand:read', 'brand:write'], group: 'MAIN MENU' },
+  { label: 'Orders',       to: '/orders',             icon: ShoppingBagIcon,  perm: 'order:read', group: 'MAIN MENU' },
+  { label: 'Customers',    to: '/customers',          icon: UsersIcon,        anyOf: ['user:read', 'role:manage'], group: 'MAIN MENU' },
+  { label: 'Analytics',    to: '/sales',              icon: ChartBarIcon,     perm: 'sales:read', group: 'MAIN MENU' },
+  { label: 'Marketing',    to: '/coupons',            icon: TicketIcon,       perm: 'coupon:read', group: 'MAIN MENU' },
+  
+  { label: 'Inventory',    to: '/inventory',          icon: ArchiveBoxIcon,   perm: 'inventory:read', group: 'MANAGEMENT' },
+  { label: 'Shipping',     to: '/shipping',           icon: TruckIcon,        perm: 'shipping:read', group: 'MANAGEMENT' },
+  { label: 'Reviews',      to: '/reviews',            icon: StarIcon,         perm: 'review:read', group: 'MANAGEMENT' },
+  { label: 'Team & Roles', to: '/staff',              icon: UserGroupIcon,    perm: 'staff:read', group: 'MANAGEMENT' },
+  { label: 'Settings',     to: '/settings/general',   icon: CogIcon,          perm: 'settings:read', group: 'MANAGEMENT' },
+  { label: 'Currencies',   to: '/settings/currencies',icon: CurrencyDollarIcon, perm: 'settings:read', group: 'MANAGEMENT' },
+  { label: 'Audit',        to: '/audit',              icon: ShieldCheckIcon,  perm: 'audit:read', group: 'MANAGEMENT' },
+  { label: 'Notifications',to: '/notifications/admin',icon: BellIcon,         perm: 'notifications:write', group: 'MANAGEMENT' },
+  { label: 'Sessions',     to: '/profile/sessions',   icon: DocumentTextIcon, group: 'MANAGEMENT' },
 ];
 
 interface SidebarProps {
@@ -40,65 +48,158 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const perms = useMyPermissions();
+  const { store } = useAdminStore();
 
   const visible = NAV_ITEMS.filter((item) => {
-    if (!item.perm && !item.anyOf) return true;
-    if (item.anyOf) return hasAnyPermission(perms, ...item.anyOf);
-    return hasPermission(perms, item.perm!);
+    if (!item.perm && !item.anyOf && !item.roles) return true;
+
+    let slugAllowed = false;
+    if (item.perm) slugAllowed = hasPermission(perms, item.perm);
+    else if (item.anyOf) slugAllowed = hasAnyPermission(perms, ...item.anyOf);
+
+    let roleAllowed = false;
+    if (item.roles) {
+      roleAllowed = item.roles.some(r => perms.role === r || (r === 'STORE_OWNER' && isOwner(perms)) || (r === 'MANAGER' && isManager(perms)));
+    }
+
+    return slugAllowed || roleAllowed;
   });
+
+  const mainMenuItems = visible.filter(item => item.group === 'MAIN MENU');
+  const managementItems = visible.filter(item => item.group === 'MANAGEMENT');
 
   return (
     <aside
       className={clsx(
-        'flex flex-col h-full bg-neu-bg transition-all duration-300 relative z-10 shadow-neu-outer',
-        collapsed ? 'w-[88px]' : 'w-72'
+        'flex flex-col h-full bg-black transition-all duration-300 relative z-10',
+        collapsed ? 'w-[88px]' : 'w-[280px]'
       )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-4 px-6 py-8 mb-4">
-        <div className="w-12 h-12 rounded-2xl shadow-neu-outer-sm flex items-center justify-center flex-shrink-0 text-neu-accent font-black text-xl">
-          N
+      <div className="flex items-center gap-3 px-6 py-6 mb-2">
+        <div 
+          className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 font-black text-xl overflow-hidden bg-[#111111]"
+          style={{ color: store?.primary_color || '#FF6A1C' }}
+        >
+          {store?.favicon_url || store?.logo_url ? (
+            <img src={store.favicon_url || store.logo_url} alt="Store Logo" className="w-full h-full object-cover" />
+          ) : (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+          )}
         </div>
         {!collapsed && (
-          <div className="flex flex-col">
-             <span className="font-bold text-white text-xl tracking-wider leading-tight">Nova</span>
-             <span className="font-bold text-neu-text text-xs tracking-widest uppercase leading-tight mt-1">Admin</span>
-          </div>
+          <span className="font-bold text-white text-lg tracking-wide truncate">
+            {store?.name || 'NovaStore'}
+          </span>
         )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 px-4 space-y-3 overflow-y-auto">
-        {!collapsed && (
-          <p className="px-2 mb-4 text-[11px] font-bold text-neu-text uppercase tracking-widest">Navigation</p>
+      <nav className="flex-1 overflow-y-auto px-4 pb-4 space-y-6">
+        {/* MAIN MENU */}
+        {mainMenuItems.length > 0 && (
+          <div>
+            {!collapsed && (
+              <p className="px-2 mb-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Main Menu</p>
+            )}
+            <div className="space-y-1">
+              {mainMenuItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    clsx(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group relative',
+                      isActive 
+                        ? 'bg-[#111111] text-nova-500 font-medium' 
+                        : 'text-gray-400 hover:text-white hover:bg-[#111111]/50'
+                    )
+                  }
+                  title={collapsed ? item.label : undefined}
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && !collapsed && (
+                        <div 
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-nova-500 rounded-r-full"
+                          style={{ backgroundColor: store?.primary_color || undefined }}
+                        />
+                      )}
+                      <item.icon 
+                        className={clsx('w-5 h-5 flex-shrink-0', isActive ? 'text-nova-500' : 'text-gray-400 group-hover:text-white')}
+                        style={{ color: isActive ? (store?.primary_color || undefined) : undefined }}
+                      />
+                      {!collapsed && (
+                        <span 
+                          className="tracking-wide text-sm"
+                          style={{ color: isActive ? (store?.primary_color || undefined) : undefined }}
+                        >
+                          {item.label}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         )}
-        {visible.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              clsx('sidebar-item', isActive && 'sidebar-item-active')
-            }
-            title={collapsed ? item.label : undefined}
-          >
-            <item.icon className="w-[20px] h-[20px] flex-shrink-0" />
-            {!collapsed && <span className="tracking-wide">{item.label}</span>}
-          </NavLink>
-        ))}
+
+        {/* MANAGEMENT */}
+        {managementItems.length > 0 && (
+          <div>
+            {!collapsed && (
+              <p className="px-2 mb-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Management</p>
+            )}
+            <div className="space-y-1">
+              {managementItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    clsx(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group relative',
+                      isActive 
+                        ? 'bg-[#111111] text-nova-500 font-medium' 
+                        : 'text-gray-400 hover:text-white hover:bg-[#111111]/50'
+                    )
+                  }
+                  title={collapsed ? item.label : undefined}
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && !collapsed && (
+                        <div 
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-nova-500 rounded-r-full"
+                          style={{ backgroundColor: store?.primary_color || undefined }}
+                        />
+                      )}
+                      <item.icon 
+                        className={clsx('w-5 h-5 flex-shrink-0', isActive ? 'text-nova-500' : 'text-gray-400 group-hover:text-white')}
+                        style={{ color: isActive ? (store?.primary_color || undefined) : undefined }}
+                      />
+                      {!collapsed && (
+                        <span 
+                          className="tracking-wide text-sm"
+                          style={{ color: isActive ? (store?.primary_color || undefined) : undefined }}
+                        >
+                          {item.label}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* Bottom: Sessions link */}
-      <div className="py-6 px-4 mt-auto">
-        <NavLink
-          to="/profile/sessions"
-          className={({ isActive }) =>
-            clsx('sidebar-item', isActive && 'sidebar-item-active')
-          }
-          title={collapsed ? 'Sessions' : undefined}
-        >
-          <DocumentTextIcon className="w-[20px] h-[20px] flex-shrink-0" />
-          {!collapsed && <span className="tracking-wide">Sessions</span>}
-        </NavLink>
+      {/* Bottom: User Profile */}
+      <div className="p-4 mt-auto">
+        <UserMenu collapsed={collapsed} />
       </div>
     </aside>
   );

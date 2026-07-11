@@ -6,8 +6,13 @@ const EMPTY: AdminPermissions = { roles: [], permissions: [] };
 
 /**
  * Fetches and caches the current admin's roles + permissions.
- * Refreshed once per session (very long staleTime).
- * Falls back to empty permissions when not logged in.
+ *
+ * Freshness strategy (defence-in-depth against stale grants):
+ *  - Primary: SSE `permissions.updated` events invalidate ['admin-permissions']
+ *    immediately (see useRealtimeAdminEvents).
+ *  - Fallback: a short staleTime + refetch on window focus/reconnect so a
+ *    missed SSE frame can never leave the UI showing stale permissions for
+ *    long. Server-side enforcement is always live regardless of this cache.
  */
 export function useMyPermissions(): AdminPermissions & { isLoading: boolean } {
   const { data, isLoading } = useQuery({
@@ -16,7 +21,9 @@ export function useMyPermissions(): AdminPermissions & { isLoading: boolean } {
       const res = await api.get<{ data: AdminPermissions }>('/admin/my-permissions');
       return res.data.data;
     },
-    staleTime: 30 * 60 * 1000, // 30 min Ã¢â‚¬â€ permissions rarely change mid-session
+    staleTime: 60 * 1000,          // 1 min — SSE is primary; this bounds staleness
+    refetchOnWindowFocus: true,    // recover from missed SSE frames on tab refocus
+    refetchOnReconnect: true,      // recover after network/SSE reconnect
     retry: false,
   });
 

@@ -8,18 +8,8 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 const ownsStore = (user, storeId) => {
-  if (!user) return false;
-
-  // STORE_OWNER role bypass (wildcard '*' permission also qualifies)
-  const isStoreOwner = user.role === 'STORE_OWNER' ||
-                       (user.roles && user.roles.includes('STORE_OWNER')) ||
-                       (user.permissions && user.permissions.includes('*'));
-
-  if (isStoreOwner) {
-    return true;
-  }
-
-  return user.store_id === storeId;
+  // Single-store system: all authenticated users have access to the single store.
+  return true;
 };
 
 module.exports = {

@@ -2,6 +2,44 @@ const NotificationModel = require('../../models/notification.model');
 const NotificationTemplateModel = require('../../models/notification-template.model');
 const NotificationService = require('../../services/notification.service');
 const notificationQueue = require('../../services/notification-queue.service');
+const { supabaseAdmin } = require('../../config/supabase');
+
+exports.getRoutingRules = async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('notification_routing_rules')
+      .select('*')
+      .order('event_key', { ascending: true });
+    if (error) throw error;
+    res.status(200).json({ success: true, data: { rules: data || [] } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateRoutingRule = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { is_active, severity, recipient_roles, channel } = req.body;
+    const patch = {};
+    if (typeof is_active === 'boolean') patch.is_active = is_active;
+    if (severity) patch.severity = severity;
+    if (Array.isArray(recipient_roles)) patch.recipient_roles = recipient_roles;
+    if (Array.isArray(channel)) patch.channel = channel;
+    patch.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabaseAdmin
+      .from('notification_routing_rules')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.status(200).json({ success: true, data: { rule: data } });
+  } catch (error) {
+    next(error);
+  }
+};
 
 
 exports.getAllNotifications = async (req, res, next) => {

@@ -5,18 +5,18 @@ async function seedAdmin() {
   try {
     console.log('Seeding admin account...');
 
-    const admin = await AdminModel.findByEmail('admin@novastore.com');
+    const admin = await AdminModel.findByEmail('store_admin@novastore.com');
 
     if (admin) {
       console.log(`Admin already exists: ${admin.email}`);
       return;
     }
 
-    const password = 'Admin.';
+    const password = 'N0vaStore@Admin2026!';
     const passwordHash = await bcrypt.hash(password, 12);
 
     const created = await AdminModel.create({
-      email: 'admin@novastore.com',
+      email: 'store_admin@novastore.com',
       password_hash: passwordHash,
     });
 

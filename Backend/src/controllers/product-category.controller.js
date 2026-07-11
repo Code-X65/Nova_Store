@@ -1,6 +1,7 @@
 const categoryModel = require('../models/product-category.model');
 const categoryService = require('../services/category.service');
 const AuditService = require('../services/audit.service');
+const eventBus = require('../realtime/event-bus');
 
 class ProductCategoryController {
   async getAllCategories(req, res, next) {
@@ -67,7 +68,23 @@ class ProductCategoryController {
 
       AuditService.log(req, 'category.bulk_created', 'category', null, null, {
         count: categories.length
-      });
+      }, { actionType: 'CREATE' });
+
+      // Team alert if a large bulk operation runs (possible accidental wipe).
+      const threshold = 20;
+      if (categories.length >= threshold) {
+        eventBus.emit('catalog.attribute.bulk_changed', {
+          actor: req.actor || { id: req.user?.id, fullName: req.user ? `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() : null, role: req.user?.role },
+          resourceType: 'category',
+          resourceId: null,
+          actionType: 'CREATE',
+          severity: 'critical',
+          title: 'Bulk catalog change',
+          message: `${categories.length} categories were created in a single operation by ${req.actor?.fullName || 'a staff member'}.`,
+          data: { count: categories.length },
+          deepLink: '/catalog/categories',
+        });
+      }
 
       res.status(201).json({ success: true, data: { categories } });
     } catch (error) {
@@ -129,6 +146,21 @@ class ProductCategoryController {
       }
       const subcategories = await categoryModel.findAll({ parentId: id, store_id: req.store?.id });
       res.status(200).json({ success: true, data: { subcategories } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async reorderCategories(req, res, next) {
+    try {
+      const { categories } = req.body;
+      if (!categories || !Array.isArray(categories)) {
+        return res.status(400).json({ success: false, message: 'categories array is required' });
+      }
+      
+      await categoryService.reorderCategories(categories, req.store?.id);
+      AuditService.log(req, 'category.reordered', 'category', null, null, { count: categories.length });
+      res.status(200).json({ success: true, message: 'Categories reordered successfully' });
     } catch (error) {
       next(error);
     }

@@ -1,100 +1,158 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/admin/lib/api';
-import { StatCard } from '@/admin/features/dashboard/StatCard';
-import { ChartContainer } from '@/admin/features/dashboard/ChartContainer';
+import { StatCard } from '@/shared/ui/StatCard';
+import { ChartContainer, CustomTooltip } from '@/shared/ui/ChartContainer';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { CurrencyDollarIcon, PresentationChartLineIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { CurrencyDollarIcon, PresentationChartLineIcon, ChartBarIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { subDays, startOfYear, format } from 'date-fns';
 
 export default function SalesReports() {
-  const [period, setPeriod] = useState('30d'); // 7d, 30d, 90d
+ const [dateRangeOption, setDateRangeOption] = useState('30d');
+ 
+ const { from, to, groupBy } = useMemo(() => {
+ const today = new Date();
+ let fromDate = new Date();
+ let group = 'day';
+ 
+ if (dateRangeOption === '7d') {
+ fromDate = subDays(today, 7);
+ } else if (dateRangeOption === '30d') {
+ fromDate = subDays(today, 30);
+ } else if (dateRangeOption === '90d') {
+ fromDate = subDays(today, 90);
+ group = 'week';
+ } else if (dateRangeOption === 'ytd') {
+ fromDate = startOfYear(today);
+ group = 'month';
+ }
+ 
+ return {
+ from: fromDate.toISOString(),
+ to: today.toISOString(),
+ groupBy: group
+ };
+ }, [dateRangeOption]);
 
-  const { data: response, isLoading } = useQuery({
-    queryKey: ['admin-sales-reports', period],
-    queryFn: async () => {
-      const { data } = await api.get('/admin/sales/reports', {
-        params: { period }
-      });
-      return data.data; // { metrics: {}, daily_revenue: [] }
-    }
-  });
+ const { data: revenueResponse, isLoading: revLoading } = useQuery({
+ queryKey: ['admin-analytics-revenue', from, to, groupBy],
+ queryFn: async () => {
+ const { data } = await api.get('/admin/analytics/revenue', {
+ params: { from, to, groupBy }
+ });
+ return data.data; // { data: [{period, revenue, orders...}], totals: {} }
+ }
+ });
 
-  const metrics = response?.metrics || {
-    total_revenue: 0,
-    order_count: 0,
-    average_order_value: 0
-  };
+ const { data: summaryResponse, isLoading: sumLoading } = useQuery({
+ queryKey: ['admin-analytics-revenue-summary', from, to],
+ queryFn: async () => {
+ const { data } = await api.get('/admin/analytics/revenue/summary', {
+ params: { from, to }
+ });
+ return data.data; // { totalRevenue, totalOrders, averageOrderValue }
+ }
+ });
 
-  const chartData = useMemo(() => {
-    return (response?.daily_revenue || []).map((d: any) => ({
-      date: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      revenue: Number(d.revenue || 0)
-    }));
-  }, [response]);
+ const handleExportCSV = async () => {
+ try {
+ const response = await api.get('/admin/analytics/export/revenue', {
+ params: { from, to },
+ responseType: 'blob'
+ });
+ const url = window.URL.createObjectURL(new Blob([response.data]));
+ const link = document.createElement('a');
+ link.href = url;
+ link.setAttribute('download', `revenue-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+ document.body.appendChild(link);
+ link.click();
+ link.remove();
+ } catch (error) {
+ console.error('Failed to export CSV', error);
+ }
+ };
 
-  return (
-    <div className="space-y-6 max-w-7xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Sales Reports</h1>
-          <p className="text-sm text-muted-foreground mt-1">High-level overview of revenue and order volume.</p>
-        </div>
-        <select
-          value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-          className="bg-surface-2 border border-white/10 rounded-lg px-4 py-2 text-white focus:border-nova-500 focus:ring-1 focus:ring-nova-500"
-        >
-          <option value="7d">Last 7 Days</option>
-          <option value="30d">Last 30 Days</option>
-          <option value="90d">Last 90 Days</option>
-        </select>
-      </div>
+ const metrics = summaryResponse || {
+ totalRevenue: 0,
+ totalOrders: 0,
+ averageOrderValue: 0
+ };
 
-      {isLoading ? (
-        <div className="p-8 text-muted-foreground">Loading report data...</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard 
-              title="Total Revenue" 
-              value={`$${Number(metrics.total_revenue).toFixed(2)}`}
-              icon={CurrencyDollarIcon}
-              trend="+12% from previous"
-              trendUp={true}
-            />
-            <StatCard 
-              title="Order Volume" 
-              value={metrics.order_count}
-              icon={ChartBarIcon}
-            />
-            <StatCard 
-              title="Average Order Value" 
-              value={`$${Number(metrics.average_order_value).toFixed(2)}`}
-              icon={PresentationChartLineIcon}
-            />
-          </div>
+ const chartData = useMemo(() => {
+ return (revenueResponse?.data || []).map((d: any) => ({
+ date: new Date(d.period || d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+ revenue: Number(d.revenue || 0)
+ }));
+ }, [revenueResponse]);
 
-          <div className="grid grid-cols-1 gap-6">
-            <ChartContainer title="Revenue Trends">
-              <div className="h-80 mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                    <XAxis dataKey="date" stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#11111f', borderColor: '#ffffff10', borderRadius: '8px' }}
-                      itemStyle={{ color: '#818ea3' }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
-                    />
-                    <Bar dataKey="revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </ChartContainer>
-          </div>
-        </>
-      )}
-    </div>
-  );
+ const isLoading = revLoading || sumLoading;
+
+ return (
+ <div className="space-y-6 w-full">
+ <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+ <div>
+ <h1 className="text-2xl font-bold text-white">Sales Reports</h1>
+ <p className="text-sm text-muted-foreground mt-1">High-level overview of revenue and order volume.</p>
+ </div>
+ <div className="flex items-center gap-3">
+ <select
+ value={dateRangeOption}
+ onChange={(e) => setDateRangeOption(e.target.value)}
+ className="bg-surface-2 border rounded-lg px-4 py-2 text-white focus:border-nova-500 focus:ring-1 focus:ring-nova-500"
+ >
+ <option value="7d">Last 7 Days</option>
+ <option value="30d">Last 30 Days</option>
+ <option value="90d">Last 90 Days</option>
+ <option value="ytd">Year to Date</option>
+ </select>
+ <button
+ onClick={handleExportCSV}
+ className="btn-secondary py-2 px-4 flex items-center gap-2"
+ >
+ <ArrowDownTrayIcon className="w-4 h-4" />
+ <span className="hidden sm:inline">Export CSV</span>
+ </button>
+ </div>
+ </div>
+
+ {isLoading ? (
+ <div className="p-8 text-muted-foreground">Loading report data...</div>
+ ) : (
+ <>
+ <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+ <StatCard 
+ title="Total Revenue" 
+ value={`$${Number(metrics.totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+ icon={<CurrencyDollarIcon className="w-6 h-6" />}
+ trendUp={true}
+ />
+ <StatCard 
+ title="Order Volume" 
+ value={metrics.totalOrders}
+ icon={<ChartBarIcon className="w-6 h-6" />}
+ />
+ <StatCard 
+ title="Average Order Value" 
+ value={`$${Number(metrics.averageOrderValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+ icon={<PresentationChartLineIcon className="w-6 h-6" />}
+ />
+ </div>
+
+ <div className="grid grid-cols-1 gap-6">
+ <ChartContainer title={`Revenue Trends (${groupBy})`} height={400}>
+ <ResponsiveContainer width="100%" height="100%">
+ <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+ <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+ <XAxis dataKey="date" stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} />
+ <YAxis stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+ <Tooltip content={<CustomTooltip formatter={(value: number) => `$${value.toFixed(2)}`} />} />
+ <Bar dataKey="revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+ </BarChart>
+ </ResponsiveContainer>
+ </ChartContainer>
+ </div>
+ </>
+ )}
+ </div>
+ );
 }

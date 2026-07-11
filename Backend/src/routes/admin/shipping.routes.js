@@ -32,9 +32,8 @@ const rateSchema = joi.object({
   is_active: joi.boolean().optional()
 });
 
-// Protect all admin routes
+// All shipping admin routes require authentication
 router.use(requireAdmin);
-router.use(hasPermission('shipping:write'));
 
 /**
  * @swagger
@@ -63,8 +62,8 @@ router.use(hasPermission('shipping:write'));
  *       201:
  *         description: Created zone
  */
-router.get('/zones', shippingAdminController.getZones);
-router.post('/zones', validateRequest(zoneSchema), shippingAdminController.createZone);
+router.get('/zones',        hasPermission('shipping:read'),  shippingAdminController.getZones);
+router.post('/zones',       hasPermission('shipping:write'), validateRequest(zoneSchema), shippingAdminController.createZone);
 
 /**
  * @swagger
@@ -96,13 +95,24 @@ router.post('/zones', validateRequest(zoneSchema), shippingAdminController.creat
  *       200:
  *         description: Zone deleted
  */
-router.put('/zones/:id', shippingAdminController.updateZone);
-router.delete('/zones/:id', shippingAdminController.deleteZone);
+router.put('/zones/:id',    hasPermission('shipping:write'), shippingAdminController.updateZone);
+router.delete('/zones/:id', hasPermission('shipping:write'), shippingAdminController.deleteZone);
 
-// Rates
-router.get('/rates', shippingAdminController.getRates);
-router.post('/rates', validateRequest(rateSchema), shippingAdminController.createRate);
-router.put('/rates/:id', shippingAdminController.updateRate);
-router.delete('/rates/:id', shippingAdminController.deleteRate);
+/**
+ * @swagger
+ * /admin/shipping/rates:
+ *   get:
+ *     summary: List all shipping rates
+ *     tags: [Admin Shipping]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of rates
+ */
+router.get('/rates',        hasPermission('shipping:read'),  shippingAdminController.getRates);
+router.post('/rates',       hasPermission('shipping:write'), validateRequest(rateSchema), shippingAdminController.createRate);
+router.put('/rates/:id',    hasPermission('shipping:write'), shippingAdminController.updateRate);
+router.delete('/rates/:id', hasPermission('shipping:write'), shippingAdminController.deleteRate);
 
 module.exports = router;

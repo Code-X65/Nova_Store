@@ -26,7 +26,9 @@ const protect = async (req, res, next) => {
       const admin = await userModel.findById(req.session.adminId);
       
       if (admin && admin.is_active) {
-        const { roles, permissions } = await userModel.getUserRolesAndPermissions(admin.id);
+        // ABAC context so scoped/conditional overrides are evaluated live.
+        const abacCtx = { store_id: req.store?.id, ip: req.ip, now: new Date() };
+        const { roles, permissions } = await userModel.getUserRolesAndPermissions(admin.id, abacCtx);
         const hasAdminRole = roles.some(r => ADMIN_ROLES.includes(r));
 
         if (hasAdminRole) {
@@ -40,7 +42,6 @@ const protect = async (req, res, next) => {
             lastName:    admin.last_name,
             role:        primaryRole,
             roles,
-            store_id:    admin.store_id || null,
             permissions: isStoreOwner ? ['*'] : permissions,
             hasRole:     (...roleNames) => roleNames.some(r => roles.includes(r))
           };
@@ -49,7 +50,6 @@ const protect = async (req, res, next) => {
             email:       admin.email,
             role:        primaryRole,
             roles,
-            store_id:    admin.store_id || null,
             permissions: req.admin.permissions
           };
           return next();
@@ -165,7 +165,8 @@ const optionalAuth = async (req, res, next) => {
     try {
       const admin = await userModel.findById(req.session.adminId);
       if (admin && admin.is_active) {
-        const { roles, permissions } = await userModel.getUserRolesAndPermissions(admin.id);
+        const abacCtx = { store_id: req.store?.id, ip: req.ip, now: new Date() };
+        const { roles, permissions } = await userModel.getUserRolesAndPermissions(admin.id, abacCtx);
         const hasAdminRole = roles.some(r => ADMIN_ROLES.includes(r));
 
         if (hasAdminRole) {
@@ -179,7 +180,6 @@ const optionalAuth = async (req, res, next) => {
             lastName:    admin.last_name,
             role:        primaryRole,
             roles,
-            store_id:    admin.store_id || null,
             permissions: isStoreOwner ? ['*'] : permissions,
             hasRole:     (...roleNames) => roleNames.some(r => roles.includes(r))
           };
@@ -188,7 +188,6 @@ const optionalAuth = async (req, res, next) => {
             email:       admin.email,
             role:        primaryRole,
             roles,
-            store_id:    admin.store_id || null,
             permissions: req.admin.permissions
           };
           return next();

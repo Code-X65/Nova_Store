@@ -1,5 +1,6 @@
 const adminAuthService = require('../../services/admin-auth.service');
 const jwt = require('jsonwebtoken');
+const { SINGLE_STORE_ID } = require('../../config/store');
 
 /**
  * POST /api/v1/admin/login
@@ -25,6 +26,7 @@ const login = async (req, res, next) => {
       req.session.adminId = admin.id;
       req.session.save((saveErr) => {
         if (saveErr) return next(saveErr);
+        if (res.headersSent) return;
 
         // Generate a short-lived JWT access token for Bearer-auth endpoints
         const accessToken = jwt.sign(
@@ -41,8 +43,8 @@ const login = async (req, res, next) => {
               email:       admin.email,
               name:        `${admin.firstName || ''} ${admin.lastName || ''}`.trim() || 'Admin User',
               role:        admin.role,
-              store_id:    admin.store_id,
-              storeName:   admin.store_id ? `Store #${admin.store_id}` : 'Nova Store Admin',
+              store_id:    SINGLE_STORE_ID,
+              storeName:   'Nova Store',
               accessToken,
               tokenType:   'Bearer',
               expiresIn:   process.env.JWT_ACCESS_EXPIRES_IN || '8h',
@@ -51,6 +53,7 @@ const login = async (req, res, next) => {
       });
     });
   } catch (error) {
+    if (res.headersSent) return;
     if (error.message === 'Account deactivated') {
       return res.status(403).json({ success: false, error: 'Your account has been deactivated. Please contact support.' });
     }
@@ -93,8 +96,8 @@ const verify = async (req, res) => {
       email: req.admin.email,
       name: `${req.admin.firstName || ''} ${req.admin.lastName || ''}`.trim() || 'Admin User',
       role: req.admin.role,
-      store_id: req.admin.store_id,
-      storeName: req.admin.store_id ? `Store #${req.admin.store_id}` : 'Nova Store Admin',
+      store_id: SINGLE_STORE_ID,
+      storeName: 'Nova Store',
       permissions: req.admin.permissions
     },
   });

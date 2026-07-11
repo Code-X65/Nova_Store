@@ -1,140 +1,115 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/admin/lib/api';
-import toast from 'react-hot-toast';
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon } from '@heroicons/react/24/outline';
+
+import { BrandsTable, type Brand } from './brands/BrandsTable';
+import { BrandForm } from './brands/BrandForm';
+import { DeleteBrandModal } from './brands/DeleteBrandModal';
+
+type FormMode =
+ | { type: 'create' }
+ | { type: 'edit'; brand: Brand };
 
 export default function Brands() {
-  const qc = useQueryClient();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+ const [formMode, setFormMode] = useState<FormMode | null>(null);
+ const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null);
 
-  const { data: brandsData, isLoading } = useQuery({
-    queryKey: ['brands'],
-    queryFn: async () => {
-      const { data } = await api.get('/brands');
-      return data.data; // array
-    }
-  });
+ // Filters
+ const [activeOnly, setActiveOnly] = useState(false);
+ const [featuredOnly, setFeaturedOnly] = useState(false);
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (editingId) {
-        return api.patch(`/brands/${editingId}`, { name, description });
-      } else {
-        return api.post('/brands', { name, description });
-      }
-    },
-    onSuccess: () => {
-      toast.success(editingId ? 'Brand updated' : 'Brand created');
-      qc.invalidateQueries({ queryKey: ['brands'] });
-      resetForm();
-    },
-    onError: () => toast.error('Failed to save brand')
-  });
+ const { data: brands = [], isLoading } = useQuery<Brand[]>({
+ queryKey: ['brands', { activeOnly, featuredOnly }],
+ queryFn: async () => {
+ const params = new URLSearchParams();
+ if (activeOnly) params.set('activeOnly', 'true');
+ if (featuredOnly) params.set('featuredOnly', 'true');
+ 
+ const { data } = await api.get(`/brands?${params.toString()}`);
+ return Array.isArray(data.data) ? data.data : (data.data?.brands || []);
+ },
+ });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return api.delete(`/brands/${id}`);
-    },
-    onSuccess: () => {
-      toast.success('Brand deleted');
-      qc.invalidateQueries({ queryKey: ['brands'] });
-    },
-    onError: () => toast.error('Failed to delete brand')
-  });
+ const totalCount = brands.length;
+ const featuredCount = brands.filter(b => b.is_featured).length;
+ const activeCount = brands.filter(b => b.is_active).length;
 
-  const resetForm = () => {
-    setEditingId(null);
-    setName('');
-    setDescription('');
-  };
+ return (
+ <div className="space-y-6">
+ {/* Header */}
+ <div className="flex items-start justify-between w-full">
+ <div>
+ <h1 className="page-title">Brands</h1>
+ <p className="text-sm text-[var(--neu-text)] mt-1">
+ Manage your store's brands and manufacturers.
+ </p>
+ </div>
+ <button
+ onClick={() => setFormMode({ type: 'create' })}
+ className="btn-primary flex items-center gap-2"
+ >
+ <PlusIcon className="w-4 h-4" />
+ New Brand
+ </button>
+ </div>
 
-  const handleEdit = (brand: any) => {
-    setEditingId(brand.id);
-    setName(brand.name);
-    setDescription(brand.description || '');
-  };
 
-  const brands = Array.isArray(brandsData) ? brandsData : (brandsData?.brands || []);
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl">
-      <div className="lg:col-span-2 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Brands</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage product brands and manufacturers.</p>
-        </div>
+ {/* Main Panel */}
+ <div className="glass-card rounded-2xl overflow-hidden w-full">
+ {/* Toolbar */}
+  <div className="px-6 py-4 flex items-center justify-between">
+  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+ Brand Directory
+ </p>
+ 
+ <div className="flex items-center gap-4">
+ <label className="flex items-center gap-2 cursor-pointer group">
+ <input
+ type="checkbox"
+ checked={activeOnly}
+ onChange={e => setActiveOnly(e.target.checked)}
+ className="w-3.5 h-3.5 rounded border-[var(--panel-border)] text-[var(--neu-accent)] focus:ring-[var(--neu-accent)] bg-[var(--neu-bg)] cursor-pointer"
+ />
+ <span className="text-xs text-[var(--neu-text)] group-hover:text-white transition-colors">Active Only</span>
+ </label>
+ <label className="flex items-center gap-2 cursor-pointer group">
+ <input
+ type="checkbox"
+ checked={featuredOnly}
+ onChange={e => setFeaturedOnly(e.target.checked)}
+ className="w-3.5 h-3.5 rounded border-[var(--panel-border)] text-[var(--neu-accent)] focus:ring-[var(--neu-accent)] bg-[var(--neu-bg)] cursor-pointer"
+ />
+ <span className="text-xs text-[var(--neu-text)] group-hover:text-white transition-colors">Featured Only</span>
+ </label>
+ </div>
+ </div>
 
-        <div className="glass-card p-4 rounded-xl border border-white/5">
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : (
-            <div className="space-y-2">
-              {brands.map((brand: any) => (
-                <div key={brand.id} className="p-4 bg-surface-2 rounded-lg border border-white/5 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-white">{brand.name}</h3>
-                    {brand.description && <p className="text-sm text-muted-foreground">{brand.description}</p>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleEdit(brand)} className="p-2 text-muted-foreground hover:text-white rounded hover:bg-white/10">
-                      <PencilIcon className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => { if(confirm('Delete?')) deleteMutation.mutate(brand.id); }} className="p-2 text-muted-foreground hover:text-danger rounded hover:bg-danger/10">
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {brands.length === 0 && <p className="text-muted-foreground text-sm">No brands found.</p>}
-            </div>
-          )}
-        </div>
-      </div>
+ {/* Table */}
+ <BrandsTable
+ brands={brands}
+ isLoading={isLoading}
+ onEdit={brand => setFormMode({ type: 'edit', brand })}
+ onDelete={brand => setDeleteTarget(brand)}
+ />
+ </div>
 
-      <div className="space-y-6">
-        <div className="glass-card p-6 rounded-xl border border-white/5 sticky top-24">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            {editingId ? 'Edit Brand' : 'Add Brand'}
-          </h2>
-          
-          <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-white">Name</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-surface-2 border border-white/10 rounded-lg px-4 py-2 text-white focus:border-nova-500 focus:ring-1 focus:ring-nova-500"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-white">Description</label>
-              <textarea
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-surface-2 border border-white/10 rounded-lg px-4 py-2 text-white focus:border-nova-500 focus:ring-1 focus:ring-nova-500"
-              />
-            </div>
+ {/* Form Drawer */}
+ {formMode && (
+ <BrandForm
+ mode={formMode}
+ onClose={() => setFormMode(null)}
+ />
+ )}
 
-            <div className="pt-4 flex gap-2">
-              {editingId && (
-                <button type="button" onClick={resetForm} className="flex-1 px-4 py-2 text-sm font-medium text-white bg-surface-2 border border-white/10 rounded-lg">
-                  Cancel
-                </button>
-              )}
-              <button type="submit" disabled={saveMutation.isPending || !name} className="flex-1 btn-primary">
-                {editingId ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
+ {/* Delete Modal */}
+ {deleteTarget && (
+ <DeleteBrandModal
+ brand={deleteTarget}
+ onClose={() => setDeleteTarget(null)}
+ />
+ )}
+ </div>
+ );
 }

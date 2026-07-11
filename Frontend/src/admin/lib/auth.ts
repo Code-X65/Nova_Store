@@ -1,4 +1,4 @@
-import { api, refreshCsrfToken, clearCsrfToken } from './api';
+import { api, refreshCsrfToken, clearCsrfToken, setAdminAccessToken, clearAdminAccessToken } from './api';
 import type { AdminSession } from '@/shared/api';
 
 export interface LoginCredentials {
@@ -11,7 +11,11 @@ export interface LoginCredentials {
  * Sets the session cookie server-side; we then fetch CSRF and verify session.
  */
 export async function login(credentials: LoginCredentials): Promise<AdminSession> {
-  await api.post('/admin/login', credentials);
+  const { data } = await api.post('/admin/login', credentials);
+  if (data?.data?.accessToken) {
+    setAdminAccessToken(data.data.accessToken);
+    localStorage.setItem('admin_access_token', data.data.accessToken);
+  }
   await refreshCsrfToken();
   return verify();
 }
@@ -34,5 +38,7 @@ export async function logout(): Promise<void> {
     await api.post('/admin/logout');
   } finally {
     clearCsrfToken();
+    clearAdminAccessToken();
+    localStorage.removeItem('admin_access_token');
   }
 }

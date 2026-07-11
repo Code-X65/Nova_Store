@@ -74,16 +74,33 @@ export function NotificationBell() {
                     !n.read && 'bg-nova-600/5'
                   )}
                 >
-                  <div className="flex-1 min-w-0">
-                    {!n.read && (
-                      <span className="inline-block w-1.5 h-1.5 bg-nova-500 rounded-full mr-1.5 align-middle" />
-                    )}
-                    <p className="text-sm text-white font-medium truncate">{n.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
-                    <p className="text-[11px] text-muted mt-1">
-                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-                    </p>
-                  </div>
+                   <div className="flex-1 min-w-0">
+                     <div className="flex items-center gap-1.5">
+                       {!n.read && (
+                         <span className="inline-block w-1.5 h-1.5 bg-nova-500 rounded-full align-middle flex-shrink-0" />
+                       )}
+                       <span
+                         className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                           n.severity === 'critical' ? 'bg-danger'
+                           : n.severity === 'warning' ? 'bg-nova-400'
+                           : 'bg-muted'
+                         }`}
+                         title={n.severity}
+                       />
+                       <p className="text-sm text-white font-medium truncate">{n.title}</p>
+                     </div>
+                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                     <div className="flex items-center gap-2 mt-1">
+                       {n.recipientRole && (
+                         <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-nova-600/20 text-nova-300">
+                           {n.recipientRole}
+                         </span>
+                       )}
+                       <p className="text-[11px] text-muted">
+                         {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                       </p>
+                     </div>
+                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); dismiss(n.id); }}
                     className="p-1 text-muted hover:text-danger transition-colors flex-shrink-0 self-start mt-0.5"

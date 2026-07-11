@@ -267,12 +267,11 @@ describe('Category & Product Upload Integration Tests', () => {
       const productPayload = {
         sku: 'TEST-SKU-ERR1',
         name: 'Apex Phone',
-        description: 'Test product description.',
+        description: 'This is a long enough product description that passes the fifty character limit for the integration tests.',
         category_id: parentId,
         subcategory_id: subcatId,
         brand_id: brandId,
         price: 999.99,
-        stock_quantity: 10,
         attributes: {} // Missing 'RAM'
       };
 
@@ -303,12 +302,11 @@ describe('Category & Product Upload Integration Tests', () => {
       const productPayload = {
         sku: 'TEST-SKU-ERR2',
         name: 'Apex Phone',
-        description: 'Test product description.',
+        description: 'This is a long enough product description that passes the fifty character limit for the integration tests.',
         category_id: parentId,
         subcategory_id: subcatId,
         brand_id: brandId,
         price: 999.99,
-        stock_quantity: 10,
         attributes: {
           'RAM': '16GB' // Invalid (must be 8GB or 12GB)
         }
@@ -342,12 +340,11 @@ describe('Category & Product Upload Integration Tests', () => {
       const productPayload = {
         sku: 'TEST-SKU-OK',
         name: 'Apex Phone',
-        description: 'Test product description.',
+        description: 'This is a long enough product description that passes the fifty character limit for the integration tests.',
         category_id: parentId,
         subcategory_id: subcatId,
         brand_id: brandId,
         price: 999.99,
-        stock_quantity: 10,
         attributes: {
           'RAM': '8GB' // Valid value!
         }

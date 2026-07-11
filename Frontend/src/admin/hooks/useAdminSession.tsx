@@ -1,8 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { verify, logout as authLogout } from '@/admin/lib/auth';
-import { refreshCsrfToken } from '@/admin/lib/api';
+import { refreshCsrfToken, setAdminAccessToken } from '@/admin/lib/api';
 import type { AdminSession } from '@/shared/api';
+
+// Public routes that must render without an authenticated session.
+function isPublicRoute(pathname: string) {
+  return pathname.endsWith('/login') || pathname.startsWith('/accept-invite');
+}
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Context types Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 interface SessionContextValue {
@@ -19,6 +25,12 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const [ready, setReady] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Skip the session probe on public pages (login, accept-invite) so an
+  // unauthenticated visitor isn't bounced to /login by the 401 interceptor.
+  const publicRoute = isPublicRoute(location.pathname);
 
   const { data: session, isLoading, refetch } = useQuery({
     queryKey: ['admin-session'],
@@ -28,6 +40,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await refreshCsrfToken();
       return s;
     },
+    enabled:         !publicRoute,
     retry:           false,
     staleTime:       5 * 60 * 1000, // 5 min
     refetchInterval: 15 * 60 * 1000, // re-verify every 15 min
@@ -37,10 +50,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!isLoading) setReady(true);
   }, [isLoading]);
 
+  // Realtime session verification across tabs
+  useEffect(() => {
+    const channel = new BroadcastChannel('admin-session-channel');
+    channel.onmessage = (event) => {
+      if (event.data === 'LOGOUT') {
+        qc.clear();
+        navigate('/login');
+      } else if (event.data === 'LOGIN') {
+        refetch();
+      }
+    };
+    return () => channel.close();
+  }, [qc, navigate, refetch]);
+
   async function logout() {
-    await authLogout();
-    qc.clear();
-    window.location.href = '/login';
+    try {
+      await authLogout();
+    } catch (err) {
+      console.error('Server logout failed, proceeding with local logout', err);
+    } finally {
+      qc.clear();
+      const channel = new BroadcastChannel('admin-session-channel');
+      channel.postMessage('LOGOUT');
+      channel.close();
+      navigate('/login');
+    }
   }
 
   return (

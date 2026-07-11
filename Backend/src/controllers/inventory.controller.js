@@ -1,5 +1,6 @@
 const InventoryService = require('../services/inventory.service');
 const AuditService = require('../services/audit.service');
+const eventBus = require('../realtime/event-bus');
 
 class InventoryController {
   async addStock(req, res, next) {
@@ -38,7 +39,67 @@ class InventoryController {
         variantId
       );
       AuditService.log(req, 'inventory.stock_reduced', 'product', productId, null, { quantity, type: type || 'adjustment', referenceId, notes, variantId });
+      // Out-of-stock trigger (incl. during order picking).
+      if (result && result.stock_quantity <= 0) {
+        const eventKey = (type || 'adjustment') === 'sale' ? 'order.picked_out_of_stock' : 'inventory.out_of_stock';
+        eventBus.emit(eventKey, {
+          actor: req.actor || { id: userId, fullName: null, role: req.user?.role },
+          resourceType: 'product',
+          resourceId: productId,
+          actionType: 'STATUS_CHANGE',
+          severity: 'critical',
+          title: eventKey === 'order.picked_out_of_stock' ? 'Out of stock while picking' : 'Out of stock',
+          message: `Stock for product ${productId} hit zero${type === 'sale' ? ' during order picking' : ''}.`,
+          data: { productId, variantId, type: type || 'adjustment' },
+          deepLink: `/inventory/${productId}`,
+        });
+      }
       res.status(200).json({ success: true, data: result, message: 'Stock reduced successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async adjustStock(req, res, next) {
+    try {
+      const { productId, variantId, quantityChange, reasonCode, notes } = req.body;
+      const userId = req.user.id;
+
+      if (!productId || quantityChange === undefined) {
+        return res.status(400).json({ success: false, message: 'Product ID and quantityChange are required' });
+      }
+
+      if (quantityChange === 0) {
+        return res.status(400).json({ success: false, message: 'quantityChange cannot be zero' });
+      }
+
+      const result = await InventoryService.adjustStock(
+        productId,
+        quantityChange,
+        reasonCode,
+        userId,
+        notes,
+        variantId,
+        req.store?.id
+      );
+
+      AuditService.log(req, 'inventory.stock_adjusted', 'product', productId, null, { quantityChange, reasonCode, notes, variantId }, {
+        actionType: 'UPDATE',
+        severity: 'warning',
+      });
+      // Manual stock discrepancy alert (security/accuracy-sensitive).
+      eventBus.emit('inventory.discrepancy', {
+        actor: req.actor || { id: userId, fullName: null, role: req.user?.role },
+        resourceType: 'product',
+        resourceId: productId,
+        actionType: 'UPDATE',
+        severity: 'warning',
+        title: 'Manual stock adjustment',
+        message: `Manual adjustment of ${quantityChange > 0 ? '+' : ''}${quantityChange} on product ${productId} (reason: ${reasonCode || 'unspecified'}) by ${req.actor?.fullName || 'a staff member'}.`,
+        data: { productId, variantId, quantityChange, reasonCode, notes },
+        deepLink: `/inventory/${productId}`,
+      });
+      res.status(200).json({ success: true, data: result, message: 'Stock adjusted successfully' });
     } catch (error) {
       next(error);
     }

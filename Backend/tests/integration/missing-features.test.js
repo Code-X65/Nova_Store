@@ -198,7 +198,7 @@ describe('Missing Features Integration Tests', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toEqual(mockResults);
-      expect(productModel.search).toHaveBeenCalledWith('gaming', 5, 'store-abc');
+      expect(productModel.search).toHaveBeenCalledWith('gaming', 5, '11111111-1111-1111-1111-111111111111');
     });
   });
 

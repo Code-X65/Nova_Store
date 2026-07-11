@@ -3,6 +3,7 @@ const ReviewHelpfulnessModel = require('../models/review-helpfulness.model');
 const OrderModel = require('../models/order.model');
 const supabase = require('../config/supabase');
 const ErrorResponse = require('../utils/errorResponse');
+const eventBus = require('../realtime/event-bus');
 
 class ReviewService {
   async getProductReviews(productId, filters, pagination, currentUserId = null) {
@@ -94,6 +95,20 @@ class ReviewService {
       comment,
       is_verified_purchase: isVerifiedPurchase,
       status: 'approved' // Default to approved, could be 'pending' if moderation is strict
+    });
+
+    // 4. Emit domain event — rating drives severity (low = critical, high = marketing).
+    const severity = rating <= 2 ? 'critical' : 'info';
+    eventBus.emit('review.created', {
+      actor: { id: userId, fullName: null, role: 'customer' },
+      resourceType: 'product_review',
+      resourceId: newReview.id,
+      actionType: 'CREATE',
+      severity,
+      title: `New ${rating}-star review`,
+      message: comment ? `“${comment.slice(0, 120)}”${comment.length > 120 ? '…' : ''}` : `A new ${rating}-star review was submitted.`,
+      data: { reviewId: newReview.id, productId, rating, userId, verified: isVerifiedPurchase },
+      deepLink: `/reviews/${newReview.id}`,
     });
 
     return newReview;

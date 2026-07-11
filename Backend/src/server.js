@@ -25,7 +25,11 @@ const { connectRedis, redisClient } = require('./config/redis');
 const CronJob = require('cron').CronJob;
 const runCleanup = require('./jobs/cleanup.job.js');
 const runReservationCleanup = require('./jobs/reservation-cleanup.job.js');
+
 const { startWorker: startNotifyWorker } = require('./services/notification-queue.service');
+const { initRealtime } = require('./realtime/sse.gateway');
+const eventBus = require('./realtime/event-bus');
+const notificationRouter = require('./services/notification-router.service');
 
 const PORT = process.env.PORT || 5000;
 
@@ -37,6 +41,16 @@ new CronJob('0 2 * * *', runCleanup, null, true, 'UTC');
 
 // 3. Stock reservation expiry cleanup: every 10 minutes
 new CronJob('*/10 * * * *', runReservationCleanup, null, true, 'UTC');
+
+
+// Real-time SSE subscriber (Redis Pub/Sub fan-out). Best-effort; SSE falls
+// back to polling if Redis is unavailable.
+initRealtime().catch(err => console.warn('[Server] Realtime init skipped:', err.message));
+
+// Domain event bus (Redis Pub/Sub fan-out for cross-instance delivery) and the
+// Role-Based Notification Routing Engine handlers.
+eventBus.initRealtime().catch(err => console.warn('[Server] Event bus init skipped:', err.message));
+notificationRouter.initHandlers();
 
 let server;
 

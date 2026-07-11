@@ -12,6 +12,18 @@ class StoreModel {
     return data || null;
   }
 
+  async update(id, updates) {
+    const { data, error } = await supabase
+      .from('stores')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
   async findBySlug(slug) {
     const { data, error } = await supabase
       .from('stores')
@@ -24,11 +36,13 @@ class StoreModel {
   }
 
   async getDefaultStore() {
-    // Defaults to 'nova-store' slug
-    const store = await this.findBySlug('nova-store');
+    const { SINGLE_STORE_SLUG } = require('../config/store');
+    
+    // Always return the single store by its defined slug
+    const store = await this.findBySlug(SINGLE_STORE_SLUG);
     if (store) return store;
 
-    // Fallback: pick any store
+    // Fallback: pick any store (should only happen if seed fails)
     const { data, error } = await supabase
       .from('stores')
       .select('*')
@@ -39,17 +53,7 @@ class StoreModel {
   }
 
   async findUserStore(userId) {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('store_id')
-      .eq('id', userId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error;
-    if (user && user.store_id) {
-      return await this.findById(user.store_id);
-    }
-
+    // Single-store system: ignore users.store_id and always return the default store
     return await this.getDefaultStore();
   }
 
@@ -78,12 +82,29 @@ class StoreModel {
   async updateSetting(storeId, key, value) {
     const { data, error } = await supabase
       .from('store_settings')
-      .upsert({ store_id: storeId, key, value })
+      .upsert({ store_id: storeId, key, value, updated_at: new Date().toISOString() })
       .select()
       .single();
 
     if (error) throw error;
     return data;
+  }
+
+  async upsertSettings(storeId, settings) {
+    if (!settings || settings.length === 0) return;
+
+    const records = settings.map(s => ({
+      store_id: storeId,
+      key: s.key,
+      value: s.value,
+      updated_at: new Date().toISOString()
+    }));
+
+    const { error } = await supabase
+      .from('store_settings')
+      .upsert(records, { onConflict: 'store_id,key' });
+
+    if (error) throw error;
   }
 }
 

@@ -41,19 +41,19 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="flex flex-col h-full rounded-xl border border-gray-800 bg-[#14151a] shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-black overflow-hidden">
       {/* Table Container */}
-      <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
-        <table className="w-full text-sm text-left text-gray-300">
-          <thead className="sticky top-0 z-10 text-xs text-gray-400 uppercase bg-[#1a1b23] border-b border-gray-800">
+      <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-[#1a1a1a] scrollbar-track-transparent">
+        <table className="w-full text-left border-collapse min-w-[800px]">
+          <thead className="sticky top-0 z-10 bg-black">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
+              <tr key={headerGroup.id} className="border-b border-[#1a1a1a]">
                 {headerGroup.headers.map((header) => {
                   return (
                     <th
                       key={header.id}
                       colSpan={header.colSpan}
-                      className="px-6 py-4 font-semibold tracking-wider whitespace-nowrap"
+                      className="py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider font-sans whitespace-nowrap"
                     >
                       {header.isPlaceholder ? null : (
                         <div
@@ -86,12 +86,12 @@ export function DataTable<TData, TValue>({
                 <tr
                   key={row.id}
                   onClick={() => onRowClick?.(row.original)}
-                  className={`border-b border-gray-800 transition-colors ${
-                    onRowClick ? 'cursor-pointer hover:bg-[#1a1b23]' : 'hover:bg-[#1a1b23]/50'
+                  className={`group border-b border-[#1a1a1a] transition-colors last:border-0 ${
+                    onRowClick ? 'cursor-pointer hover:bg-[#111111]' : 'hover:bg-[#111111]'
                   }`}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
+                    <td key={cell.id} className="px-4 py-4 whitespace-nowrap text-sm text-white">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -104,7 +104,7 @@ export function DataTable<TData, TValue>({
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-6 py-8 text-center text-gray-500"
+                  className="px-4 py-8 text-center text-gray-500 text-sm"
                 >
                   No results found.
                 </td>
@@ -116,7 +116,7 @@ export function DataTable<TData, TValue>({
 
       {/* Pagination Controls */}
       {table.getPageCount() > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-gray-800 bg-[#11111f]">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-[#1a1a1a] bg-black">
           <div className="flex items-center text-xs text-gray-400">
             Page {table.getState().pagination.pageIndex + 1} of{' '}
             {table.getPageCount()}

@@ -1,14 +1,15 @@
 const categoryModel = require('../models/product-category.model');
 const slugify = require('../utils/slug-generator');
+const { SINGLE_STORE_ID } = require('../config/store');
 
 class CategoryService {
-  async createCategory(adminId, categoryData, storeId = null) {
+  async createCategory(adminId, categoryData) {
     const { name, parentId, ...rest } = categoryData;
     
     const targetParentId = parentId === '' ? null : (parentId || null);
 
     // 1. Duplicate check: same parent, same name (case-insensitive)
-    const siblings = await categoryModel.findAll({ parentId: targetParentId, store_id: storeId });
+    const siblings = await categoryModel.findAll({ parentId: targetParentId, store_id: SINGLE_STORE_ID });
     const hasDuplicateName = siblings.some(
       sibling => sibling.name.toLowerCase() === name.toLowerCase()
     );
@@ -20,7 +21,7 @@ class CategoryService {
 
     // 2. Generate Slug
     let slug = slugify(name);
-    const existing = await categoryModel.findBySlug(slug, storeId);
+    const existing = await categoryModel.findBySlug(slug, SINGLE_STORE_ID);
     if (existing) {
       slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
     }
@@ -30,7 +31,7 @@ class CategoryService {
     let fullPath = [];
     
     if (targetParentId) {
-      const parent = await categoryModel.findById(targetParentId, storeId);
+      const parent = await categoryModel.findById(targetParentId, SINGLE_STORE_ID);
       if (!parent) {
         const error = new Error('Parent category not found');
         error.statusCode = 400;
@@ -48,15 +49,15 @@ class CategoryService {
       full_path: fullPath,
       parent_id: targetParentId,
       created_by: adminId,
-      store_id: storeId
+      store_id: SINGLE_STORE_ID
     });
   }
 
-  async createBulkCategories(adminId, categoryTree, storeId = null) {
+  async createBulkCategories(adminId, categoryTree) {
     const crypto = require('crypto');
 
     // Fetch existing categories to perform duplicate & slug uniqueness checks in-memory
-    const existing = await categoryModel.findAll({ store_id: storeId });
+    const existing = await categoryModel.findAll({ store_id: SINGLE_STORE_ID });
     const existingSlugs = new Set(existing.map(c => c.slug));
     const existingNamesByParent = new Map();
 
@@ -112,7 +113,7 @@ class CategoryService {
         full_path: fullPath,
         parent_id: parentId,
         created_by: adminId,
-        store_id: storeId,
+        store_id: SINGLE_STORE_ID,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -135,8 +136,8 @@ class CategoryService {
     return await categoryModel.createMany(flatCategories);
   }
 
-  async updateCategory(id, updateData, storeId = null) {
-    const category = await categoryModel.findById(id, storeId);
+  async updateCategory(id, updateData) {
+    const category = await categoryModel.findById(id, SINGLE_STORE_ID);
     if (!category) {
       const error = new Error('Category not found');
       error.statusCode = 404;
@@ -150,7 +151,7 @@ class CategoryService {
     const nameToCheck = name || category.name;
     
     if (name || parentId !== undefined) {
-      const siblings = await categoryModel.findAll({ parentId: targetParentId, store_id: storeId });
+      const siblings = await categoryModel.findAll({ parentId: targetParentId, store_id: SINGLE_STORE_ID });
       const hasDuplicateName = siblings.some(
         sibling => sibling.id !== id && sibling.name.toLowerCase() === nameToCheck.toLowerCase()
       );
@@ -166,7 +167,7 @@ class CategoryService {
     let slugChanged = false;
     if (name && name !== category.name) {
       slug = slugify(name);
-      const existing = await categoryModel.findBySlug(slug, storeId);
+      const existing = await categoryModel.findBySlug(slug, SINGLE_STORE_ID);
       if (existing && existing.id !== id) {
         slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
       }
@@ -197,7 +198,7 @@ class CategoryService {
         level = 0;
         fullPath = [];
       } else {
-        const parent = await categoryModel.findById(newParentId, storeId);
+        const parent = await categoryModel.findById(newParentId, SINGLE_STORE_ID);
         if (!parent) {
           const error = new Error('Parent category not found');
           error.statusCode = 400;
@@ -228,14 +229,14 @@ class CategoryService {
 
     // 4. Update Descendants if path/level changed
     if (parentIdChanged || slugChanged) {
-      await this.updateDescendantsPaths(id, [...fullPath, slug], level, storeId);
+      await this.updateDescendantsPaths(id, [...fullPath, slug], level);
     }
 
     return updated;
   }
 
-  async deleteCategory(categoryId, options = {}, storeId = null) {
-    const category = await categoryModel.findById(categoryId, storeId);
+  async deleteCategory(categoryId, options = {}) {
+    const category = await categoryModel.findById(categoryId, SINGLE_STORE_ID);
     if (!category) {
       const error = new Error('Category not found');
       error.statusCode = 404;
@@ -245,7 +246,7 @@ class CategoryService {
     const { cascade = false } = options;
 
     if (!cascade) {
-      const children = await categoryModel.findAll({ parentId: categoryId, store_id: storeId });
+      const children = await categoryModel.findAll({ parentId: categoryId, store_id: SINGLE_STORE_ID });
       if (children.length > 0) {
         const error = new Error('Cannot delete category with subcategories. Use cascade=true to delete all subcategories.');
         error.statusCode = 409;
@@ -253,22 +254,22 @@ class CategoryService {
       }
     } else {
       // Cascade soft-delete: recursively soft-delete children
-      await this.cascadeSoftDelete(categoryId, storeId);
+      await this.cascadeSoftDelete(categoryId);
     }
 
     return await categoryModel.softDelete(categoryId);
   }
 
-  async cascadeSoftDelete(parentId, storeId = null) {
-    const children = await categoryModel.findAll({ parentId, store_id: storeId });
+  async cascadeSoftDelete(parentId) {
+    const children = await categoryModel.findAll({ parentId, store_id: SINGLE_STORE_ID });
     for (const child of children) {
-      await this.cascadeSoftDelete(child.id, storeId);
+      await this.cascadeSoftDelete(child.id);
       await categoryModel.softDelete(child.id);
     }
   }
 
-  async updateDescendantsPaths(parentId, parentPath, parentLevel, storeId = null) {
-    const children = await categoryModel.findAll({ parentId, store_id: storeId });
+  async updateDescendantsPaths(parentId, parentPath, parentLevel) {
+    const children = await categoryModel.findAll({ parentId, store_id: SINGLE_STORE_ID });
     for (const child of children) {
       const childLevel = parentLevel + 1;
       const childPath = parentPath;
@@ -279,12 +280,12 @@ class CategoryService {
       });
 
       // Recurse into children of this child, appending this child's slug to the parent path
-      await this.updateDescendantsPaths(child.id, [...childPath, child.slug], childLevel, storeId);
+      await this.updateDescendantsPaths(child.id, [...childPath, child.slug], childLevel);
     }
   }
 
-  async getCategoryTree(storeId = null) {
-    const all = await categoryModel.findAll({ store_id: storeId });
+  async getCategoryTree() {
+    const all = await categoryModel.findAll({ store_id: SINGLE_STORE_ID });
     
     const buildTree = (parentId = null) => {
       return all
@@ -296,6 +297,25 @@ class CategoryService {
     };
 
     return buildTree(null);
+  }
+
+  async reorderCategories(categoriesData) {
+    const promises = categoriesData.map(async (cat) => {
+      if (!cat.id || cat.sort_order === undefined) {
+        throw new Error('Each category must have an id and sort_order');
+      }
+      
+      // Ensure the category belongs to the store
+      const category = await categoryModel.findById(cat.id, SINGLE_STORE_ID);
+      if (!category) {
+        throw new Error(`Category ${cat.id} not found`);
+      }
+      
+      return categoryModel.update(cat.id, { sort_order: cat.sort_order });
+    });
+
+    await Promise.all(promises);
+    return true;
   }
 }
 

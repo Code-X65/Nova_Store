@@ -3,6 +3,7 @@ const roleModel = require('../../models/role.model');
 const userRoleModel = require('../../models/user-role.model');
 const permissionModel = require('../../models/permission.model');
 const AuditService = require('../../services/audit.service');
+const eventBus = require('../../realtime/event-bus');
 const logger = require('../../utils/logger');
 
 /**
@@ -87,6 +88,12 @@ class AdminManagementController {
         return res.status(400).json({ success: false, error: 'roleIds must be a non-empty array of UUIDs.' });
       }
 
+      // Filter out null or string "null" values to prevent Postgres UUID syntax errors
+      const validRoleIds = roleIds.filter(id => id && id !== 'null');
+      if (validRoleIds.length === 0) {
+        return res.status(400).json({ success: false, error: 'No valid roleIds provided.' });
+      }
+
       // Prevent a user from modifying their own roles
       if (id === req.admin.id) {
         return res.status(400).json({ success: false, error: 'You cannot modify your own roles.' });
@@ -98,7 +105,7 @@ class AdminManagementController {
       }
 
       const targetRoleObjs = [];
-      for (const roleId of roleIds) {
+      for (const roleId of validRoleIds) {
         const role = await roleModel.findById(roleId);
         if (!role) {
           return res.status(400).json({ success: false, error: `Role with ID ${roleId} not found.` });
@@ -129,7 +136,7 @@ class AdminManagementController {
       }
 
       // Assign new roles
-      for (const roleId of roleIds) {
+      for (const roleId of validRoleIds) {
         await userRoleModel.assignRole(id, roleId, req.admin.id);
       }
 
@@ -140,7 +147,32 @@ class AdminManagementController {
       const primaryRole  = hierarchy.findLast(r => roleNames.includes(r)) || roleNames[0] || 'ORDER_STAFF';
       await userModel.update(id, { role: primaryRole });
 
-      await AuditService.log(req, 'admin_roles_updated', 'user', id, null, { roleIds, newRole: primaryRole }).catch(() => {});
+      const notificationService = require('../../services/notification.service');
+      await notificationService.sendAdminRoleUpdatedEmail({
+        to: user.email,
+        newRole: primaryRole
+      });
+
+      await AuditService.log(req, 'admin_roles_updated', 'user', id, null, { roleIds: validRoleIds, newRole: primaryRole }, {
+        actionType: 'STATUS_CHANGE',
+        severity: 'critical',
+      }).catch(() => {});
+
+      // Security-critical team alert → Owners.
+      const oldRoleNames = (existingRoles || []).map(r => r.name);
+      eventBus.emit('staff.role_escalated', {
+        actor: req.actor || { id: req.admin.id, fullName: `${req.admin.firstName} ${req.admin.lastName}`.trim(), role: req.admin.role },
+        resourceType: 'user',
+        resourceId: id,
+        actionType: 'STATUS_CHANGE',
+        severity: 'critical',
+        title: 'Staff role changed',
+        message: `Roles for ${user.email} changed from [${oldRoleNames.join(', ')}] to [${roleNames.join(', ')}] by ${req.actor?.fullName || 'an admin'}.`,
+        oldValues: { roles: oldRoleNames },
+        newValues: { roles: roleNames, primaryRole },
+        data: { userId: id, email: user.email, oldRoles: oldRoleNames, newRoles: roleNames },
+        deepLink: `/staff/${id}`,
+      });
 
       return res.json({
         success: true,
@@ -155,52 +187,18 @@ class AdminManagementController {
   /**
    * PATCH /api/v1/admin/admins/:id/permissions
    * Body: { permissions: string[] }   — extra permission slugs added to the admin
+   *
+   * @deprecated Legacy endpoint backed by users.extra_permissions. Granular
+   * permissions are now managed through the permission_overrides system
+   * (POST /admin/access/:id/overrides), which is ABAC-aware, time-bound and
+   * audited. This endpoint remains only for backward compatibility; new UI
+   * flows route through the override manager instead.
    */
   async updateAdminPermissions(req, res, next) {
-    try {
-      const { id } = req.params;
-      const { permissions } = req.body;
-
-      if (!Array.isArray(permissions)) {
-        return res.status(400).json({ success: false, error: 'permissions must be an array of permission slugs.' });
-      }
-
-      const { roles: targetRoles } = await userModel.getUserRolesAndPermissions(id);
-      const requesterRoles = req.admin.roles || [];
-      const isStoreOwner = requesterRoles.includes('STORE_OWNER');
-
-      // A manager cannot modify permissions for STORE_OWNER or other MANAGERs
-      if (!isStoreOwner) {
-        if (targetRoles.includes('STORE_OWNER') || targetRoles.includes('MANAGER')) {
-          return res.status(403).json({ success: false, error: 'Forbidden: Managers cannot modify permissions of other managers or owners.' });
-        }
-      }
-
-      // Validate all permission slugs exist in DB
-      const allPerms = await permissionModel.findAll ? await permissionModel.findAll() : [];
-      const validKeys = new Set(allPerms.map(p => p.key));
-
-      const invalid = permissions.filter(p => p !== '*' && !validKeys.has(p));
-      if (invalid.length > 0) {
-        return res.status(400).json({
-          success: false,
-          error: `Unknown permission slug(s): ${invalid.join(', ')}`
-        });
-      }
-
-      // Store extra permissions on the users table in a custom column
-      await userModel.update(id, { extra_permissions: permissions });
-
-      await AuditService.log(req, 'admin_permissions_updated', 'user', id, null, { permissions }).catch(() => {});
-
-      return res.json({
-        success: true,
-        message: 'Permission update recorded. Changes take effect on next login.',
-        data: { updatedPermissions: permissions }
-      });
-    } catch (err) {
-      next(err);
-    }
+    return res.status(410).json({
+      success: false,
+      error: 'Legacy permissions endpoint is permanently removed. Use /api/v1/admin/access/:id/overrides instead.'
+    });
   }
 
   /**
@@ -233,6 +231,11 @@ class AdminManagementController {
       }
 
       await userModel.update(id, { is_active: false });
+
+      const notificationService = require('../../services/notification.service');
+      await notificationService.sendAdminAccessRevokedEmail({
+        to: user.email
+      });
 
       await AuditService.log(req, 'admin_access_revoked', 'user', id, null, { email: user.email }).catch(() => {});
 
@@ -269,15 +272,30 @@ class AdminManagementController {
   /**
    * GET /api/v1/admin/my-permissions
    * Self-service: any admin can view their own role and permissions.
+   *
+   * Returns provenance so the UI can distinguish role-derived permissions
+   * from granular overrides (allow/deny, temporary/permanent, granted_by).
    */
   async getMyPermissions(req, res, next) {
     try {
+      const isStoreOwner = (req.admin.roles || []).includes('STORE_OWNER');
+
+      // Role-derived permissions (authoritative "from your role" set).
+      let rolePermissions;
+      if (isStoreOwner) {
+        rolePermissions = ['*'];
+      } else {
+        const { permissions } = await userModel.getUserRolesAndPermissions(req.admin.id);
+        rolePermissions = permissions;
+      }
+
       return res.json({
         success: true,
         data: {
           role: req.admin.role,
           roles: req.admin.roles,
-          permissions: req.admin.permissions
+          permissions: req.admin.permissions, // effective (ABAC-resolved) set
+          rolePermissions                     // role-derived only
         }
       });
     } catch (err) {

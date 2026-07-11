@@ -37,7 +37,15 @@ exports.updateSetting = async (req, res, next) => {
 exports.bulkUpdate = async (req, res, next) => {
   try {
     const updates = req.body;
-    const updated = await SettingService.bulkUpdate(updates, req.user.id, 'Bulk update via API');
+    const updatesMap = {};
+    if (updates && Array.isArray(updates.settings)) {
+      updates.settings.forEach(s => {
+        updatesMap[s.key] = s.value;
+      });
+    } else {
+      Object.assign(updatesMap, updates);
+    }
+    const updated = await SettingService.bulkUpdate(updatesMap, req.user.id, 'Bulk update via API');
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
     next(error);
@@ -56,10 +64,7 @@ exports.getSettingHistory = async (req, res, next) => {
 exports.testEmail = async (req, res, next) => {
   try {
     const { recipient } = req.body;
-    // We can use the test method we built in notifications
-    // Or just a direct sendMail from transporter
-    await EmailService.transporter.sendMail({
-      from: `"Nova Store Admin" <${process.env.EMAIL_FROM || 'noreply@novastore.com'}>`,
+    await EmailService.sendRaw({
       to: recipient,
       subject: 'Test Email Configuration',
       text: 'If you receive this email, your email configuration is working correctly.'

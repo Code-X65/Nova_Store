@@ -1,8 +1,13 @@
+-- Drop old signatures to avoid overloads
+DROP FUNCTION IF EXISTS get_sales_summary(timestamp, timestamp, text);
+DROP FUNCTION IF EXISTS get_best_sellers(timestamp, timestamp, integer, text, uuid);
+DROP FUNCTION IF EXISTS get_user_growth(timestamp, timestamp, text);
+
 -- 1. Get Sales Summary (Revenue over time)
 -- Groups by day, week, month, or year
-CREATE OR REPLACE FUNCTION get_sales_summary(start_date TIMESTAMP, end_date TIMESTAMP, group_period TEXT)
+CREATE OR REPLACE FUNCTION get_sales_summary(start_date TIMESTAMPTZ, end_date TIMESTAMPTZ, group_period TEXT)
 RETURNS TABLE (
-    period TIMESTAMP,
+    period TIMESTAMPTZ,
     revenue NUMERIC,
     orders BIGINT,
     average_order_value NUMERIC,
@@ -28,7 +33,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 2. Get Best Sellers
-CREATE OR REPLACE FUNCTION get_best_sellers(start_date TIMESTAMP, end_date TIMESTAMP, top_limit INT, sort_by TEXT, cat_id UUID DEFAULT NULL)
+CREATE OR REPLACE FUNCTION get_best_sellers(start_date TIMESTAMPTZ, end_date TIMESTAMPTZ, top_limit INT, sort_by TEXT, cat_id UUID DEFAULT NULL)
 RETURNS TABLE (
     product_id UUID,
     product_name TEXT,
@@ -60,9 +65,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 3. Get User Growth
-CREATE OR REPLACE FUNCTION get_user_growth(start_date TIMESTAMP, end_date TIMESTAMP, group_period TEXT)
+CREATE OR REPLACE FUNCTION get_user_growth(start_date TIMESTAMPTZ, end_date TIMESTAMPTZ, group_period TEXT)
 RETURNS TABLE (
-    period TIMESTAMP,
+    period TIMESTAMPTZ,
     new_users BIGINT
 ) AS $$
 BEGIN
@@ -76,8 +81,3 @@ BEGIN
     ORDER BY period;
 END;
 $$ LANGUAGE plpgsql;
-
--- Indexes to improve analytics queries
-CREATE INDEX IF NOT EXISTS idx_orders_created_status ON orders(created_at, status);
-CREATE INDEX IF NOT EXISTS idx_users_created ON users(created_at);
-CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items(product_id);

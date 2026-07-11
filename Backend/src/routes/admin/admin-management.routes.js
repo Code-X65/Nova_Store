@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const requireAdmin = require('../../middlewares/require-admin.middleware');
-const requireManager = require('../../middlewares/require-manager.middleware');
-const requireStoreOwner = require('../../middlewares/require-store-owner.middleware');
+const { hasPermission } = require('../../middlewares/permission.middleware');
 const adminController = require('../../controllers/admin/admin-management.controller');
 
 /**
@@ -63,7 +62,7 @@ router.get('/my-permissions', requireAdmin, adminController.getMyPermissions.bin
  *       403:
  *         description: Forbidden (Only STORE_OWNER or MANAGER)
  */
-router.get('/', requireManager, adminController.listAdmins.bind(adminController));
+router.get('/', hasPermission('staff:read'), adminController.listAdmins.bind(adminController));
 
 /**
  * @swagger
@@ -86,7 +85,7 @@ router.get('/', requireManager, adminController.listAdmins.bind(adminController)
  *       404:
  *         description: Admin user not found
  */
-router.get('/:id', requireManager, adminController.getAdmin.bind(adminController));
+router.get('/:id', hasPermission('staff:read'), adminController.getAdmin.bind(adminController));
 
 /**
  * @swagger
@@ -124,7 +123,7 @@ router.get('/:id', requireManager, adminController.getAdmin.bind(adminController
  *       404:
  *         description: Admin user not found
  */
-router.patch('/:id/roles', requireManager, adminController.updateAdminRoles.bind(adminController));
+router.patch('/:id/roles', hasPermission('staff:write'), adminController.updateAdminRoles.bind(adminController));
 
 /**
  * @swagger
@@ -161,7 +160,7 @@ router.patch('/:id/roles', requireManager, adminController.updateAdminRoles.bind
  *       404:
  *         description: Admin user not found
  */
-router.patch('/:id/permissions', requireManager, adminController.updateAdminPermissions.bind(adminController));
+router.patch('/:id/permissions', hasPermission('staff:write'), adminController.updateAdminPermissions.bind(adminController));
 
 /**
  * @swagger
@@ -186,7 +185,7 @@ router.patch('/:id/permissions', requireManager, adminController.updateAdminPerm
  *       404:
  *         description: Admin user not found
  */
-router.delete('/:id', requireStoreOwner, adminController.revokeAdminAccess.bind(adminController));
+router.delete('/:id', hasPermission('staff:write'), adminController.revokeAdminAccess.bind(adminController));
 
 /**
  * @swagger
@@ -209,6 +208,6 @@ router.delete('/:id', requireStoreOwner, adminController.revokeAdminAccess.bind(
  *       404:
  *         description: Admin user not found
  */
-router.get('/:id/permissions', requireManager, adminController.getAdminPermissions.bind(adminController));
+router.get('/:id/permissions', hasPermission('staff:read'), adminController.getAdminPermissions.bind(adminController));
 
 module.exports = router;

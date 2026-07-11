@@ -21,7 +21,6 @@ export function createBearerClient(baseURL: string, refreshFn?: () => Promise<st
   const client = axios.create({
     baseURL,
     timeout: 15_000,
-    headers: { 'Content-Type': 'application/json' },
   });
 
   // Request interceptor — attach Bearer token

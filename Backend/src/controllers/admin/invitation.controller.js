@@ -54,8 +54,7 @@ class InvitationController {
       const result = await invitationService.listInvitations(
         { status, search, page: parseInt(page), limit: parseInt(limit) },
         requesterId,
-        isStoreOwner,
-        req.admin.store_id
+        isStoreOwner
       );
 
       return res.json({ success: true, data: result });
@@ -74,7 +73,7 @@ class InvitationController {
       const requesterId  = req.admin.id;
       const isStoreOwner = req.admin.hasRole('STORE_OWNER');
 
-      const invitation = await invitationService.getInvitation(id, requesterId, isStoreOwner, req.admin.store_id);
+      const invitation = await invitationService.getInvitation(id, requesterId, isStoreOwner);
       return res.json({ success: true, data: invitation });
     } catch (err) {
       next(err);
@@ -91,7 +90,7 @@ class InvitationController {
       const requesterId  = req.admin.id;
       const isStoreOwner = req.admin.hasRole('STORE_OWNER');
 
-      await invitationService.revokeInvitation(id, requesterId, isStoreOwner, req.admin.store_id, req);
+      await invitationService.revokeInvitation(id, requesterId, isStoreOwner, req);
       return res.json({ success: true, message: 'Invitation revoked.' });
     } catch (err) {
       next(err);
@@ -108,7 +107,7 @@ class InvitationController {
       const requesterId  = req.admin.id;
       const isStoreOwner = req.admin.hasRole('STORE_OWNER');
 
-      await invitationService.resendInvitation(id, requesterId, isStoreOwner, req.admin.store_id, req);
+      await invitationService.resendInvitation(id, requesterId, isStoreOwner, req);
       return res.json({ success: true, message: 'Invitation resent.' });
     } catch (err) {
       next(err);

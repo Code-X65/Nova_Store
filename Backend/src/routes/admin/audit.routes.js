@@ -99,6 +99,8 @@ router.get('/admin-auth', adminAuditController.getAdminAuthAuditLogs);
  */
 router.get('/stats', adminAuditController.getAuditStats);
 
+router.get('/export', adminAuditController.exportLogs);
+
 router.get('/', adminAuditController.getActivityLogs);
 
 module.exports = router;

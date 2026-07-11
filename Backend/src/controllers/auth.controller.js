@@ -33,6 +33,7 @@ class AuthController {
 
         req.session.save((saveErr) => {
           if (saveErr) return next(saveErr);
+          if (res.headersSent) return;
 
           // Set refresh token in HttpOnly cookie
           res.cookie('refreshToken', tokens.refreshToken, {
@@ -233,6 +234,7 @@ class AuthController {
 
         req.session.save((saveErr) => {
           if (saveErr) return next(saveErr);
+          if (res.headersSent) return;
 
           // Set refresh token in HttpOnly cookie
           res.cookie('refreshToken', tokens.refreshToken, {
@@ -291,6 +293,7 @@ class AuthController {
 
         req.session.save((saveErr) => {
           if (saveErr) return next(saveErr);
+          if (res.headersSent) return;
 
           res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
@@ -348,6 +351,7 @@ class AuthController {
 
         req.session.save((saveErr) => {
           if (saveErr) return next(saveErr);
+          if (res.headersSent) return;
 
           res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,

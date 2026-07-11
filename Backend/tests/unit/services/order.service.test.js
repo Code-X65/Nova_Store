@@ -61,7 +61,7 @@ describe('OrderService', () => {
 
       const result = await orderService.getUserOrders(mockUserId, { status: 'pending' }, { page: 1, limit: 10 });
       expect(result).toEqual(mockResult);
-      expect(OrderModel.findByUserId).toHaveBeenCalledWith(mockUserId, { status: 'pending' }, { page: 1, limit: 10 }, null);
+      expect(OrderModel.findByUserId).toHaveBeenCalledWith(mockUserId, { status: 'pending' }, { page: 1, limit: 10 }, '11111111-1111-1111-1111-111111111111');
     });
   });
 
@@ -75,7 +75,7 @@ describe('OrderService', () => {
 
       const result = await orderService.getOrderDetails(mockOrder.id, mockUserId, false);
       expect(result).toEqual({ ...mockOrder, history: mockHistory, dispatches: mockDispatches });
-      expect(OrderModel.findById).toHaveBeenCalledWith(mockOrder.id, null);
+      expect(OrderModel.findById).toHaveBeenCalledWith(mockOrder.id, '11111111-1111-1111-1111-111111111111');
       expect(OrderStatusHistoryModel.findByOrderId).toHaveBeenCalledWith(mockOrder.id);
     });
 
@@ -156,8 +156,8 @@ describe('OrderService', () => {
       const result = await orderService.reorder(mockOrder.id, mockUserId);
       expect(result).toEqual(mockCart);
       expect(CartService.addItem).toHaveBeenCalledTimes(2);
-      expect(CartService.addItem).toHaveBeenNthCalledWith(1, mockUserId, null, 'prod-1', undefined, 2, null);
-      expect(CartService.addItem).toHaveBeenNthCalledWith(2, mockUserId, null, 'prod-2', undefined, 1, null);
+      expect(CartService.addItem).toHaveBeenNthCalledWith(1, mockUserId, null, 'prod-1', undefined, 2, '11111111-1111-1111-1111-111111111111');
+      expect(CartService.addItem).toHaveBeenNthCalledWith(2, mockUserId, null, 'prod-2', undefined, 1, '11111111-1111-1111-1111-111111111111');
     });
   });
 
@@ -747,7 +747,7 @@ describe('OrderService', () => {
 
       const result = await orderService.claimGuestOrders(mockUserId, mockEmail, {});
       expect(result).toEqual(mockClaimedOrders);
-      expect(OrderModel.claimGuestOrders).toHaveBeenCalledWith(mockUserId, mockEmail, null);
+      expect(OrderModel.claimGuestOrders).toHaveBeenCalledWith(mockUserId, mockEmail, '11111111-1111-1111-1111-111111111111');
       expect(AuditService.log).toHaveBeenCalledWith({}, 'orders.guest_claimed', 'user', mockUserId, null, {
         email: mockEmail,
         claimedCount: 1,

@@ -3,13 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --neu-bg: #1E1F26;
+  --neu-bg: #000000;
   --neu-text: #A1A5B7;
-  --neu-accent: #6366f1;
-  --neu-outer: 8px 8px 16px #14151a, -8px -8px 16px #282932;
-  --neu-outer-sm: 4px 4px 8px #14151a, -4px -4px 8px #282932;
-  --neu-inner: inset 6px 6px 12px #14151a, inset -6px -6px 12px #282932;
-  --neu-inner-sm: inset 3px 3px 6px #14151a, inset -3px -3px 6px #282932;
+  --neu-accent: #FF6A1C;
+  --panel-bg: #000000;
+  --panel-border: #1a1a1a;
+  --neu-outer: none;
+  --neu-outer-sm: none;
+  --neu-inner: none;
+  --neu-inner-sm: none;
 }
 
 /* Custom scrollbar */
@@ -21,203 +23,138 @@
   background: var(--neu-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: #14151a;
+  background: var(--panel-border);
   border-radius: 4px;
 }
 
 :focus-visible {
   outline: none;
-  box-shadow: var(--neu-inner-sm), 0 0 0 2px rgba(99,102,241,0.5);
+  box-shadow: 0 0 0 2px var(--neu-accent);
 }
 
 body {
   background-color: var(--neu-bg);
-  background-image: radial-gradient(circle at 0% 0%, #2A2B36 0%, transparent 50%), 
-                    radial-gradient(circle at 100% 100%, #1A1A24 0%, transparent 50%);
   color: white;
-  min-height: 100vh;
 }
 
 @layer components {
-  .glass-card {
+  .canvas-recessed {
     background-color: var(--neu-bg);
+    border-top-left-radius: 1.5rem;
+    width: 100%;
+    max-width: none;
+  }
+
+  .glass-card {
+    background-color: var(--panel-bg);
     border-radius: 1rem;
-    box-shadow: var(--neu-outer);
-    border: 1px solid rgba(255,255,255,0.02);
+    border: none;
   }
 
   .glass-card-hover {
     @apply transition-all duration-300;
-    background-color: var(--neu-bg);
+    background-color: var(--panel-bg);
     border-radius: 1rem;
-    border: 1px solid rgba(255,255,255,0.02);
+    border: none;
   }
   .glass-card-hover:hover {
-    box-shadow: var(--neu-outer-sm), 0 10px 30px -10px rgba(99,102,241,0.15);
-    transform: translateY(-4px) scale(1.01);
-  }
-  .glass-card-hover:active {
-    transform: translateY(0) scale(0.99);
+    transform: translateY(2px);
   }
 
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer select-none relative overflow-hidden;
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer select-none;
     color: var(--neu-text);
   }
   .sidebar-item:hover {
-    box-shadow: var(--neu-outer-sm);
+    background-color: var(--panel-bg);
     color: white;
-    transform: translateX(6px);
-  }
-  .sidebar-item:active {
-    transform: translateX(2px) scale(0.98);
   }
 
   .sidebar-item-active {
-    box-shadow: var(--neu-inner);
-    color: white;
-    background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.05) 100%);
-  }
-  .sidebar-item-active::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 20%;
-    bottom: 20%;
-    width: 3px;
-    background: linear-gradient(to bottom, #6366f1, #a855f7);
-    border-radius: 0 4px 4px 0;
-    box-shadow: 2px 0 8px rgba(168,85,247,0.5);
+    background-color: rgba(255, 106, 28, 0.05); /* very faint orange */
+    color: var(--neu-accent);
+    border-left: 3px solid var(--neu-accent);
   }
 
   .btn {
-    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden;
-    box-shadow: var(--neu-outer);
+    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: #111111;
+    border: none;
+    color: var(--neu-text);
   }
   .btn:hover {
-    box-shadow: var(--neu-outer-sm);
-    transform: translateY(-2px) scale(1.02);
+    background-color: #1a1a1a;
   }
   .btn:active {
-    box-shadow: var(--neu-inner);
-    transform: translateY(2px) scale(0.96);
+    transform: translateY(1px);
   }
 
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300;
-    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(99,102,241,0.3), var(--neu-outer-sm);
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-  .btn-primary:hover {
-    box-shadow: 0 6px 20px rgba(168,85,247,0.4), var(--neu-outer);
-    transform: translateY(-3px) scale(1.03);
-  }
-  .btn-primary:active {
-    box-shadow: inset 0 4px 10px rgba(0,0,0,0.3);
-    transform: translateY(2px) scale(0.95);
+    @apply btn;
+    background-color: rgba(255, 106, 28, 0.1);
+    color: var(--neu-accent);
+    border-color: var(--neu-accent);
   }
 
   .btn-secondary {
     @apply btn;
-    color: var(--neu-text);
+    color: white;
   }
 
   .btn-danger {
-    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300;
-    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(239,68,68,0.3), var(--neu-outer-sm);
+    @apply btn text-danger;
+    background-color: rgba(239, 68, 68, 0.1);
   }
   .btn-danger:hover {
-    box-shadow: 0 6px 20px rgba(239,68,68,0.4), var(--neu-outer);
-    transform: translateY(-3px) scale(1.03);
-  }
-  .btn-danger:active {
-    box-shadow: inset 0 4px 10px rgba(0,0,0,0.3);
-    transform: translateY(2px) scale(0.95);
+    background-color: rgba(239, 68, 68, 0.2);
   }
 
   .btn-ghost {
     @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed;
     color: var(--neu-text);
+    background-color: transparent;
+    border: none;
   }
   .btn-ghost:hover {
-    box-shadow: var(--neu-outer-sm);
-    color: #a855f7;
-    transform: translateY(-1px) scale(1.02);
-  }
-  .btn-ghost:active {
-    box-shadow: var(--neu-inner);
-    transform: translateY(1px) scale(0.97);
+    background-color: #111111;
+    color: white;
   }
 
   .input {
     @apply w-full px-4 py-3 rounded-xl text-sm text-white transition-all duration-300 border-none outline-none;
-    background-color: var(--neu-bg);
-    box-shadow: var(--neu-inner);
+    background-color: #111111;
   }
   .input::placeholder {
     color: var(--neu-text);
     opacity: 0.5;
-    transition: opacity 0.3s ease;
   }
   .input:focus {
-    box-shadow: inset 4px 4px 8px #14151a, inset -4px -4px 8px #282932, 0 0 0 2px #8b5cf6, 0 0 15px rgba(139,92,246,0.3);
-    transform: scale(1.01);
-  }
-  .input:focus::placeholder {
-    opacity: 0.8;
+    box-shadow: 0 0 0 1px var(--neu-accent);
   }
 
   .label {
     @apply block text-xs font-bold mb-2 uppercase tracking-wider;
-    background: linear-gradient(90deg, #A1A5B7, #6b6b8a);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--neu-text);
   }
 
   .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold transition-transform duration-300 cursor-default;
-    box-shadow: var(--neu-outer-sm);
-  }
-  .badge:hover {
-    transform: scale(1.05) translateY(-1px);
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--panel-border);
   }
 
-  .badge-success { @apply badge; color: #4ade80; text-shadow: 0 0 10px rgba(74,222,128,0.3); }
-  .badge-warning { @apply badge; color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,0.3); }
-  .badge-danger  { @apply badge; color: #f87171; text-shadow: 0 0 10px rgba(248,113,113,0.3); }
-  .badge-info    { @apply badge; color: #60a5fa; text-shadow: 0 0 10px rgba(96,165,250,0.3); }
+  .badge-success { @apply badge text-success; border-color: rgba(34, 197, 94, 0.3); }
+  .badge-warning { @apply badge text-warning; border-color: rgba(245, 158, 11, 0.3); }
+  .badge-danger  { @apply badge text-danger; border-color: rgba(239, 68, 68, 0.3); }
+  .badge-info    { @apply badge text-info; border-color: rgba(59, 130, 246, 0.3); }
   .badge-muted   { @apply badge; color: var(--neu-text); }
-  .badge-nova    { @apply badge; color: #a855f7; text-shadow: 0 0 10px rgba(168,85,247,0.3); }
+  .badge-nova    { @apply badge; color: var(--neu-accent); border-color: var(--neu-accent); }
 
   .stat-card {
-    @apply p-6 flex flex-col gap-2 relative overflow-hidden transition-all duration-500;
-    background-color: var(--neu-bg);
+    @apply p-6 flex flex-col gap-2;
+    background-color: var(--panel-bg);
     border-radius: 1rem;
-    box-shadow: var(--neu-outer);
-    border: 1px solid rgba(255,255,255,0.02);
-  }
-  .stat-card:hover {
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: var(--neu-outer), 0 15px 35px -10px rgba(0,0,0,0.5);
-  }
-  .stat-card::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
-    opacity: 0;
-    transition: opacity 0.5s;
-    pointer-events: none;
-  }
-  .stat-card:hover::after {
-    opacity: 1;
+    border: none;
   }
 
   .page-header {
@@ -225,10 +162,7 @@ body {
   }
 
   .page-title {
-    @apply text-3xl font-black tracking-tight;
-    background: linear-gradient(135deg, #ffffff 0%, #a0a0c0 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    @apply text-2xl font-bold text-white tracking-tight;
   }
 
   .section-title {
@@ -237,9 +171,10 @@ body {
   }
 
   .table-wrapper {
-    @apply rounded-2xl overflow-hidden p-4;
-    background-color: var(--neu-bg);
-    box-shadow: var(--neu-outer);
+    @apply rounded-2xl overflow-hidden overflow-x-auto p-4;
+    background-color: var(--panel-bg);
+    border: none;
+    width: 100%;
   }
 
   .table {
@@ -249,26 +184,18 @@ body {
   .table thead th {
     @apply px-4 py-3 text-left text-xs font-bold uppercase tracking-wider rounded-xl;
     color: var(--neu-text);
-    box-shadow: var(--neu-inner-sm);
   }
 
   .table tbody tr {
-    @apply transition-all duration-300 rounded-xl cursor-pointer;
+    @apply transition-all rounded-xl;
     background-color: var(--neu-bg);
-    box-shadow: var(--neu-outer);
   }
   .table tbody tr:hover {
-    box-shadow: var(--neu-outer-sm);
-    transform: scale(1.01) translateY(-2px);
-    background-color: #21222b;
-  }
-  .table tbody tr:active {
-    transform: scale(0.99) translateY(0);
-    box-shadow: var(--neu-inner-sm);
+    background-color: #111111;
   }
 
   .table tbody td {
-    @apply px-4 py-4 text-white/90 first:rounded-l-xl last:rounded-r-xl transition-colors duration-300;
+    @apply px-4 py-4 text-white/90 first:rounded-l-xl last:rounded-r-xl;
   }
 }
 

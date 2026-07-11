@@ -157,7 +157,8 @@ router.get('/health', adminNotificationController.getQueueHealth);
  *       201:
  *         description: Template created
  */
-router.get('/templates', adminNotificationController.getTemplates);
+router.get('/routing-rules', adminNotificationController.getRoutingRules);
+router.patch('/routing-rules/:id', adminNotificationController.updateRoutingRule);
 router.post('/templates', validateRequest(templateSchema), adminNotificationController.createTemplate);
 
 /**

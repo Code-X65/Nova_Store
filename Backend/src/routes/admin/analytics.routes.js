@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const analyticsController = require('../../controllers/admin/analytics.admin.controller');
 const requireAdmin = require('../../middlewares/require-admin.middleware');
-const { hasPermission } = require('../../middlewares/permission.middleware');
+const { hasPermission, hasAnyPermission } = require('../../middlewares/permission.middleware');
 
 router.use(requireAdmin);
-router.use(hasPermission('analytics:read'));
+router.use(hasAnyPermission('analytics:read', 'sales:read'));
 
 /**
  * @swagger

@@ -278,12 +278,16 @@ export interface Invitation {
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
+export type NotificationSeverity = 'info' | 'warning' | 'critical';
+
 export interface Notification {
   id: string;
   type: string;
   title: string;
   message: string;
   read: boolean;
+  severity?: NotificationSeverity;
+  recipientRole?: string | null;
   data?: Record<string, unknown>;
   createdAt: string;
 }
@@ -336,14 +340,34 @@ export interface StoreSetting {
 }
 
 // ── Audit ─────────────────────────────────────────────────────────────────────
+export type AuditSeverity = 'info' | 'warning' | 'critical';
+export type AuditActionType = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'STATUS_CHANGE' | 'OTHER';
+
+export interface AuditDeltaEntry {
+  field: string;
+  label: string;
+  before: unknown;
+  after: unknown;
+}
+
 export interface AuditLog {
   id: string;
+  eventId?: string | null;
+  severity?: AuditSeverity;
+  actionType?: AuditActionType | null;
   action: string;
-  entityType?: string;
-  entityId?: string;
-  performedBy: string;
-  performedByEmail: string;
-  ipAddress: string;
+  entityType?: string | null;
+  entityId?: string | null;
+  resourceType?: string | null;
+  resourceId?: string | null;
+  actorUserId?: string | null;
+  actorFullName?: string | null;
+  actorRole?: string | null;
+  performedBy?: string;
+  performedByEmail?: string;
+  ipAddress?: string;
+  summary?: string | null;
+  delta?: AuditDeltaEntry[] | null;
   details?: Record<string, unknown>;
   createdAt: string;
 }

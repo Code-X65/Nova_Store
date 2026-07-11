@@ -1,0 +1,1 @@
+require('dotenv').config(); const {Client} = require('pg'); const client = new Client({connectionString: process.env.DATABASE_URL, ssl: {rejectUnauthorized: false}}); client.connect().then(() => client.query('SELECT key FROM permissions')).then(res => {console.log(res.rows.map(r => r.key)); client.end()}).catch(console.error);

@@ -30,6 +30,16 @@ const reduceStockSchema = {
   })
 };
 
+const adjustStockSchema = {
+  body: Joi.object({
+    productId: Joi.string().uuid().required(),
+    variantId: Joi.string().uuid().optional().allow(null),
+    quantityChange: Joi.number().integer().required(),
+    reasonCode: Joi.string().valid('damaged', 'restock', 'correction', 'return', 'loss', 'other').required(),
+    notes: Joi.string().max(500).optional().allow('', null)
+  })
+};
+
 // --- Routes ---
 
 // All inventory routes are protected and require inventory permissions
@@ -97,6 +107,33 @@ router.post('/stock', requireInventoryStaff, validate(stockUpdateSchema), invent
  *         description: Stock reduced successfully
  */
 router.post('/reduce', requireInventoryStaff, validate(reduceStockSchema), inventoryController.reduceStock);
+
+/**
+ * @swagger
+ * /inventory/adjust:
+ *   post:
+ *     summary: Adjust stock manually (positive or negative) with reason (Admin only)
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [productId, quantityChange, reasonCode]
+ *             properties:
+ *               productId: { type: string, format: uuid }
+ *               variantId: { type: string, format: uuid }
+ *               quantityChange: { type: integer, example: -2 }
+ *               reasonCode: { type: string, enum: [damaged, restock, correction, return, loss, other] }
+ *               notes: { type: string, example: "Found damaged items" }
+ *     responses:
+ *       200:
+ *         description: Stock adjusted successfully
+ */
+router.post('/adjust', requireInventoryStaff, validate(adjustStockSchema), inventoryController.adjustStock);
 
 /**
  * @swagger

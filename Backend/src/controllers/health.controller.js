@@ -150,7 +150,7 @@ class HealthController {
       try {
         const EmailService = require('../services/email.service');
         const start = Date.now();
-        await EmailService.transporter.verify();
+        await EmailService.verifyConnection();
         const latency = Date.now() - start;
         detailedStatus.checks.email = {
           status: 'UP',

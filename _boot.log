@@ -1,0 +1,2133 @@
+◇ injected env (40) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+[32minfo[39m: Sentry error tracking initialized successfully. {"service":"nova-store-backend"}
+[32minfo[39m: [NotifyQueue] Worker started — polling every 5 s {"service":"nova-store-backend"}
+Redis Connected
+✓ PostgreSQL Database connection verified successfully.
+Server is running on port 5000
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[31merror[39m: [Reservation Cleanup] Failed to release expired reservations: {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: read ECONNRESET {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (40) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (40) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (40) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: read ECONNRESET {"service":"nova-store-backend"}
+[31merror[39m: [Reservation Cleanup] Failed to release expired reservations: {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[31merror[39m: [Reservation Cleanup] Failed to release expired reservations: {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Reconnection attempt failed: Redis connection lost permanently {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Reconnection failed, skipping this tick. {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Reconnection attempt failed: Redis connection lost permanently {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Reconnection failed, skipping this tick. {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Reconnection attempt failed: Redis connection lost permanently {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Reconnection failed, skipping this tick. {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Connected
+[32minfo[39m: [NotifyQueue] Reconnected to Redis successfully. {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (40) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[31merror[39m: [Reservation Cleanup] Failed to release expired reservations: {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (40) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: read ECONNRESET {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: read ECONNRESET {"service":"nova-store-backend"}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: read ECONNRESET {"service":"nova-store-backend"}
+Redis Connected
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Cleanup] Starting daily maintenance job… {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[31merror[39m: [Reservation Cleanup] Failed to release expired reservations: {"service":"nova-store-backend"}
+[31merror[39m: [Cleanup] Failed to delete expired sessions: {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io {"service":"nova-store-backend"}
+[31merror[39m: [Cleanup] Failed to delete expired verification tokens: {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [Cleanup] Failed to delete expired password-reset tokens: {"service":"nova-store-backend"}
+[31merror[39m: [Cleanup] Failed to delete expired inventory reservations: {"service":"nova-store-backend"}
+[31merror[39m: [Cleanup] Failed to expire stale invitations: {"service":"nova-store-backend"}
+[32minfo[39m: [Cleanup] Daily maintenance done — 0 rows removed in total. {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Reconnection attempt failed: Redis connection lost permanently {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Reconnection failed, skipping this tick. {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Reconnection attempt failed: Redis connection lost permanently {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Reconnection failed, skipping this tick. {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+[32minfo[39m: [NotifyQueue] Reconnected to Redis successfully. {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (40) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (40) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (40) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (41) from .env // tip: ⌘ enable debugging { debug: true }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (41) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (41) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (41) from .env // tip: ⌘ suppress logs { quiet: true }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (41) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (41) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+✅ Configuration hot-reloaded and Joi validated successfully.
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (41) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (41) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (42) from .env // tip: ⌘ override existing { override: true }
+✅ Configuration hot-reloaded and Joi validated successfully.
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (42) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[31merror[39m: [Reservation Cleanup] Failed to release expired reservations: {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: read ECONNRESET {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+[32minfo[39m: [NotifyQueue] Reconnected to Redis successfully. {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (42) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[31merror[39m: [Reservation Cleanup] Failed to release expired reservations: {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Reconnection attempt failed: Redis connection lost permanently {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Reconnection failed, skipping this tick. {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Reconnection attempt failed: Redis connection lost permanently {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Reconnection failed, skipping this tick. {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io {"service":"nova-store-backend"}
+[31merror[39m: [NotifyQueue] Reconnection attempt failed: Redis connection lost permanently {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Reconnection failed, skipping this tick. {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+[31merror[39m: [NotifyQueue] Reconnection attempt failed: Redis connection lost permanently {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Reconnection failed, skipping this tick. {"service":"nova-store-backend"}
+[33mwarn[39m: [NotifyQueue] Redis client is closed. Attempting to reconnect... {"service":"nova-store-backend"}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+[32minfo[39m: [NotifyQueue] Reconnected to Redis successfully. {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (42) from .env // tip: ⌘ suppress logs { quiet: true }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (42) from .env // tip: ⌘ suppress logs { quiet: true }
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error ConnectionTimeoutError: Connection timeout
+    at TLSSocket.onTimeout (C:\Users\amoss\OneDrive\Desktop\Nova_Store\Backend\node_modules\@redis\client\dist\lib\client\socket.js:225:46)
+    at Object.onceWrapper (node:events:630:28)
+    at TLSSocket.emit (node:events:509:28)
+    at Socket._onTimeout (node:net:610:8)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+Redis Connected
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Client Error Error: getaddrinfo ENOTFOUND smashing-silkworm-102533.upstash.io
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'smashing-silkworm-102533.upstash.io'
+}
+Redis Connected
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (42) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+Redis Client Error Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -4077,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+[31merror[39m: [NotifyQueue] Stuck-job recovery error: read ECONNRESET {"service":"nova-store-backend"}
+Redis Connected
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+🔄 .env file change detected. Triggering hot reload...
+◇ injected env (42) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+✅ Configuration hot-reloaded and Joi validated successfully.
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}
+[32minfo[39m: [Reservation Cleanup] Checking for expired stock reservations... {"service":"nova-store-backend"}

@@ -1,6 +1,6 @@
 const express = require('express');
 const productController = require('../controllers/product.controller');
-const { protect } = require('../middlewares/auth.middleware');
+const { protect, optionalAuth } = require('../middlewares/auth.middleware');
 const { hasPermission } = require('../middlewares/permission.middleware');
 const validate = require('../middlewares/validate.middleware');
 const Joi = require('joi');
@@ -242,26 +242,26 @@ const router = express.Router();
 
 const productSchema = {
   body: Joi.object({
-    sku:               Joi.string().required().example('ELEC-001'),
+    sku:               Joi.string().optional().allow(null, ''),
     name:              Joi.string().min(2).max(200).required().example('Wireless Earbuds Pro'),
-    description:       Joi.string().optional().allow('', null).example('Premium noise-cancelling earbuds with long battery life.'),
-    short_description: Joi.string().optional().allow('', null).example('High-quality earbuds.'),
+    description:       Joi.string().min(50).max(2000).optional().allow('', null).example('Premium noise-cancelling earbuds with long battery life.'),
+    short_description: Joi.string().min(10).max(200).optional().allow('', null).example('High-quality earbuds.'),
     category:          Joi.string().optional().example('electronics'),
     category_id:       Joi.string().uuid().required().example('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'),
     subcategory_id:    Joi.string().uuid().optional().allow(null),
     brand:             Joi.string().optional().allow('', null).example('SoundMax'),
     brand_id:          Joi.string().uuid().optional().allow(null),
     price:             Joi.number().positive().required().example(199.99),
-    sale_price:        Joi.number().positive().optional().allow(null).example(149.99),
     cost_price:        Joi.number().positive().optional().allow(null).example(89.99),
-    stock_quantity:    Joi.number().integer().min(0).default(0),
     status:            Joi.string().valid('draft', 'published', 'archived').default('draft'),
     is_featured:       Joi.boolean().default(false),
-    allow_backorder:   Joi.boolean().optional().default(false),
-    track_inventory:   Joi.boolean().optional().default(true),
     primary_image_url: Joi.string().uri().optional().allow(null, ''),
     thumbnail_url:     Joi.string().uri().optional().allow(null, ''),
-    image_gallery:     Joi.array().items(Joi.string().uri()).optional(),
+    image_gallery:     Joi.array().items(Joi.string().uri()).max(5).when('status', {
+      is: 'published',
+      then: Joi.array().min(2).required(),
+      otherwise: Joi.array().optional()
+    }),
     currency:          Joi.string().length(3).uppercase().default('USD'),
     // Physical attributes (for shipping)
     color:             Joi.string().max(50).optional().allow(null, '').example('#1A73E8'),
@@ -276,7 +276,7 @@ const productSchema = {
     meta_description:  Joi.string().max(160).optional().allow(null, ''),
     meta_keywords:     Joi.array().items(Joi.string()).optional(),
     variants: Joi.array().items(Joi.object({
-      sku:           Joi.string().required(),
+      sku:           Joi.string().optional().allow(null, ''),
       name:          Joi.string().required(),
       option_values: Joi.object().required(),
       stock_quantity:Joi.number().integer().min(0)
@@ -284,32 +284,75 @@ const productSchema = {
     // Dynamic category-specific attributes: { "RAM": "8GB", "Storage": "256GB" }
     attributes: Joi.object().pattern(Joi.string(), Joi.alternatives().try(
       Joi.string(), Joi.number(), Joi.boolean()
-    )).optional()
+    )).optional(),
+    related_product_ids: Joi.array().items(Joi.string().uuid()).optional()
+  })
+};
+
+const bulkProductSchema = {
+  body: Joi.object({
+    products: Joi.array().items(
+      Joi.object({
+        sku:               Joi.string().optional().allow(null, ''),
+        name:              Joi.string().min(2).max(200).required(),
+        description:       Joi.string().min(50).max(2000).optional().allow('', null),
+        short_description: Joi.string().min(10).max(200).optional().allow('', null),
+        category_id:       Joi.string().uuid().required(),
+        subcategory_id:    Joi.string().uuid().optional().allow(null),
+        brand_id:          Joi.string().uuid().optional().allow(null),
+        price:             Joi.number().positive().required(),
+        cost_price:        Joi.number().positive().optional().allow(null),
+        status:            Joi.string().valid('draft', 'published', 'archived').default('draft'),
+        is_featured:       Joi.boolean().default(false),
+        primary_image_url: Joi.string().uri().optional().allow(null, ''),
+        thumbnail_url:     Joi.string().uri().optional().allow(null, ''),
+        image_gallery:     Joi.array().items(Joi.string().uri()).max(5).when('status', {
+          is: 'published',
+          then: Joi.array().min(2).required(),
+          otherwise: Joi.array().optional()
+        }),
+        currency:          Joi.string().length(3).uppercase().default('USD'),
+        color:             Joi.string().max(50).optional().allow(null, ''),
+        weight:            Joi.number().positive().optional().allow(null),
+        dimensions_length: Joi.number().positive().optional().allow(null),
+        dimensions_width:  Joi.number().positive().optional().allow(null),
+        dimensions_height: Joi.number().positive().optional().allow(null),
+        tags:              Joi.array().items(Joi.string()).max(20).optional(),
+        meta_title:        Joi.string().max(60).optional().allow(null, ''),
+        meta_description:  Joi.string().max(160).optional().allow(null, ''),
+        meta_keywords:     Joi.array().items(Joi.string()).optional(),
+        variants: Joi.array().items(Joi.object({
+          sku:           Joi.string().optional().allow(null, ''),
+          name:          Joi.string().required(),
+          option_values: Joi.object().required(),
+          stock_quantity:Joi.number().integer().min(0)
+        })),
+        attributes: Joi.object().pattern(Joi.string(), Joi.alternatives().try(
+          Joi.string(), Joi.number(), Joi.boolean()
+        )).optional()
+      })
+    ).min(1).max(500).required()
   })
 };
 
 const productUpdateSchema = {
   body: Joi.object({
-    sku:               Joi.string().optional(),
+    sku:               Joi.string().optional().allow(null, ''),
     name:              Joi.string().min(2).max(200).optional(),
-    description:       Joi.string().optional().allow('', null),
-    short_description: Joi.string().optional().allow('', null),
+    description:       Joi.string().min(50).max(2000).optional().allow('', null),
+    short_description: Joi.string().min(10).max(200).optional().allow('', null),
     category:          Joi.string().optional(),
     category_id:       Joi.string().uuid().optional(),
     subcategory_id:    Joi.string().uuid().optional().allow(null),
     brand:             Joi.string().optional().allow('', null),
     brand_id:          Joi.string().uuid().optional().allow(null),
     price:             Joi.number().positive().optional(),
-    sale_price:        Joi.number().positive().optional().allow(null),
     cost_price:        Joi.number().positive().optional().allow(null),
-    stock_quantity:    Joi.number().integer().min(0).optional(),
     status:            Joi.string().valid('draft', 'published', 'archived', 'out_of_stock').optional(),
     is_featured:       Joi.boolean().optional(),
-    allow_backorder:   Joi.boolean().optional(),
-    track_inventory:   Joi.boolean().optional(),
     primary_image_url: Joi.string().uri().optional().allow(null, ''),
     thumbnail_url:     Joi.string().uri().optional().allow(null, ''),
-    image_gallery:     Joi.array().items(Joi.string().uri()).optional(),
+    image_gallery:     Joi.array().items(Joi.string().uri()).max(5).optional(), // validation for min(2) when published happens in service for partial updates
     currency:          Joi.string().length(3).uppercase().optional(),
     // Physical attributes (for shipping)
     color:             Joi.string().max(50).optional().allow(null, ''),
@@ -389,8 +432,34 @@ const productUpdateSchema = {
  *       201:
  *         description: Product created successfully
  */
-router.get('/', productController.getAllProducts);
+router.get('/', optionalAuth, productController.getAllProducts);
 router.post('/', protect, hasPermission('product:create'), scopeToStore, validate(productSchema), productController.createProduct);
+
+/**
+ * @swagger
+ * /products/bulk:
+ *   post:
+ *     summary: Create multiple products at once (Admin only)
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [products]
+ *             properties:
+ *               products:
+ *                 type: array
+ *                 items:
+ *                   $ref: '#/components/schemas/Product'
+ *     responses:
+ *       201:
+ *         description: Products created successfully
+ */
+router.post('/bulk', protect, hasPermission('product:create'), scopeToStore, validate(bulkProductSchema), productController.createBulkProducts);
 
 /**
  * @swagger
@@ -646,9 +715,104 @@ router.delete('/:id/images/:index', protect, hasPermission('product:write'), sco
  *         description: Unauthorized
  *       404:
  *         description: Variant not found
+ *   post:
+ *     summary: Add a new variant to an existing product (Admin only)
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sku: { type: string }
+ *               name: { type: string }
+ *               option_values: { type: object }
+ *               stock_quantity: { type: integer, minimum: 0 }
+ *     responses:
+ *       201:
+ *         description: Variant added successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Product not found
  */
+router.post('/:id/variants', protect, hasPermission('product:write'), scopeToStore, productController.addProductVariant);
 router.put('/:id/variants/:variantId', protect, hasPermission('product:write'), scopeToStore, productController.updateProductVariant);
 router.delete('/:id/variants/:variantId', protect, hasPermission('product:delete'), scopeToStore, productController.deleteProductVariant);
+
+// Related Products Routes
+
+/**
+ * @swagger
+ * /products/{id}/related:
+ *   get:
+ *     summary: Get related products for a specific product
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: List of related products
+ *   post:
+ *     summary: Add a manually related product (Admin only)
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [relatedProductId]
+ *             properties:
+ *               relatedProductId: { type: string, format: uuid }
+ *     responses:
+ *       201:
+ *         description: Related product linked
+ */
+router.get('/:id/related', productController.getRelatedProducts);
+router.post('/:id/related', protect, hasPermission('product:write'), scopeToStore, productController.addRelatedProduct);
+
+/**
+ * @swagger
+ * /products/{id}/related/{relatedId}:
+ *   delete:
+ *     summary: Remove a manually related product link (Admin only)
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *       - in: path
+ *         name: relatedId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Related product unlinked
+ */
+router.delete('/:id/related/:relatedId', protect, hasPermission('product:write'), scopeToStore, productController.removeRelatedProduct);
+
 
 /**
  * @swagger

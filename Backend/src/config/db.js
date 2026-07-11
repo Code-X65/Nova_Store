@@ -7,7 +7,7 @@ const pgPool = new Pool({
   connectionString,
   max: 20, // Max connection pool size
   idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
-  connectionTimeoutMillis: 10000, // Fail fast if database is unreachable (10 seconds)
+  connectionTimeoutMillis: 30000, // Fail fast if database is unreachable (30 seconds)
   ssl: {
     rejectUnauthorized: false
   }

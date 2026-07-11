@@ -5,6 +5,7 @@ const CartService = require('./cart.service');
 const CouponService = require('./coupon.service');
 const InventoryReservationService = require('./inventory-reservation.service');
 const AuditService = require('./audit.service');
+const eventBus = require('../realtime/event-bus');
 const SettingModel = require('../models/setting.model');
 const crypto = require('crypto');
 const CircuitBreaker = require('../utils/circuit-breaker');
@@ -26,8 +27,39 @@ class PaymentService {
     const data = await gateway.verify(reference);
     if (data.status === 'success') {
       await this.handleSuccessfulPayment(data.reference, provider, data);
+    } else {
+      await this.handleFailedPayment(reference, provider, data);
     }
     return data;
+  }
+
+  async handleFailedPayment(reference, provider, rawResponse) {
+    try {
+      const payment = await PaymentModel.findByReference(reference);
+      if (!payment || !payment.order_id) return;
+      const order = await OrderModel.findById(payment.order_id);
+      if (!order) return;
+
+      await PaymentModel.updateStatus(payment.id, 'failed', rawResponse);
+
+      AuditService.log(null, 'payment.failed', 'order', order.id, null, {
+        reference, provider, orderNumber: order.order_number
+      });
+
+      eventBus.emit('order.payment_failed', {
+        actor: { id: order.user_id, fullName: null, role: 'customer' },
+        resourceType: 'order',
+        resourceId: order.id,
+        actionType: 'STATUS_CHANGE',
+        severity: 'warning',
+        title: 'Payment failed',
+        message: `Payment for order #${order.order_number} failed (${provider}).`,
+        data: { orderId: order.id, orderNumber: order.order_number, reference },
+        deepLink: `/orders/${order.id}`,
+      });
+    } catch (err) {
+      console.error(`[Payment] handleFailedPayment error for ${reference}:`, err.message);
+    }
   }
 
   async verifyPaystack(reference) {

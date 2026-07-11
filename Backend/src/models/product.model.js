@@ -47,7 +47,7 @@ class ProductModel {
     // --- Standard path ---
     let query = supabase
       .from('products')
-      .select('*', { count: 'exact' })
+      .select('*, category:product_categories!category_id(id, name), brand:product_brands!brand_id(id, name)', { count: 'exact' })
       .is('deleted_at', null);
 
     // Apply Filters
@@ -79,7 +79,7 @@ class ProductModel {
       'rating':     { column: 'average_rating',ascending: false }
     };
 
-    const sortConfig = sortMapping[stdFilters.sortBy] || { column: stdFilters.sortBy || 'created_at', ascending: stdFilters.order !== 'asc' };
+    const sortConfig = sortMapping[stdFilters.sortBy] || { column: stdFilters.sortBy || 'created_at', ascending: stdFilters.order === 'asc' };
     query = query.order(sortConfig.column, { ascending: sortConfig.ascending });
 
     // Pagination
@@ -270,6 +270,9 @@ class ProductModel {
   }
 
   async create(productData) {
+    if (!productData.sku) {
+      productData.sku = 'SKU-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    }
     const { data, error } = await supabase
       .from('products')
       .insert([productData])
@@ -281,6 +284,9 @@ class ProductModel {
   }
 
   async update(id, updateData) {
+    if (updateData.sku === '') {
+      updateData.sku = 'SKU-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    }
     const { data, error } = await supabase
       .from('products')
       .update({ ...updateData, updated_at: new Date().toISOString() })
@@ -362,6 +368,53 @@ class ProductModel {
     const maxPrice = Math.max(...prices);
 
     return { minPrice, maxPrice };
+  }
+
+  async getRelatedProducts(productId) {
+    const { data, error } = await supabase
+      .from('product_related')
+      .select('products!related_product_id(*)')
+      .eq('product_id', productId);
+    
+    if (error) throw error;
+    
+    // Unpack the nested product object
+    return data.map(row => row.products).filter(Boolean);
+  }
+
+  async addRelatedProduct(productId, relatedProductId, storeId = null) {
+    const { data, error } = await supabase
+      .from('product_related')
+      .insert([{
+        product_id: productId,
+        related_product_id: relatedProductId,
+        store_id: storeId
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      if (error.code === '23505') {
+        const customError = new Error('This related product is already linked');
+        customError.statusCode = 409;
+        throw customError;
+      }
+      throw error;
+    }
+    return data;
+  }
+
+  async removeRelatedProduct(productId, relatedProductId) {
+    const { error } = await supabase
+      .from('product_related')
+      .delete()
+      .match({
+        product_id: productId,
+        related_product_id: relatedProductId
+      });
+      
+    if (error) throw error;
+    return true;
   }
 }
 

@@ -4,9 +4,10 @@ const productCategoryModel   = require('../models/product-category.model');
 const productBrandModel      = require('../models/product-brand.model');
 const slugify                = require('../utils/slug-generator');
 const attributeService       = require('./attribute.service');
+const { SINGLE_STORE_ID }    = require('../config/store');
 
 class ProductService {
-  async createProduct(adminId, productData, storeId = null) {
+  async createProduct(adminId, productData) {
     const { variants, attributes, ...baseData } = productData;
     
     // Validate category existence
@@ -59,6 +60,10 @@ class ProductService {
       }
     }
     
+    // Extract related product ids so they aren't passed to the main table insert
+    const relatedIds = baseData.related_product_ids || [];
+    delete baseData.related_product_ids;
+    
     // 1. Generate Slug
     let baseSlug = baseData.slug || slugify(baseData.name);
     let slug = baseSlug;
@@ -77,13 +82,7 @@ class ProductService {
     }
 
     // 3. Create Product row
-    if (storeId) {
-      baseData.store_id = storeId;
-    } else if (!baseData.store_id) {
-      const userModel = require('../models/user.model');
-      const adminUser = await userModel.findById(adminId);
-      baseData.store_id = adminUser?.store_id || null;
-    }
+    baseData.store_id = SINGLE_STORE_ID;
 
     const product = await productModel.create({
       ...baseData,
@@ -106,10 +105,47 @@ class ProductService {
       product.variants = await variantModel.createBulk(variantData);
     }
 
+    // 6. Add related products
+    if (relatedIds.length > 0) {
+      for (const rId of relatedIds) {
+        try {
+          await productModel.addRelatedProduct(product.id, rId, SINGLE_STORE_ID);
+        } catch (err) {
+          // ignore duplicate errors or invalid relations to allow product creation to succeed
+          console.warn(`Failed to link related product ${rId}:`, err.message);
+        }
+      }
+      product.related_product_ids = relatedIds;
+    }
+
     return product;
   }
 
-  async getProducts(query, user, storeId = null) {
+  async createBulkProducts(adminId, productsData) {
+    const created = [];
+    const errors = [];
+    
+    // We execute sequentially to ensure validation and slugs are handled properly without race conditions
+    for (let i = 0; i < productsData.length; i++) {
+      try {
+        const product = await this.createProduct(adminId, productsData[i]);
+        created.push(product);
+      } catch (err) {
+        errors.push({ index: i, sku: productsData[i].sku, error: err.message });
+      }
+    }
+
+    if (errors.length > 0 && created.length === 0) {
+      const error = new Error(`Bulk creation failed. First error: ${errors[0].error}`);
+      error.statusCode = 400;
+      error.details = errors;
+      throw error;
+    }
+
+    return created;
+  }
+
+  async getProducts(query, user) {
     const filters = {
       status:         query.status,
       category_id:    query.category_id,
@@ -123,7 +159,7 @@ class ProductService {
       maxPrice:    query.maxPrice  ? parseFloat(query.maxPrice)  : undefined,
       minRating:   query.minRating ? parseFloat(query.minRating) : undefined,
       attrFilters: query.attrFilters || {}, // passed from controller after parsing attr_* params
-      store_id:    storeId || undefined
+      store_id:    SINGLE_STORE_ID
     };
 
     // Resolve category slug to category_id
@@ -157,7 +193,12 @@ class ProductService {
     }
 
     // Non-admins only see published products
-    const isAdmin = user && (user.role === 'ADMIN' || (user.roles && user.roles.includes('admin')));
+    const adminRoles = ['ADMIN', 'admin', 'STORE_OWNER', 'MANAGER', 'STAFF'];
+    const isAdmin = user && (
+      adminRoles.includes(user.role) || 
+      (user.roles && user.roles.some(r => adminRoles.includes(r))) ||
+      (user.permissions && user.permissions.includes('admin:access'))
+    );
     if (!isAdmin) {
       filters.status = 'published';
     }
@@ -170,11 +211,11 @@ class ProductService {
     return await productModel.findAll(filters, pagination);
   }
 
-  async updateProduct(productId, updateData, storeId = null) {
+  async updateProduct(productId, updateData) {
     const { attributes, ...baseUpdate } = updateData;
 
     // Resolve the effective category_id (from update payload or existing product)
-    const existing = await productModel.findById(productId, storeId);
+    const existing = await productModel.findById(productId, SINGLE_STORE_ID);
     if (!existing) {
       const error = new Error('Product not found');
       error.statusCode = 404;
@@ -266,16 +307,16 @@ class ProductService {
     return product;
   }
 
-  async addImageToGallery(productId, imageUrl, storeId = null) {
-    const product = await productModel.findById(productId, storeId);
+  async addImageToGallery(productId, imageUrl) {
+    const product = await productModel.findById(productId, SINGLE_STORE_ID);
     if (!product) throw new Error('Product not found');
     const gallery = product.image_gallery || [];
     gallery.push(imageUrl);
     return await productModel.update(productId, { image_gallery: gallery });
   }
 
-  async removeImageFromGallery(productId, index, storeId = null) {
-    const product = await productModel.findById(productId, storeId);
+  async removeImageFromGallery(productId, index) {
+    const product = await productModel.findById(productId, SINGLE_STORE_ID);
     if (!product) throw new Error('Product not found');
     const gallery = product.image_gallery || [];
     const idx = parseInt(index);
@@ -294,12 +335,12 @@ class ProductService {
     return await variantModel.delete(variantId);
   }
 
-  async searchProducts(query, limit = 10, storeId = null) {
+  async searchProducts(query, limit = 10) {
     if (!query) throw new Error('Search query is required');
-    return await productModel.search(query, limit, storeId);
+    return await productModel.search(query, limit, SINGLE_STORE_ID);
   }
 
-  async getPriceRange(query, user, storeId = null) {
+  async getPriceRange(query, user) {
     const filters = {
       status:         query.status,
       category_id:    query.category_id,
@@ -307,7 +348,7 @@ class ProductService {
       subcategory_id: query.subcategory_id,
       is_featured: query.featured === 'true' ? true : undefined,
       search:      query.search,
-      store_id:    storeId || undefined
+      store_id:    SINGLE_STORE_ID
     };
 
     // Resolve category slug to category_id
@@ -347,6 +388,32 @@ class ProductService {
     }
 
     return await productModel.getPriceRange(filters);
+  }
+
+  async getRelatedProducts(productId) {
+    const product = await productModel.findById(productId, SINGLE_STORE_ID);
+    if (!product) throw new Error('Product not found');
+    return await productModel.getRelatedProducts(productId);
+  }
+
+  async addRelatedProduct(productId, relatedProductId) {
+    const product = await productModel.findById(productId, SINGLE_STORE_ID);
+    if (!product) throw new Error('Product not found');
+    
+    const relatedProduct = await productModel.findById(relatedProductId, SINGLE_STORE_ID);
+    if (!relatedProduct) {
+      const error = new Error('Related product not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return await productModel.addRelatedProduct(productId, relatedProductId, SINGLE_STORE_ID);
+  }
+
+  async removeRelatedProduct(productId, relatedProductId) {
+    const product = await productModel.findById(productId, SINGLE_STORE_ID);
+    if (!product) throw new Error('Product not found');
+    return await productModel.removeRelatedProduct(productId, relatedProductId);
   }
 }
 

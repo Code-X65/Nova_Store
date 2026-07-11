@@ -1,6 +1,7 @@
 const ProductModel = require('../models/product.model');
 const InventoryTransactionModel = require('../models/inventory-transaction.model');
 const supabase = require('../config/supabase');
+const { SINGLE_STORE_ID } = require('../config/store');
 
 class InventoryService {
   async addStock(productId, quantity, userId, notes, variantId = null) {
@@ -28,6 +29,19 @@ class InventoryService {
     return await ProductModel.updateStock(productId, -Math.abs(quantity), transactionData);
   }
 
+  async adjustStock(productId, quantityChange, reasonCode, userId = null, notes = null, variantId = null) {
+    const transactionData = {
+      type: reasonCode, // 'damaged', 'restock', 'correction', 'return', 'loss', 'other'
+      quantity_change: quantityChange,
+      variant_id: variantId,
+      performed_by: userId,
+      notes: notes || `Manual adjustment: ${reasonCode}`,
+      store_id: SINGLE_STORE_ID
+    };
+
+    return await ProductModel.updateStock(productId, quantityChange, transactionData);
+  }
+
   async bulkUpdateStock(updates, userId) {
     const results = [];
     for (const update of updates) {
@@ -38,8 +52,8 @@ class InventoryService {
     return results;
   }
 
-  async getLowStockItems(storeId = null) {
-    return await ProductModel.getLowStockProducts(storeId);
+  async getLowStockItems() {
+    return await ProductModel.getLowStockProducts(SINGLE_STORE_ID);
   }
 
   async getInventoryHistory(filters, pagination) {

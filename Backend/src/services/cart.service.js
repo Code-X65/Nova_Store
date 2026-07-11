@@ -1,21 +1,22 @@
 const CartModel = require('../models/cart.model');
 const CartItemModel = require('../models/cart-item.model');
 const ProductModel = require('../models/product.model');
+const { SINGLE_STORE_ID } = require('../config/store');
 
 class CartService {
-  async getOrCreateCart(userId, sessionId, storeId = null) {
+  async getOrCreateCart(userId, sessionId) {
     let cart;
     if (userId) {
-      cart = await CartModel.findByUserId(userId, storeId);
+      cart = await CartModel.findByUserId(userId, SINGLE_STORE_ID);
     } else if (sessionId) {
-      cart = await CartModel.findBySessionId(sessionId, storeId);
+      cart = await CartModel.findBySessionId(sessionId, SINGLE_STORE_ID);
     }
 
     if (!cart) {
       cart = await CartModel.create({
         user_id: userId || null,
         session_id: userId ? null : sessionId,
-        store_id: storeId || null
+        store_id: SINGLE_STORE_ID
       });
       cart.items = [];
     }
@@ -23,11 +24,11 @@ class CartService {
     return this.formatCartResponse(cart);
   }
 
-  async addItem(userId, sessionId, productId, variantId, quantity, storeId = null) {
-    const cart = await this.getOrCreateCart(userId, sessionId, storeId);
+  async addItem(userId, sessionId, productId, variantId, quantity) {
+    const cart = await this.getOrCreateCart(userId, sessionId);
     
     // Validate product existence and stock
-    const product = await ProductModel.findById(productId, storeId);
+    const product = await ProductModel.findById(productId, SINGLE_STORE_ID);
     if (!product) throw new Error('Product not found');
 
     const existingItem = await CartItemModel.findExisting(cart.id, productId, variantId);
@@ -63,10 +64,10 @@ class CartService {
       });
     }
 
-    return await this.getOrCreateCart(userId, sessionId, storeId);
+    return await this.getOrCreateCart(userId, sessionId);
   }
 
-  async updateItemQuantity(cartItemId, quantity, storeId = null) {
+  async updateItemQuantity(cartItemId, quantity) {
     if (quantity <= 0) {
       return await CartItemModel.delete(cartItemId);
     }
@@ -74,7 +75,7 @@ class CartService {
     const cartItem = await CartItemModel.findById(cartItemId);
     if (!cartItem) throw new Error('Cart item not found');
 
-    const product = await ProductModel.findById(cartItem.product_id, storeId);
+    const product = await ProductModel.findById(cartItem.product_id, SINGLE_STORE_ID);
     if (!product) throw new Error('Product not found');
 
     this.verifyStockAvailability(product, cartItem.variant_id, quantity);
@@ -101,22 +102,22 @@ class CartService {
     return await CartItemModel.delete(cartItemId);
   }
 
-  async clearCart(userId, sessionId, storeId = null) {
-    const cart = await this.getOrCreateCart(userId, sessionId, storeId);
+  async clearCart(userId, sessionId) {
+    const cart = await this.getOrCreateCart(userId, sessionId);
     return await CartItemModel.deleteByCartId(cart.id);
   }
 
-  async mergeCarts(userId, sessionId, storeId = null) {
-    const guestCart = await CartModel.findBySessionId(sessionId, storeId);
+  async mergeCarts(userId, sessionId) {
+    const guestCart = await CartModel.findBySessionId(sessionId, SINGLE_STORE_ID);
     if (!guestCart || !guestCart.items || guestCart.items.length === 0) {
-      return await this.getOrCreateCart(userId, null, storeId);
+      return await this.getOrCreateCart(userId, null);
     }
 
-    const userCart = await this.getOrCreateCart(userId, null, storeId);
+    const userCart = await this.getOrCreateCart(userId, null);
 
     // 1. Validate stock availability for all merged quantities first
     for (const item of guestCart.items) {
-      const product = await ProductModel.findById(item.product_id, storeId);
+      const product = await ProductModel.findById(item.product_id, SINGLE_STORE_ID);
       if (!product) throw new Error('Product not found');
 
       const existing = await CartItemModel.findExisting(userCart.id, item.product_id, item.variant_id);
@@ -147,7 +148,7 @@ class CartService {
     // Delete guest cart
     await CartModel.delete(guestCart.id);
 
-    return await this.getOrCreateCart(userId, null, storeId);
+    return await this.getOrCreateCart(userId, null);
   }
 
   verifyStockAvailability(product, variantId, quantity) {

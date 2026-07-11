@@ -22,8 +22,8 @@ const bulkSchema = joi.object({
   action: joi.string().valid('approve', 'hide', 'delete').required()
 });
 
+// All review admin routes require authentication
 router.use(requireAdmin);
-router.use(hasPermission('review:write'));
 
 /**
  * @swagger
@@ -44,7 +44,7 @@ router.use(hasPermission('review:write'));
  *       200:
  *         description: List of reviews
  */
-router.get('/', reviewAdminController.getAllReviews);
+router.get('/', hasPermission('review:read'), reviewAdminController.getAllReviews);
 
 /**
  * @swagger
@@ -76,8 +76,8 @@ router.get('/', reviewAdminController.getAllReviews);
  *       200:
  *         description: Review deleted
  */
-router.patch('/:id', validateRequest(moderateSchema), reviewAdminController.moderateReview);
-router.delete('/:id', reviewAdminController.deleteReview);
+router.patch('/:id', hasPermission('review:write'), validateRequest(moderateSchema), reviewAdminController.moderateReview);
+router.delete('/:id', hasPermission('review:write'), reviewAdminController.deleteReview);
 
 /**
  * @swagger
@@ -100,6 +100,6 @@ router.delete('/:id', reviewAdminController.deleteReview);
  *       200:
  *         description: Bulk action executed
  */
-router.post('/bulk-action', validateRequest(bulkSchema), reviewAdminController.bulkAction);
+router.post('/bulk-action', hasPermission('review:write'), validateRequest(bulkSchema), reviewAdminController.bulkAction);
 
 module.exports = router;

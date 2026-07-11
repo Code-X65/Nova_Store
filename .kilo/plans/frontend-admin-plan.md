@@ -212,7 +212,6 @@ Also confirm ORDER_STAFF/INVENTORY_STAFF can reach the cross-dept Sales endpoint
 
 ## 8. Build Phases
 
-1. **Scaffold + auth layer**: Vite/TS/Tailwind, axios+CSRF, Login, AppShell, Sidebar (permissions-driven), NotificationBell, `RequirePermission` guard. (Unblocks all roles' shell.)
 2. **Orders + Dispatch (ORDER_STAFF)**: highest-value dept. List, detail, fulfillment actions, dispatch queue, bulk.
 3. **Inventory (INVENTORY_STAFF)**: stock levels, adjust, low-stock, thresholds, alerts, transactions.
 4. **Dashboard/Analytics + Sales (cross-dept)**: role-specific overviews; full analytics for owner/manager.

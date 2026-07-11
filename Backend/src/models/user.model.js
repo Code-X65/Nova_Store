@@ -1,5 +1,7 @@
 const supabase = require('../config/supabase');
+const { supabaseAdmin } = require('../config/supabase');
 const bcrypt = require('bcrypt');
+
 
 class UserModel {
   async findByEmail(email) {
@@ -259,7 +261,7 @@ class UserModel {
     let query = supabase
       .from('users')
       .select(
-        'id, email, first_name, last_name, role, is_active, created_at, last_login_at, store_id, ' +
+        'id, email, first_name, last_name, role, is_active, is_locked, lock_type, locked_reason, locked_at, lock_until, created_at, last_login_at, store_id, ' +
         'user_roles(role_id, roles(id, name))',
         { count: 'exact' }
       )
@@ -312,12 +314,51 @@ class UserModel {
   }
 
   /**
-   * Load a user's roles and their associated permissions.
-   * Returns { roles: string[], permissions: string[] }
+   * Load only a user's role-derived permissions (no extra_permissions, no
+   * overrides). This is the authoritative "what the role grants" set and is
+   * used for privilege-escalation checks so an actor cannot re-grant a
+   * permission they only hold transitively via an override.
    *
+   * Returns { roles: string[], permissions: string[] }
    * @param {string} userId
    */
-  async getUserRolesAndPermissions(userId) {
+  async getRolePermissions(userId) {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('roles(name, role_permissions(permissions(key, name)))')
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    const roles = [];
+    const permSet = new Set();
+    for (const ur of data || []) {
+      const role = ur.roles;
+      if (!role) continue;
+      roles.push(role.name);
+      for (const rp of role.role_permissions || []) {
+        if (rp.permissions?.key) permSet.add(rp.permissions.key);
+        if (rp.permissions?.name) permSet.add(rp.permissions.name);
+      }
+    }
+    return { roles, permissions: [...permSet] };
+  }
+
+  /**
+   * Load a user's roles and their effective (ABAC-resolved) permissions.
+   * Returns { roles: string[], permissions: string[] }
+   *
+   * Effective permissions = role permissions ∪ extra_permissions ∪ active
+   * (allow) overrides − active (deny) overrides. Each override is only
+   * applied when BOTH its ABAC `scope` (store/resource) and runtime
+   * `conditions` (day/time/IP) match the supplied request context — so a
+   * store-scoped or time-boxed grant/deny is genuinely enforced, not
+   * merely stored.
+   *
+   * @param {string} userId
+   * @param {object} [ctx]  - request context, e.g. { store_id, ip, now }
+   */
+  async getUserRolesAndPermissions(userId, ctx = {}) {
     const [rolesResult, userResult] = await Promise.all([
       supabase
         .from('user_roles')
@@ -348,12 +389,44 @@ class UserModel {
 
     const extraPerms = userResult.data?.extra_permissions;
     if (Array.isArray(extraPerms)) {
-      for (const perm of extraPerms) {
-        permSet.add(perm);
-      }
+      for (const perm of extraPerms) permSet.add(perm);
     }
 
     return { roles, permissions: [...permSet] };
+  }
+
+  /**
+   * Set or clear an explicit (manual) lock on an admin account.
+   * @param {string} userId
+   * @param {{ locked: boolean, reason?: string, lockedBy?: string }} state
+   */
+  async setLockState(userId, { locked, reason = null, lockedBy = null } = {}) {
+    const patch = {
+      is_locked: locked,
+      lock_type: locked ? 'manual' : 'auto',
+      locked_reason: locked ? reason : null,
+      locked_by: locked ? lockedBy : null,
+      locked_at: locked ? new Date().toISOString() : null,
+      lock_until: locked ? new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10).toISOString() : null
+    };
+    return await this.update(userId, patch);
+  }
+
+  /**
+   * Permanently purge an admin account and its dependent rows.
+   * Cascades: user_roles, permission_overrides, invitations (by email).
+   * Callers MUST snapshot to admin_purges before calling this.
+   * @param {string} userId
+   * @param {string} email
+   */
+  async hardDeleteAdmin(userId, email) {
+    await supabaseAdmin.from('user_roles').delete().eq('user_id', userId);
+    if (email) {
+      await supabaseAdmin.from('invitations').delete().eq('invited_email', email.toLowerCase().trim());
+    }
+    const { error } = await supabaseAdmin.from('users').delete().eq('id', userId);
+    if (error) throw error;
+    return true;
   }
 }
 

@@ -8,33 +8,33 @@ export default {
       colors: {
         // Nova brand palette — deep midnight + electric violet
         nova: {
-          50:  '#f0f0ff',
-          100: '#e0e0ff',
-          200: '#c4c4fe',
-          300: '#a3a3fd',
-          400: '#8181fa',
-          500: '#6366f1', // primary
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+          50:  '#fff4ed',
+          100: '#ffe6d4',
+          200: '#ffcca3',
+          300: '#ffaa66',
+          400: '#ff8544',
+          500: '#FF6A1C', // primary
+          600: '#e55b14',
+          700: '#cc4a0c',
+          800: '#a3390a',
+          900: '#802f0a',
+          950: '#4a1704',
         },
         surface: {
-          DEFAULT: '#0f0f1a',
-          1: '#16162a',
-          2: '#1e1e35',
-          3: '#252542',
-          4: '#2e2e50',
+          DEFAULT: '#000000',
+          1: '#000000',
+          2: '#0a0a0a',
+          3: '#141414',
+          4: '#1f1f1f',
         },
         success: { DEFAULT: '#22c55e', light: '#dcfce7', dark: '#15803d' },
         warning: { DEFAULT: '#f59e0b', light: '#fef3c7', dark: '#b45309' },
         danger:  { DEFAULT: '#ef4444', light: '#fee2e2', dark: '#b91c1c' },
         info:    { DEFAULT: '#3b82f6', light: '#dbeafe', dark: '#1d4ed8' },
         neu: {
-          bg: '#1E1F26',
+          bg: '#000000',
           text: '#A1A5B7',
-          accent: '#6366f1',
+          accent: '#FF6A1C',
         }
       },
       fontFamily: {
@@ -48,14 +48,14 @@ export default {
         '4xl': '2rem',
       },
       boxShadow: {
-        'neu-outer': '8px 8px 16px #14151a, -8px -8px 16px #282932',
-        'neu-outer-sm': '4px 4px 8px #14151a, -4px -4px 8px #282932',
-        'neu-inner': 'inset 6px 6px 12px #14151a, inset -6px -6px 12px #282932',
-        'neu-inner-sm': 'inset 3px 3px 6px #14151a, inset -3px -3px 6px #282932',
+        'neu-outer': '0 4px 20px rgba(0, 0, 0, 0.5)',
+        'neu-outer-sm': '0 2px 8px rgba(0, 0, 0, 0.5)',
+        'neu-inner': 'inset 0 2px 4px rgba(0, 0, 0, 0.5)',
+        'neu-inner-sm': 'inset 0 1px 2px rgba(0, 0, 0, 0.5)',
       },
       backgroundImage: {
-        'nova-gradient':    'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
-        'nova-gradient-r':  'linear-gradient(225deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
+        'nova-gradient':    'linear-gradient(135deg, #FF6A1C 0%, #ff8544 50%, #ffaa66 100%)',
+        'nova-gradient-r':  'linear-gradient(225deg, #FF6A1C 0%, #ff8544 50%, #ffaa66 100%)',
         'surface-gradient': 'linear-gradient(135deg, #16162a 0%, #1e1e35 100%)',
         'glass':            'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
       },
@@ -95,5 +95,7 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('tailwindcss-animate')
+  ],
 };

@@ -47,6 +47,17 @@ const requireAdmin = async (req, res, next) => {
         const primaryRole = resolvePrimaryRole(userRoles);
         const isStoreOwner = primaryRole === 'STORE_OWNER';
         
+        // Honor explicit/auto lockout even when derived from req.user.
+        const lockedEarly =
+          req.user.is_locked ||
+          (req.user.lock_until && new Date(req.user.lock_until).getTime() > Date.now());
+        if (lockedEarly) {
+          return res.status(423).json({
+            success: false,
+            error: 'Account is locked. Contact a Super Admin to unlock.'
+          });
+        }
+
         req.admin = {
           id:          req.user.id,
           email:       req.user.email,
@@ -54,7 +65,6 @@ const requireAdmin = async (req, res, next) => {
           lastName:    req.user.last_name,
           role:        primaryRole,
           roles:       userRoles,
-          store_id:    req.user.store_id || null,
           permissions: isStoreOwner ? ['*'] : (req.user.permissions || []),
           hasRole:     (...roleNames) => roleNames.some(r => userRoles.includes(r))
         };
@@ -90,8 +100,29 @@ const requireAdmin = async (req, res, next) => {
       });
     }
 
-    // 2. Load roles + permissions
-    const { roles, permissions } = await userModel.getUserRolesAndPermissions(user.id);
+    // Explicit (manual) or auto lockout must block re-authenticated requests.
+    const locked =
+      user.is_locked ||
+      (user.lock_until && new Date(user.lock_until).getTime() > Date.now());
+    if (locked) {
+      req.session.destroy(() => {});
+      return res.status(423).json({
+        success: false,
+        error: 'Account is locked. Contact a Super Admin to unlock.'
+      });
+    }
+
+    // 2. Load roles + permissions.
+    //    Build an ABAC context from the request so scoped/conditional
+    //    overrides (store, day/time window, IP allow-list) are evaluated
+    //    live — not merely stored. `req.store` is resolved by the global
+    //    storeContext middleware which runs ahead of requireAdmin.
+    const abacCtx = {
+      store_id: req.store?.id,
+      ip: req.ip,
+      now: new Date()
+    };
+    const { roles, permissions } = await userModel.getUserRolesAndPermissions(user.id, abacCtx);
 
     // 3. Must hold at least one admin-grade role
     const hasAdminRole = roles.some(r => ADMIN_ROLES.includes(r));
@@ -116,8 +147,10 @@ const requireAdmin = async (req, res, next) => {
       lastName:   user.last_name,
       role:       primaryRole,
       roles,
-      store_id:   user.store_id || null,
-      // STORE_OWNER gets wildcard; all others get their real permission set
+      // STORE_OWNER gets wildcard; all others get their real permission set.
+      // NOTE: because the wildcard grants everything, `deny` permission
+      // overrides have no effect on a STORE_OWNER (see permission.middleware
+      // `check`). This is intentional — owners are unrestricted by design.
       permissions: isStoreOwner ? ['*'] : permissions,
       /**
        * Convenience helper — check if this admin holds a specific role.
@@ -133,11 +166,8 @@ const requireAdmin = async (req, res, next) => {
         email:       user.email,
         role:        primaryRole,
         roles,
-        store_id:    user.store_id || null,
         permissions: req.admin.permissions
       };
-    } else {
-      req.user.store_id = user.store_id || null;
     }
 
     next();

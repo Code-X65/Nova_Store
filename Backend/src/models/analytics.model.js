@@ -64,6 +64,16 @@ class AnalyticsModel {
     return data;
   }
 
+  async getSalesByCategory(from, to) {
+    const { data, error } = await supabase.rpc('get_sales_by_category', {
+      start_date: from,
+      end_date: to
+    });
+
+    if (error) throw error;
+    return data;
+  }
+
   async getBestSellers(from, to, limit, sortBy, categoryId) {
     const { data, error } = await supabase.rpc('get_best_sellers', {
       start_date: from,

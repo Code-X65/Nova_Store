@@ -1,7 +1,11 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 
-// CSRF token stored in module scope — fetched once per session
 let _csrfToken: string | null = null;
+let _adminAccessToken: string | null = null;
+
+if (typeof window !== 'undefined') {
+  _adminAccessToken = localStorage.getItem('admin_access_token');
+}
 
 export function setCsrfToken(token: string) {
   _csrfToken = token;
@@ -9,6 +13,14 @@ export function setCsrfToken(token: string) {
 
 export function clearCsrfToken() {
   _csrfToken = null;
+}
+
+export function setAdminAccessToken(token: string) {
+  _adminAccessToken = token;
+}
+
+export function clearAdminAccessToken() {
+  _adminAccessToken = null;
 }
 
 /**
@@ -22,7 +34,6 @@ export function createCookieClient(baseURL: string): AxiosInstance {
     baseURL,
     withCredentials: true,
     timeout: 15_000,
-    headers: { 'Content-Type': 'application/json' },
   });
 
   // Request interceptor — attach CSRF token for mutations
@@ -30,7 +41,12 @@ export function createCookieClient(baseURL: string): AxiosInstance {
     const method = (config.method ?? '').toUpperCase();
     const mutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
     if (mutating && _csrfToken) {
-      config.headers['x-csrf-token'] = _csrfToken;
+      if (config.headers.set) config.headers.set('x-csrf-token', _csrfToken);
+      else config.headers['x-csrf-token'] = _csrfToken;
+    }
+    if (_adminAccessToken) {
+      if (config.headers.set) config.headers.set('Authorization', `Bearer ${_adminAccessToken}`);
+      else config.headers['Authorization'] = `Bearer ${_adminAccessToken}`;
     }
     return config;
   });
@@ -41,10 +57,37 @@ export function createCookieClient(baseURL: string): AxiosInstance {
     (error) => {
       if (error.response?.status === 401) {
         clearCsrfToken();
-        // Redirect to admin login unless already there
-        if (typeof window !== 'undefined' && !window.location.pathname.endsWith('/login')) {
-          const isAdminPath = window.location.pathname.startsWith('/admin');
-          window.location.href = isAdminPath ? '/admin/login' : '/login';
+        if (typeof window !== 'undefined') {
+          const path = window.location.pathname;
+          // Public pages (login, accept-invite) must not be bounced to /login
+          // on an expected 401 (e.g. the initial session-verification probe).
+          const isPublicRoute = path.endsWith('/login') || path.startsWith('/accept-invite');
+          if (!isPublicRoute) {
+            try {
+              const channel = new BroadcastChannel('admin-session-channel');
+              channel.postMessage('LOGOUT');
+              channel.close();
+            } catch (e) {
+              // ignore
+            }
+            // Redirect to admin login unless already there
+            if (!path.endsWith('/login')) {
+              const isAdminPath = path.startsWith('/admin');
+              window.location.href = isAdminPath ? '/admin/login' : '/login';
+            }
+          }
+        }
+      } else if (error.response?.status === 423) {
+        if (typeof window !== 'undefined') {
+          try {
+            const channel = new BroadcastChannel('admin-session-channel');
+            channel.postMessage('ACCOUNT_LOCKED');
+            channel.close();
+          } catch (e) {
+            // ignore
+          }
+          // Optionally dispatch a custom event on window so React components can listen
+          window.dispatchEvent(new CustomEvent('account-locked'));
         }
       }
       return Promise.reject(error);

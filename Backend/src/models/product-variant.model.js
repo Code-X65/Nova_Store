@@ -23,6 +23,9 @@ class ProductVariantModel {
   }
 
   async create(variantData) {
+    if (!variantData.sku) {
+      variantData.sku = 'VAR-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    }
     const { data, error } = await supabase
       .from('product_variants')
       .insert([variantData])
@@ -34,6 +37,9 @@ class ProductVariantModel {
   }
 
   async createBulk(variants) {
+    variants.forEach(v => {
+      if (!v.sku) v.sku = 'VAR-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    });
     const { data, error } = await supabase
       .from('product_variants')
       .insert(variants)
@@ -44,6 +50,9 @@ class ProductVariantModel {
   }
 
   async update(id, updateData) {
+    if (updateData.sku === '') {
+      updateData.sku = 'VAR-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    }
     const { data, error } = await supabase
       .from('product_variants')
       .update({ ...updateData, updated_at: new Date().toISOString() })

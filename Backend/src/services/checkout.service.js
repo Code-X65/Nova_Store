@@ -7,14 +7,16 @@ const shippingService = require('./shipping.service');
 const shippingRateModel = require('../models/shipping-rate.model');
 const NotificationService = require('./notification.service');
 const AuditService = require('./audit.service');
+const eventBus = require('../realtime/event-bus');
 const InventoryReservationService = require('./inventory-reservation.service');
 const SettingService = require('./setting.service');
 const crypto = require('crypto');
 const supabase = require('../config/supabase');
+const { SINGLE_STORE_ID } = require('../config/store');
 
 class CheckoutService {
-  async validateCheckout(userId, sessionId, cartId, address = null, storeId = null) {
-    const cart = await CartService.getOrCreateCart(userId, sessionId, storeId);
+  async validateCheckout(userId, sessionId, cartId, address = null) {
+    const cart = await CartService.getOrCreateCart(userId, sessionId);
     
     if (!cart.items || cart.items.length === 0) {
       throw new Error('Cart is empty');
@@ -24,7 +26,7 @@ class CheckoutService {
     const validatedItems = [];
 
     for (const item of cart.items) {
-      const product = await ProductModel.findById(item.productId, storeId);
+      const product = await ProductModel.findById(item.productId, SINGLE_STORE_ID);
       
       if (!product) {
         issues.push(`Product ${item.product?.name || 'Unknown'} is no longer available`);
@@ -100,11 +102,11 @@ class CheckoutService {
 
 
 
-  async createCheckoutSession(userId, sessionId, checkoutData, storeId = null) {
+  async createCheckoutSession(userId, sessionId, checkoutData) {
     const { cartId, shippingOption, address, couponCode, notes } = checkoutData;
     
     // 1. Validate cart again
-    const validation = await this.validateCheckout(userId, sessionId, cartId, address, storeId);
+    const validation = await this.validateCheckout(userId, sessionId, cartId, address);
     if (!validation.valid) {
       throw new Error(`Checkout validation failed: ${validation.issues.join(', ')}`);
     }
@@ -143,7 +145,7 @@ class CheckoutService {
       customer_phone: address.phone,
       notes: notes,
       checkout_session_id: checkoutSessionId,
-      store_id: storeId || null
+      store_id: SINGLE_STORE_ID
     };
 
     const orderItems = validation.cart.items.map(item => ({
@@ -179,6 +181,19 @@ class CheckoutService {
         console.error('Failed to send order confirmation notification', err);
       });
     }
+
+    // 7b. Emit domain event → Sales Team alert + audit.
+    eventBus.emit('order.placed', {
+      actor: { id: userId, fullName: null, role: 'customer' },
+      resourceType: 'order',
+      resourceId: createdOrder.id,
+      actionType: 'CREATE',
+      severity: 'info',
+      title: 'New Order',
+      message: `Order #${orderNumber} placed${userId ? '' : ' (guest)'} — total ${totalAmount.toFixed(2)}.`,
+      data: { orderId: createdOrder.id, orderNumber, total: totalAmount, userId },
+      deepLink: `/orders/${createdOrder.id}`,
+    });
 
     return {
       checkoutSession: {

@@ -49,7 +49,7 @@ describe('Auth Middleware - protect', () => {
       await protect(req, res, next);
 
       expect(userModel.findById).toHaveBeenCalledWith('admin-uuid-123');
-      expect(userModel.getUserRolesAndPermissions).toHaveBeenCalledWith('admin-uuid-123');
+      expect(userModel.getUserRolesAndPermissions).toHaveBeenCalledWith('admin-uuid-123', expect.any(Object));
       expect(req.admin).toEqual({
         id: 'admin-uuid-123',
         email: 'admin@novastore.com',
@@ -57,7 +57,6 @@ describe('Auth Middleware - protect', () => {
         lastName: 'Admin',
         role: 'STORE_OWNER',
         roles: ['STORE_OWNER'],
-        store_id: null,
         permissions: ['*'],
         hasRole: expect.any(Function)
       });
@@ -66,7 +65,6 @@ describe('Auth Middleware - protect', () => {
         email: 'admin@novastore.com',
         role: 'STORE_OWNER',
         roles: ['STORE_OWNER'],
-        store_id: null,
         permissions: ['*']
       });
       expect(next).toHaveBeenCalled();

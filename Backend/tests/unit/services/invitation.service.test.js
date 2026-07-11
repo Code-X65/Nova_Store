@@ -35,12 +35,13 @@ describe('InvitationService', () => {
     invited_by: superAdminId,
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'pending',
-    store_id: 'store-abc',
+    store_id: '11111111-1111-1111-1111-111111111111',
     roles: { id: adminRoleId, name: 'ORDER_STAFF' }
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    notificationService.sendAdminInvitationAcceptedEmail.mockResolvedValue(true);
     // Default: caller is STORE_OWNER
     userModel.getUserRolesAndPermissions.mockResolvedValue({
       roles: ['STORE_OWNER'],
@@ -56,7 +57,7 @@ describe('InvitationService', () => {
       email: 'super@example.com',
       first_name: 'Super',
       last_name: 'Admin',
-      store_id: 'store-abc'
+      store_id: '11111111-1111-1111-1111-111111111111'
     });
     notificationService.sendAdminInvitationEmail.mockResolvedValue(true);
     AuditService.log.mockResolvedValue(undefined);
@@ -198,7 +199,7 @@ describe('InvitationService', () => {
       const mockList = { invitations: [mockInvitation], total: 1, page: 1, limit: 20 };
       invitationModel.list.mockResolvedValue(mockList);
 
-      const result = await invitationService.listInvitations({}, superAdminId, true, 'store-abc');
+      const result = await invitationService.listInvitations({}, superAdminId, true, '11111111-1111-1111-1111-111111111111');
 
       expect(result).toEqual(mockList);
     });
@@ -207,7 +208,7 @@ describe('InvitationService', () => {
       const regularAdminId = 'regular-admin-uuid';
       invitationModel.list.mockResolvedValue({ invitations: [], total: 0, page: 1, limit: 20 });
 
-      await invitationService.listInvitations({}, regularAdminId, false, 'store-abc');
+      await invitationService.listInvitations({}, regularAdminId, false, '11111111-1111-1111-1111-111111111111');
 
       expect(invitationModel.list).toHaveBeenCalledWith(
         expect.objectContaining({ invitedBy: regularAdminId })
@@ -223,7 +224,7 @@ describe('InvitationService', () => {
       invitationModel.revoke.mockResolvedValue({ ...mockInvitation, status: 'revoked' });
       notificationService.sendAdminInvitationRevokedEmail.mockResolvedValue(true);
 
-      await invitationService.revokeInvitation(mockInvitation.id, superAdminId, true, 'store-abc', {});
+      await invitationService.revokeInvitation(mockInvitation.id, superAdminId, true, {});
 
       expect(invitationModel.revoke).toHaveBeenCalledWith(mockInvitation.id);
     });
@@ -232,7 +233,7 @@ describe('InvitationService', () => {
       invitationModel.findById.mockResolvedValue(null);
 
       await expect(
-        invitationService.revokeInvitation('nonexistent-id', superAdminId, true, 'store-abc', {})
+        invitationService.revokeInvitation('nonexistent-id', superAdminId, true, {})
       ).rejects.toMatchObject({ statusCode: 404 });
     });
 
@@ -240,7 +241,7 @@ describe('InvitationService', () => {
       invitationModel.findById.mockResolvedValue({ ...mockInvitation, status: 'accepted' });
 
       await expect(
-        invitationService.revokeInvitation(mockInvitation.id, superAdminId, true, 'store-abc', {})
+        invitationService.revokeInvitation(mockInvitation.id, superAdminId, true, {})
       ).rejects.toMatchObject({ statusCode: 400 });
     });
   });

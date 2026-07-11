@@ -2,6 +2,10 @@ const logger = require('../utils/logger');
 const errorTracker = require('../utils/error-tracker');
 
 const errorHandler = (err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
   logger.error('Unhandled request error', {
     error: err.message,
     stack: err.stack,

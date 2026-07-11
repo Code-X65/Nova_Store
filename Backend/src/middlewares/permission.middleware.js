@@ -42,6 +42,13 @@ function resolveActor(req) {
  * Check whether a permission set satisfies a required permission.
  * Wildcard '*' grants everything.
  *
+ * NOTE (by design): a STORE_OWNER's permission set is ['*'], which
+ * short-circuits here and grants every permission. Consequently a `deny`
+ * permission override has NO effect on a STORE_OWNER — the wildcard always
+ * wins. Deny overrides are only meaningful for non-owner staff whose
+ * effective set is an explicit list of keys. Do not expect deny-overrides to
+ * limit an owner; downgrade their role instead.
+ *
  * @param {string[]} permissions
  * @param {string}   required
  * @returns {boolean}

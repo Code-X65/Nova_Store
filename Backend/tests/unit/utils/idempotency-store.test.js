@@ -5,6 +5,8 @@ const supabase = require('../../../src/config/supabase');
 // Mock external clients
 jest.mock('../../../src/config/redis', () => ({
   redisClient: {
+    on: jest.fn(),
+    publish: jest.fn().mockResolvedValue(1),
     isOpen: false,
     isReady: false,
     set: jest.fn(),

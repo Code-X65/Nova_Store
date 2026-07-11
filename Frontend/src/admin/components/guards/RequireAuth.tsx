@@ -12,10 +12,19 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-full border-2 border-nova-500 border-t-transparent animate-spin" />
-          <p className="text-muted-foreground text-sm">Verifying sessionÃ¢â‚¬Â¦</p>
+      <div className="fixed inset-0 z-[999] bg-[var(--bg-base)] flex items-center justify-center">
+        <div className="relative flex flex-col items-center gap-6 animate-in fade-in duration-500">
+          <div className="relative">
+             {/* Glowing backdrop */}
+             <div className="absolute inset-0 bg-[var(--neu-accent)]/20 blur-2xl rounded-full scale-150 animate-pulse" />
+             {/* Logo / Spinner */}
+             <div className="w-16 h-16 rounded-2xl bg-[var(--neu-bg)] border border-[var(--panel-border)] shadow-2xl shadow-[var(--neu-accent)]/10 flex items-center justify-center relative z-10 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-[var(--neu-accent)]/20 to-transparent opacity-50" />
+                <svg className="w-8 h-8 text-[var(--neu-accent)] animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                </svg>
+             </div>
+          </div>
         </div>
       </div>
     );

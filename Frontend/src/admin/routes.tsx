@@ -56,9 +56,9 @@ const ReviewReports     = lazy(() => import('@/admin/features/reviews/ReviewRepo
 // Staff
 const StaffList       = lazy(() => import('@/admin/features/staff/StaffList'));
 const Invitations     = lazy(() => import('@/admin/features/staff/Invitations'));
+const AcceptInvite    = lazy(() => import('@/admin/features/staff/AcceptInvite'));
 const RoleManager     = lazy(() => import('@/admin/features/staff/RoleManager'));
 const MyPermissions   = lazy(() => import('@/admin/features/staff/MyPermissions'));
-
 // Sales
 const SalesReports    = lazy(() => import('@/admin/features/sales/SalesReports'));
 const TopProducts     = lazy(() => import('@/admin/features/sales/TopProducts'));
@@ -67,6 +67,7 @@ const DailySummary    = lazy(() => import('@/admin/features/sales/DailySummary')
 
 // Settings
 const StoreSettings   = lazy(() => import('@/admin/features/settings/StoreSettings'));
+const CurrenciesPage  = lazy(() => import('@/admin/features/settings/CurrenciesPage'));
 
 // Audit
 const AuditLogs       = lazy(() => import('@/admin/features/audit/AuditLogs'));
@@ -84,10 +85,15 @@ const ForbiddenPage   = lazy(() => import('@/admin/features/errors/ForbiddenPage
 // Ã¢â€â‚¬Ã¢â€â‚¬ Route tree Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export function AppRoutes() {
   return (
-    <Suspense fallback={<PageLoader />}>
+    <>
       <Routes>
         {/* Public */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/accept-invite/:token" element={
+          <Suspense fallback={<PageLoader />}>
+            <AcceptInvite />
+          </Suspense>
+        } />
 
         {/* Protected shell */}
         <Route
@@ -115,7 +121,7 @@ export function AppRoutes() {
               </RequirePermission>
             } />
             <Route path="dispatch" element={
-              <RequirePermission anyOf={['order:write', 'order:fulfill']}>
+              <RequirePermission permission="order:write">
                 <DispatchQueue />
               </RequirePermission>
             } />
@@ -149,12 +155,12 @@ export function AppRoutes() {
               </RequirePermission>
             } />
             <Route path="thresholds" element={
-              <RequirePermission permission="inventory:alert">
+              <RequirePermission anyOf={['inventory:alert', 'inventory:write']}>
                 <Thresholds />
               </RequirePermission>
             } />
             <Route path="alerts" element={
-              <RequirePermission permission="inventory:alert">
+              <RequirePermission anyOf={['inventory:alert', 'inventory:write']}>
                 <AlertsPage />
               </RequirePermission>
             } />
@@ -178,12 +184,12 @@ export function AppRoutes() {
               </RequirePermission>
             } />
             <Route path="categories" element={
-              <RequirePermission anyOf={['category:manage', 'category:read']}>
+              <RequirePermission anyOf={['category:write', 'category:read']}>
                 <Categories />
               </RequirePermission>
             } />
             <Route path="brands" element={
-              <RequirePermission anyOf={['brand:manage', 'brand:read']}>
+              <RequirePermission anyOf={['brand:write', 'brand:read']}>
                 <Brands />
               </RequirePermission>
             } />
@@ -211,7 +217,7 @@ export function AppRoutes() {
               </RequirePermission>
             } />
             <Route path="new" element={
-              <RequirePermission permission="coupon:create">
+              <RequirePermission permission="coupon:write">
                 <CouponForm />
               </RequirePermission>
             } />
@@ -222,36 +228,36 @@ export function AppRoutes() {
             } />
           </Route>
 
-          {/* Shipping */}
+          {/* Shipping — GET routes now require shipping:read (split from write on backend) */}
           <Route path="shipping">
             <Route path="zones" element={
-              <RequirePermission permission="shipping:read">
+              <RequirePermission anyOf={['shipping:read', 'shipping:write']}>
                 <ShippingZones />
               </RequirePermission>
             } />
             <Route path="rates" element={
-              <RequirePermission permission="shipping:read">
+              <RequirePermission anyOf={['shipping:read', 'shipping:write']}>
                 <ShippingRates />
               </RequirePermission>
             } />
             <Route index element={<Navigate to="zones" replace />} />
           </Route>
 
-          {/* Reviews */}
+          {/* Reviews — GET routes now require review:read (split from write on backend) */}
           <Route path="reviews">
             <Route index element={
-              <RequirePermission permission="review:read">
+              <RequirePermission anyOf={['review:read', 'review:write']}>
                 <ReviewsModeration />
               </RequirePermission>
             } />
             <Route path="reports" element={
-              <RequirePermission permission="review:read">
+              <RequirePermission anyOf={['review:read', 'review:write']}>
                 <ReviewReports />
               </RequirePermission>
             } />
           </Route>
 
-          {/* Staff */}
+          {/* Staff — backend guards by requireManager role, no slug on GET routes */}
           <Route path="staff">
             <Route index element={
               <RequirePermission permission="staff:read">
@@ -264,7 +270,7 @@ export function AppRoutes() {
               </RequirePermission>
             } />
             <Route path="roles" element={
-              <RequirePermission permission="staff:write">
+              <RequirePermission anyOf={['staff:write', 'role:manage']}>
                 <RoleManager />
               </RequirePermission>
             } />
@@ -296,11 +302,19 @@ export function AppRoutes() {
           </Route>
 
           {/* Settings */}
-          <Route path="settings" element={
-            <RequirePermission permission="settings:read">
-              <StoreSettings />
-            </RequirePermission>
-          } />
+          <Route path="settings">
+            <Route index element={<Navigate to="/settings/general" replace />} />
+            <Route path="general" element={
+              <RequirePermission permission="settings:read">
+                <StoreSettings />
+              </RequirePermission>
+            } />
+            <Route path="currencies" element={
+              <RequirePermission permission="settings:read">
+                <CurrenciesPage />
+              </RequirePermission>
+            } />
+          </Route>
 
           {/* Audit */}
           <Route path="audit">
@@ -319,7 +333,7 @@ export function AppRoutes() {
           {/* Sessions (all roles) */}
           <Route path="profile/sessions" element={<SessionsPage />} />
 
-          {/* Notifications Admin */}
+          {/* Notifications Admin — backend has no slug guard, only requireAdmin */}
           <Route path="notifications/admin">
             <Route index element={
               <RequirePermission permission="notifications:write">
@@ -341,6 +355,6 @@ export function AppRoutes() {
         {/* Catch-all Ã¢â€ â€™ login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </Suspense>
+    </>
   );
 }

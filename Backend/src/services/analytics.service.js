@@ -25,7 +25,30 @@ class AnalyticsService {
     
     const metrics = await AnalyticsModel.getDashboardSummary(from, to);
     const revenueOverTime = await AnalyticsModel.getSalesSummary(from, to, period);
-    const topProducts = await AnalyticsModel.getBestSellers(from, to, 5, 'revenue');
+    
+    // Top products mapping
+    const rawTopProducts = await AnalyticsModel.getBestSellers(from, to, 5, 'revenue');
+    const topProducts = rawTopProducts.map(p => ({
+      id: p.product_id,
+      name: p.product_name,
+      primary_image_url: p.primary_image_url,
+      thumbnail_url: p.thumbnail_url,
+      category: { name: p.category_name },
+      quantity_sold: Number(p.quantity_sold),
+      revenue: Number(p.revenue),
+      stock_quantity: p.stock_quantity
+    }));
+
+    // Sales by Category mapping
+    const rawSalesByCategory = await AnalyticsModel.getSalesByCategory(from, to);
+    const totalCatRevenue = rawSalesByCategory.reduce((sum, c) => sum + Number(c.revenue), 0);
+    const colors = ['#FF6A1C', '#FF8C4C', '#FFAD7D', '#FFCEAD', '#FFF0E6', '#F3F4F6', '#E5E7EB'];
+    const salesByCategory = rawSalesByCategory.map((c, i) => ({
+      name: c.category_name,
+      value: Number(c.revenue),
+      percentage: totalCatRevenue > 0 ? Math.round((Number(c.revenue) / totalCatRevenue) * 100) : 0,
+      color: colors[i % colors.length]
+    }));
 
     return {
       period,
@@ -33,7 +56,8 @@ class AnalyticsService {
       metrics,
       charts: {
         revenueOverTime,
-        topProducts
+        topProducts,
+        salesByCategory
       }
     };
   }
@@ -69,7 +93,19 @@ class AnalyticsService {
 
   async getBestSellers(fromParam, toParam, limit = 10, sortBy = 'quantity', category = null) {
     const { from, to } = this.parseDateRange(fromParam, toParam);
-    const products = await AnalyticsModel.getBestSellers(from, to, limit, sortBy, category);
+    const rawProducts = await AnalyticsModel.getBestSellers(from, to, limit, sortBy, category);
+    
+    const products = rawProducts.map(p => ({
+      id: p.product_id,
+      name: p.product_name,
+      primary_image_url: p.primary_image_url,
+      thumbnail_url: p.thumbnail_url,
+      category: { name: p.category_name },
+      quantity_sold: Number(p.quantity_sold),
+      revenue: Number(p.revenue),
+      stock_quantity: p.stock_quantity
+    }));
+
     return { products };
   }
 

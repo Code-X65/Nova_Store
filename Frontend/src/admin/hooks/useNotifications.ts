@@ -34,6 +34,8 @@ export function useNotifications() {
         read: n.is_read || n.read,
         createdAt: n.created_at || n.createdAt,
         type: n.type,
+        severity: (n.severity as Notification['severity']) || 'info',
+        recipientRole: n.recipient_role || null,
       })) as Notification[];
     },
     enabled: false, // Only fetch when opened

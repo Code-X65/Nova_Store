@@ -41,8 +41,8 @@ const bulkSchema = joi.object({
   minOrderAmount: joi.number().min(0).optional()
 });
 
+// All coupon admin routes require authentication
 router.use(requireAdmin);
-router.use(hasPermission('coupon:write'));
 
 /**
  * @swagger
@@ -71,8 +71,8 @@ router.use(hasPermission('coupon:write'));
  *       201:
  *         description: Coupon created
  */
-router.get('/', adminCouponController.getAllCoupons);
-router.post('/', validateRequest(createSchema), adminCouponController.createCoupon);
+router.get('/', hasPermission('coupon:read'), adminCouponController.getAllCoupons);
+router.post('/', hasPermission('coupon:write'), validateRequest(createSchema), adminCouponController.createCoupon);
 
 /**
  * @swagger
@@ -86,7 +86,7 @@ router.post('/', validateRequest(createSchema), adminCouponController.createCoup
  *       201:
  *         description: Bulk coupons created
  */
-router.post('/bulk-generate', validateRequest(bulkSchema), adminCouponController.bulkGenerate);
+router.post('/bulk-generate', hasPermission('coupon:write'), validateRequest(bulkSchema), adminCouponController.bulkGenerate);
 
 /**
  * @swagger
@@ -131,9 +131,9 @@ router.post('/bulk-generate', validateRequest(bulkSchema), adminCouponController
  *       200:
  *         description: Coupon deleted
  */
-router.get('/:id', adminCouponController.getCouponById);
-router.patch('/:id', validateRequest(updateSchema), adminCouponController.updateCoupon);
-router.delete('/:id', adminCouponController.deleteCoupon);
+router.get('/:id', hasPermission('coupon:read'), adminCouponController.getCouponById);
+router.patch('/:id', hasPermission('coupon:write'), validateRequest(updateSchema), adminCouponController.updateCoupon);
+router.delete('/:id', hasPermission('coupon:write'), adminCouponController.deleteCoupon);
 
 /**
  * @swagger
@@ -152,7 +152,7 @@ router.delete('/:id', adminCouponController.deleteCoupon);
  *       200:
  *         description: Coupon deactivated
  */
-router.post('/:id/deactivate', adminCouponController.deactivateCoupon);
+router.post('/:id/deactivate', hasPermission('coupon:write'), adminCouponController.deactivateCoupon);
 
 /**
  * @swagger
@@ -171,6 +171,6 @@ router.post('/:id/deactivate', adminCouponController.deactivateCoupon);
  *       200:
  *         description: Coupon analytics
  */
-router.get('/:id/usage', adminCouponController.getUsageAnalytics);
+router.get('/:id/usage', hasPermission('coupon:read'), adminCouponController.getUsageAnalytics);
 
 module.exports = router;

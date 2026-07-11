@@ -56,7 +56,6 @@ const pgSession = require('connect-pg-simple')(session);
 const { Pool } = require('pg');
 const requireAdmin = require('./middlewares/require-admin.middleware');
 const storeContext = require('./middlewares/store-context.middleware');
-const scopeToStore = require('./middlewares/scope-to-store.middleware');
 const adminAuthRoutes = require('./routes/admin/auth.routes');
 const idempotencyMiddleware = require('./middlewares/idempotency.middleware');
 const invitationRoutes = require('./routes/admin/invitation.routes');
@@ -81,7 +80,9 @@ app.use(requestLogger);
 
 const maintenanceMiddleware = require('./middlewares/maintenance.middleware');
 const { optionalAuth } = require('./middlewares/auth.middleware');
+const auditContext = require('./middlewares/audit-context.middleware');
 app.use(optionalAuth);
+app.use(auditContext);
 app.use(maintenanceMiddleware);
 
 // Dedicated session pool with a short connection timeout so an unreachable
@@ -89,7 +90,7 @@ app.use(maintenanceMiddleware);
 const sessionPool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 5,
-  connectionTimeoutMillis: 2000, // give up after 2s — not 10s
+  connectionTimeoutMillis: 10000, // give up after 10s
   idleTimeoutMillis: 30000,
   ssl: { rejectUnauthorized: false },
 });
@@ -127,9 +128,15 @@ app.use((req, res, next) => {
   next();
 });
 
-const allowedOrigins = process.env.CLIENT_URL
-  ? process.env.CLIENT_URL.split(',').map(u => u.trim())
+const adminOrigins = process.env.ADMIN_ALLOWED_ORIGINS
+  ? process.env.ADMIN_ALLOWED_ORIGINS.split(',').map(u => u.trim().replace(/\/$/, ''))
+  : ['http://localhost:5174'];
+
+const storefrontOrigins = process.env.STOREFRONT_ALLOWED_ORIGINS
+  ? process.env.STOREFRONT_ALLOWED_ORIGINS.split(',').map(u => u.trim().replace(/\/$/, ''))
   : ['http://localhost:5173'];
+
+const allowedOrigins = [...adminOrigins, ...storefrontOrigins];
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -163,12 +170,14 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.indexOf(normalizedOrigin) === -1) {
       return callback(null, false); // Or pass an Error: new Error('CORS blocked')
     }
     return callback(null, true);
   },
   credentials: true,
+  maxAge: 86400, // Cache preflight requests for 24 hours
 }));
 
 app.use('/api/v1/admin/login', adminLoginLimiter);
@@ -202,7 +211,6 @@ app.use('/api/v1', storeContext);
 app.use('/api/v1/admin', adminAuthRoutes);
 app.use('/api/v1/admin', requireAdmin);
 app.use('/api/v1/admin', storeContext);
-app.use('/api/v1/admin', scopeToStore);
 app.use('/api/v1/admin/sessions', require('./routes/admin/session.routes'));
 app.use('/api/v1/admin/migrations', require('./routes/admin/migration.routes'));
 app.use('/api/v1/admin/audit', require('./routes/admin/audit.routes'));
@@ -216,8 +224,12 @@ app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
 app.use('/api/v1/admin/sales', adminSalesRoutes);
 app.use('/api/v1/admin/dashboard', adminDashboardRoutes);
 app.use('/api/v1/admin/settings', adminSettingRoutes);
+app.use('/api/v1/admin/store', require('./routes/admin/store.routes'));
 app.use('/api/v1/admin/upload', adminUploadRoutes);
 app.use('/api/v1/admin/invitations', invitationRoutes);
+// Access routes (incl. /stream) MUST be registered before adminManagementRoutes,
+// whose GET /:id catch-all would otherwise swallow /admin/stream.
+app.use('/api/v1/admin', require('./routes/admin/access.routes'));
 app.use('/api/v1/admin', adminManagementRoutes);
 app.use('/api/v1/accept-invite', acceptInviteRoutes);
 

@@ -344,6 +344,36 @@ router.post('/bulk', hasPermission('category:create'), validate(categoryValidato
 
 /**
  * @swagger
+ * /categories/reorder:
+ *   put:
+ *     summary: Bulk reorder categories (Admin only)
+ *     tags: [Categories]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [categories]
+ *             properties:
+ *               categories:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [id, sort_order]
+ *                   properties:
+ *                     id: { type: string, format: uuid }
+ *                     sort_order: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Categories reordered successfully
+ */
+router.put('/reorder', hasPermission('category:write'), categoryController.reorderCategories);
+
+/**
+ * @swagger
  * /categories/{id}:
  *   patch:
  *     summary: Update a category (Admin only)

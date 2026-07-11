@@ -13,7 +13,7 @@ export function hasPermission(perms: AdminPermissions, key: string): boolean {
  * Returns true if the user has at least one of the given roles.
  */
 export function hasRole(perms: AdminPermissions, ...roles: string[]): boolean {
-  return roles.some((r) => perms.roles.includes(r));
+  return roles.some((r) => perms.roles.map(x => x.toUpperCase()).includes(r.toUpperCase()));
 }
 
 /**

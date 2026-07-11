@@ -5,8 +5,10 @@ const roleModel = require('../models/role.model');
 const userRoleModel = require('../models/user-role.model');
 const notificationService = require('./notification.service');
 const AuditService = require('./audit.service');
+const eventBus = require('../realtime/event-bus');
 const logger = require('../utils/logger');
 const bcrypt = require('bcrypt');
+const { SINGLE_STORE_ID } = require('../config/store');
 
 const DEFAULT_EXPIRY_DAYS = parseInt(process.env.INVITE_TOKEN_EXPIRY_DAYS || '7', 10);
 
@@ -120,24 +122,20 @@ class InvitationService {
       permissions,
       invitedBy,
       expiresAt,
-      store_id: inviter?.store_id || null
+      store_id: SINGLE_STORE_ID
     });
 
-    // 7. Send email
-
+    // 7. Send email (fire-and-forget — never block the request on SMTP latency)
     const acceptLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/accept-invite/${invitation.token}`;
 
-    try {
-      await notificationService.sendAdminInvitationEmail({
-        to: normalizedEmail,
-        inviteLink: acceptLink,
-        inviterName,
-        expiryDate: expiresAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-      });
-    } catch (emailErr) {
-      logger.error(`[InvitationService] Failed to send invitation email to ${normalizedEmail}:`, emailErr.message);
-      // Don't throw — invitation is created; admin can resend
-    }
+    notificationService.sendAdminInvitationEmail({
+      to: normalizedEmail,
+      inviteLink: acceptLink,
+      inviterName,
+      expiryDate: expiresAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    }).catch((emailErr) => {
+      logger.error(`[InvitationService] Failed to send invitation email to ${normalizedEmail}:`, emailErr?.message || emailErr);
+    });
 
     // 8. Audit log
     try {
@@ -225,7 +223,7 @@ class InvitationService {
         failed_login_attempts: 0,
         extra_permissions: invitation.permissions || [],
         referral_code: referralCode,
-        store_id: invitation.store_id || null
+        store_id: SINGLE_STORE_ID
       }])
       .select()
       .single();
@@ -242,17 +240,32 @@ class InvitationService {
     // Mark invitation accepted
     await invitationModel.accept(token, newUser.id);
 
-    // Send acceptance notification to inviter
-    try {
-      const inviter = await userModel.findById(invitation.invited_by);
-      if (inviter) {
-        await notificationService.sendAdminInvitationAcceptedEmail({
-          to: inviter.email,
-          newAdminName: `${firstName} ${lastName}`.trim(),
-          newAdminEmail: invitation.email
-        });
-      }
-    } catch (_) { /* non-critical */ }
+    // Security-critical: new staff user created → Owners alert.
+    const inviter = await userModel.findById(invitation.invited_by);
+    const inviterName = inviter ? `${inviter.first_name || ''} ${inviter.last_name || ''}`.trim() : null;
+    eventBus.emit('staff.user_created', {
+      actor: { id: invitation.invited_by, fullName: inviterName, role: 'STORE_OWNER' },
+      resourceType: 'user',
+      resourceId: newUser.id,
+      actionType: 'CREATE',
+      severity: 'critical',
+      title: 'New staff user created',
+      message: `${firstName} ${lastName} (${invitation.email}) was granted the ${roleName} role via invitation.`,
+      newValues: { email: invitation.email, role: roleName },
+      data: { userId: newUser.id, email: invitation.email, role: roleName, invitedBy: invitation.invited_by },
+      deepLink: `/staff/${newUser.id}`,
+    });
+
+    // Send acceptance notification to inviter (fire-and-forget)
+    if (inviter) {
+      notificationService.sendAdminInvitationAcceptedEmail({
+        to: inviter.email,
+        newAdminName: `${firstName} ${lastName}`.trim(),
+        newAdminEmail: invitation.email
+      }).catch((emailErr) => {
+        logger.error(`[InvitationService] Failed to send acceptance email to ${inviter.email}:`, emailErr?.message || emailErr);
+      });
+    }
 
     logger.info(`[InvitationService] Invitation accepted by ${invitation.email} — user ${newUser.id} created`);
 
@@ -268,11 +281,9 @@ class InvitationService {
    * @param {string} requesterId
    * @param {boolean} isSuperAdmin
    */
-  async listInvitations(filters, requesterId, isSuperAdmin, storeId = null) {
+  async listInvitations(filters, requesterId, isSuperAdmin) {
     const effectiveFilters = { ...filters };
-    if (storeId) {
-      effectiveFilters.store_id = storeId;
-    }
+    effectiveFilters.store_id = SINGLE_STORE_ID;
     if (!isSuperAdmin) {
       effectiveFilters.invitedBy = requesterId;
     }
@@ -287,7 +298,7 @@ class InvitationService {
    * @param {boolean} isSuperAdmin
    * @param {string} [storeId]   - Requester's store_id
    */
-  async getInvitation(id, requesterId, isSuperAdmin, storeId = null) {
+  async getInvitation(id, requesterId, isSuperAdmin) {
     const invitation = await invitationModel.findById(id);
     if (!invitation) {
       const err = new Error('Invitation not found.');
@@ -295,7 +306,7 @@ class InvitationService {
       throw err;
     }
 
-    if (storeId && invitation.store_id !== storeId) {
+    if (invitation.store_id !== SINGLE_STORE_ID) {
       const err = new Error('Access denied: store mismatch.');
       err.statusCode = 403;
       throw err;
@@ -318,7 +329,7 @@ class InvitationService {
    * @param {boolean} isSuperAdmin
    * @param {string} [storeId]   - Requester's store_id
    */
-  async revokeInvitation(id, requesterId, isSuperAdmin, storeId = null, req) {
+  async revokeInvitation(id, requesterId, isSuperAdmin, req) {
     const invitation = await invitationModel.findById(id);
     if (!invitation) {
       const err = new Error('Invitation not found.');
@@ -326,7 +337,7 @@ class InvitationService {
       throw err;
     }
 
-    if (storeId && invitation.store_id !== storeId) {
+    if (invitation.store_id !== SINGLE_STORE_ID) {
       const err = new Error('Access denied: store mismatch.');
       err.statusCode = 403;
       throw err;
@@ -346,10 +357,11 @@ class InvitationService {
 
     const revoked = await invitationModel.revoke(id);
 
-    // Send revocation email
-    try {
-      await notificationService.sendAdminInvitationRevokedEmail({ to: invitation.email });
-    } catch (_) { /* non-critical */ }
+    // Send revocation email (fire-and-forget)
+    notificationService.sendAdminInvitationRevokedEmail({ to: invitation.email })
+      .catch((emailErr) => {
+        logger.error(`[InvitationService] Failed to send revocation email to ${invitation.email}:`, emailErr?.message || emailErr);
+      });
 
     await AuditService.log(req, 'admin_invitation_revoked', 'invitation', id).catch(() => {});
 
@@ -363,7 +375,7 @@ class InvitationService {
    * @param {string} requesterId
    * @param {boolean} isSuperAdmin
    */
-  async resendInvitation(id, requesterId, isSuperAdmin, storeId = null, req) {
+  async resendInvitation(id, requesterId, isSuperAdmin, req) {
     const invitation = await invitationModel.findById(id);
     if (!invitation) {
       const err = new Error('Invitation not found.');
@@ -371,7 +383,7 @@ class InvitationService {
       throw err;
     }
 
-    if (storeId && invitation.store_id !== storeId) {
+    if (invitation.store_id !== SINGLE_STORE_ID) {
       const err = new Error('Access denied: store mismatch.');
       err.statusCode = 403;
       throw err;
@@ -393,21 +405,21 @@ class InvitationService {
     const newExpiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
     const updated = await invitationModel.resend(id, newExpiry);
 
-    // Resend the email
+    // Resend the email (fire-and-forget)
     const inviter = await userModel.findById(requesterId);
     const inviterName = inviter
       ? `${inviter.first_name || ''} ${inviter.last_name || ''}`.trim() || inviter.email
       : 'Nova Store';
     const acceptLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/accept-invite/${invitation.token}`;
 
-    try {
-      await notificationService.sendAdminInvitationEmail({
-        to: invitation.email,
-        inviteLink: acceptLink,
-        inviterName,
-        expiryDate: newExpiry.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-      });
-    } catch (_) { /* non-critical */ }
+    notificationService.sendAdminInvitationEmail({
+      to: invitation.email,
+      inviteLink: acceptLink,
+      inviterName,
+      expiryDate: newExpiry.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    }).catch((emailErr) => {
+      logger.error(`[InvitationService] Failed to resend invitation email to ${invitation.email}:`, emailErr?.message || emailErr);
+    });
 
     await AuditService.log(req, 'admin_invitation_resent', 'invitation', id).catch(() => {});
 

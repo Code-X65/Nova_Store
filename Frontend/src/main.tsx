@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // Determine which app to load based on the path
-const isAdmin = window.location.pathname.startsWith('/admin') || window.location.hostname.startsWith('admin');
+const isAdmin = window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/accept-invite') || window.location.hostname.startsWith('admin');
 
 async function mount() {
   const rootElement = document.getElementById('root')!;

@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserCircleIcon, ComputerDesktopIcon, ArrowRightOnRectangleIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useAdminSession } from '@/admin/hooks/useAdminSession';
+import { useAdminStore } from '@/admin/hooks/useAdminStore';
 
-export function UserMenu() {
+export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
   const { session, logout } = useAdminSession();
+  const { store } = useAdminStore();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -38,20 +40,29 @@ export function UserMenu() {
       <button
         id="user-menu-btn"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-4 btn-ghost px-3 py-2 rounded-2xl shadow-neu-outer hover:shadow-neu-outer-sm active:shadow-neu-inner"
+        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[#111111] transition-colors group"
       >
-        <div className="w-10 h-10 rounded-xl shadow-neu-inner flex items-center justify-center text-sm font-black text-neu-accent">
-          {initials}
+        <div className="flex items-center gap-3">
+          <div 
+            className="w-10 h-10 rounded-full bg-[#111111] group-hover:bg-black border border-gray-800 flex items-center justify-center flex-shrink-0 text-sm font-bold transition-colors"
+            style={{ color: store?.primary_color || '#FF6A1C' }}
+          >
+            {initials}
+          </div>
+          {!collapsed && (
+            <div className="text-left whitespace-nowrap overflow-hidden">
+              <p className="text-sm font-medium text-white leading-tight truncate">{session.name || 'James Davis'}</p>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">{session.role.replace('_', ' ')}</p>
+            </div>
+          )}
         </div>
-        <div className="hidden sm:block text-left">
-          <p className="text-sm font-bold text-white leading-none">{session.name}</p>
-          <p className="text-[10px] text-neu-text uppercase font-bold tracking-widest leading-none mt-1.5">{session.role.replace('_', ' ')}</p>
-        </div>
-        <ChevronDownIcon className={`w-4 h-4 text-neu-text transition-transform ${open ? 'rotate-180' : ''}`} />
+        {!collapsed && (
+          <ChevronDownIcon className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+        )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-52 glass-card shadow-nova-xl z-50 py-1 animate-slide-down">
+        <div className="absolute left-0 right-0 bottom-full mb-2 bg-black border border-gray-800 rounded-xl shadow-nova-xl z-50 py-1 animate-slide-up">
           <div className="px-3 py-2 border-b border-white/5 mb-1">
             <p className="text-xs text-muted-foreground truncate">{session.email}</p>
             <p className="text-xs text-nova-400 mt-0.5">{session.storeName}</p>

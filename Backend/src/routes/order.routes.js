@@ -186,6 +186,7 @@ router.get('/admin/dispatch-queue', requireOrderStaff, orderController.getDispat
  *               carrier: { type: string }
  *               note: { type: string }
  */
+router.get('/admin/:id', requireOrderStaff, orderController.getOrderDetails);
 router.patch('/admin/:id', requireOrderStaff, orderController.updateOrderStatus);
 
 /**

@@ -1,0 +1,3 @@
+-- Cleanup legacy roles
+DELETE FROM roles
+WHERE name NOT IN ('STORE_OWNER', 'MANAGER', 'ORDER_STAFF', 'INVENTORY_STAFF');
