@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../../config/supabase');
+const AuditService = require('../../services/audit.service');
 
 /**
  * Admin Session Controller
@@ -14,8 +15,6 @@ class AdminSessionController {
     try {
       const adminId = req.admin.id;
 
-      // admin_sessions.sess is a JSON blob. We look for sessions whose
-      // sess->>'adminId' matches the current admin and that haven't expired.
       const { data, error } = await supabaseAdmin
         .from('admin_sessions')
         .select('sid, sess, expire')
@@ -24,7 +23,6 @@ class AdminSessionController {
 
       if (error) throw error;
 
-      // Filter in JS for adminId (Supabase JS can't do JSON path filters natively)
       const mine = (data || [])
         .filter(row => {
           try { return row.sess?.adminId === adminId; } catch { return false; }
@@ -49,7 +47,6 @@ class AdminSessionController {
       const adminId   = req.admin.id;
       const { sessionId } = req.params;
 
-      // Fetch the session first to verify ownership
       const { data: row, error: fetchErr } = await supabaseAdmin
         .from('admin_sessions')
         .select('sid, sess')
@@ -69,6 +66,7 @@ class AdminSessionController {
 
       if (delErr) throw delErr;
 
+      AuditService.log(req, 'session.revoked', 'session', sessionId, null, { adminId });
       res.status(200).json({ success: true, message: 'Session revoked.' });
     } catch (error) {
       next(error);
@@ -85,7 +83,6 @@ class AdminSessionController {
       const adminId        = req.admin.id;
       const currentSid     = req.sessionID;
 
-      // Fetch all active sessions for this admin
       const { data, error: fetchErr } = await supabaseAdmin
         .from('admin_sessions')
         .select('sid, sess')
@@ -106,7 +103,8 @@ class AdminSessionController {
         if (delErr) throw delErr;
       }
 
-      // Also destroy the in-memory session object so this request is immediately logged out
+      AuditService.log(req, 'session.revoked_all', 'session', null, null, { adminId, revokedCount: mySids.length });
+
       req.session.destroy(() => {});
       res.clearCookie('connect.sid', { path: '/' });
 

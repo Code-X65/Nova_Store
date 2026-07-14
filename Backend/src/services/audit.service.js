@@ -51,12 +51,15 @@ class AuditService {
    * @param {object} [oldValues]
    * @param {object} [newValues]
    * @param {object} [opts]         - { severity, actionType, eventId, actor,
-   *                                   delta, summary, ip, userAgent, requestId }
+   *                                   delta, summary, ip, userAgent, requestId,
+   *                                   resourceSku, resourceName, resourceCategory,
+   *                                   contextLocation, contextBatchLot, deltaNumeric,
+   *                                   reasonCode, deviceInfo }
    */
   async log(req, action, resourceType, resourceId, oldValues = null, newValues = null, opts = {}) {
     try {
       const actor = resolveActor(req, opts.actor);
-      const { delta, summary } = (oldValues || newValues)
+      const { delta, summary } = (oldValues && newValues)
         ? computeDelta(oldValues, newValues)
         : { delta: null, summary: null };
 
@@ -78,6 +81,14 @@ class AuditService {
         actorSessionId: actor?.sessionId || null,
         delta: opts.delta || delta,
         summary: opts.summary || summary,
+        resourceSku: opts.resourceSku || null,
+        resourceName: opts.resourceName || null,
+        resourceCategory: opts.resourceCategory || null,
+        contextLocation: opts.contextLocation || null,
+        contextBatchLot: opts.contextBatchLot || null,
+        deltaNumeric: opts.deltaNumeric ?? null,
+        reasonCode: opts.reasonCode || null,
+        deviceInfo: opts.deviceInfo || null,
       });
     } catch (err) {
       console.error('Audit service error:', err);
@@ -90,11 +101,14 @@ class AuditService {
    * @param {string} resourceType
    * @param {string|null} resourceId
    * @param {object} meta - { userId, ip, userAgent, requestId, severity,
-   *                         actionType, actor{...}, oldValues, newValues, delta, summary }
+   *                         actionType, actor{...}, oldValues, newValues, delta,
+   *                         summary, resourceSku, resourceName, resourceCategory,
+   *                         contextLocation, contextBatchLot, deltaNumeric,
+   *                         reasonCode, deviceInfo }
    */
   async logRaw(action, resourceType, resourceId, meta = {}) {
     try {
-      const { delta, summary } = (meta.oldValues || meta.newValues)
+      const { delta, summary } = (meta.oldValues && meta.newValues)
         ? computeDelta(meta.oldValues, meta.newValues)
         : { delta: null, summary: null };
 
@@ -116,6 +130,14 @@ class AuditService {
         actorSessionId: meta.actor?.sessionId || null,
         delta: meta.delta || delta,
         summary: meta.summary || summary,
+        resourceSku: meta.resourceSku || null,
+        resourceName: meta.resourceName || null,
+        resourceCategory: meta.resourceCategory || null,
+        contextLocation: meta.contextLocation || null,
+        contextBatchLot: meta.contextBatchLot || null,
+        deltaNumeric: meta.deltaNumeric ?? null,
+        reasonCode: meta.reasonCode || null,
+        deviceInfo: meta.deviceInfo || null,
       });
     } catch (err) {
       console.error('Audit service (logRaw) error:', err);
@@ -169,6 +191,14 @@ class AuditService {
 
   async logAdminPasswordChange(req, userId) {
     await this.log(req, 'admin.password.changed', 'user', userId, null, null, { actionType: 'OTHER' });
+  }
+
+  /**
+   * Recompute the audit hash chain and report any tampering.
+   * See AuditLogModel.verifyChain for the verification algorithm.
+   */
+  async verifyChain() {
+    return await AuditLogModel.verifyChain();
   }
 }
 

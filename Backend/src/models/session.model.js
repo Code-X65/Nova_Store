@@ -7,7 +7,7 @@ class SessionModel {
    * @param {string}  expiresAt    - ISO timestamp string
    * @param {boolean} [isAdmin]    - flag admin sessions for shorter TTL / concurrent-cap tracking
    */
-  async create(userId, refreshToken, expiresAt, isAdmin = false) {
+  async create(userId, refreshToken, expiresAt, isAdmin = false, deviceFingerprint = null, userAgent = null, ipAddress = null) {
     const { data, error } = await supabase
       .from('sessions')
       .insert([{
@@ -15,7 +15,10 @@ class SessionModel {
         refresh_token: refreshToken,
         expires_at: expiresAt,
         revoked: false,
-        is_admin: isAdmin
+        is_admin: isAdmin,
+        device_fingerprint: deviceFingerprint,
+        user_agent: userAgent,
+        ip_address: ipAddress
       }])
       .select()
       .single();

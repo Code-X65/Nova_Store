@@ -149,19 +149,67 @@ class AnalyticsModel {
   }
 
   async getInventoryAlerts(limit) {
-    // Top out of stock or low stock
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, stock_quantity')
+      .select('id, name, stock_quantity, low_stock_threshold')
       .order('stock_quantity', { ascending: true })
       .limit(limit);
 
     if (error) throw error;
 
     return {
-      lowStockProducts: data.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 10), // Threshold = 10
+      lowStockProducts: data.filter(p => p.stock_quantity > 0 && p.stock_quantity <= (p.low_stock_threshold || 10)),
       outOfStockProducts: data.filter(p => p.stock_quantity === 0)
     };
+  }
+
+  async getForecast(metric, from, to) {
+    const { data, error } = await supabase
+      .from('forecast_snapshots')
+      .select('*')
+      .eq('metric', metric)
+      .gte('period_start', from)
+      .lte('period_end', to)
+      .order('period_start', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  async saveForecast(forecast) {
+    const { data, error } = await supabase
+      .from('forecast_snapshots')
+      .insert([forecast])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async getCustomerHeatmap(productId, from, to) {
+    const { data, error } = await supabase
+      .from('customer_events')
+      .select('event_type, created_at, product_id, category_id, customer:users!customer_id(id,first_name,last_name,email)')
+      .eq('product_id', productId)
+      .gte('created_at', from)
+      .lte('created_at', to)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  async getHeatmapSummary(from, to) {
+    const { data, error } = await supabase
+      .from('customer_events')
+      .select('event_type, product_id, category_id, created_at, product:products!product_id(name,primary_image_url), category:product_categories!category_id(name)')
+      .gte('created_at', from)
+      .lte('created_at', to)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
   }
 }
 

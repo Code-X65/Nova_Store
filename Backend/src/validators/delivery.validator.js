@@ -4,13 +4,17 @@ const Joi = require('joi');
 
 const dispatchOrder = {
   body: Joi.object({
+    riderId:       Joi.string().uuid().optional().allow(null, ''),
+    riderName:     Joi.string().max(100).optional().allow(null, ''),
+    riderPhone:    Joi.string().max(20).optional().allow(null, ''),
     driverName:    Joi.string().min(2).max(100).required().messages({
       'any.required': 'Driver name is required',
       'string.min':   'Driver name must be at least 2 characters'
     }),
     driverPhone:   Joi.string().max(20).optional().allow(null, ''),
     dispatchNotes: Joi.string().max(500).optional().allow(null, ''),
-    deliveryWindow: Joi.string().valid('morning', 'afternoon', 'evening', 'custom').optional().allow(null, '')
+    deliveryWindow: Joi.string().valid('morning', 'afternoon', 'evening', 'custom').optional().allow(null, ''),
+    paymentMethod: Joi.string().valid('card', 'transfer', 'cash', 'pay_on_delivery', 'cod').optional().allow(null, '')
   })
 };
 
@@ -86,11 +90,24 @@ const bulkOrderAction = {
   })
 };
 
+const bulkAssignRider = {
+  body: Joi.object({
+    orderIds: Joi.array().items(Joi.string().uuid().required()).min(1).required().messages({
+      'any.required': 'orderIds is required',
+      'array.min': 'At least one orderId must be provided'
+    }),
+    riderId: Joi.string().uuid().required().messages({
+      'any.required': 'riderId is required'
+    })
+  })
+};
+
 module.exports = {
   dispatchOrder,
   deliveryMilestoneNote,
   markDelivered,
   requestReturn,
   processReturn,
-  bulkOrderAction
+  bulkOrderAction,
+  bulkAssignRider
 };

@@ -98,39 +98,45 @@ export interface Brand {
 }
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
+// NOTE: Backend returns snake_case fields. Types below match actual API shapes.
+
 export interface InventoryItem {
   id: string;
-  productId: string;
-  productName: string;
+  product_id: string;
+  product_name: string;
   sku: string;
-  quantity: number;
-  reservedQuantity: number;
-  availableQuantity: number;
-  lowStockThreshold: number;
-  costPrice?: number;
-  updatedAt: string;
+  stock_quantity: number;
+  reserved_quantity: number;
+  available_quantity: number;
+  low_stock_threshold: number;
+  cost_price?: number;
+  updated_at: string;
 }
 
 export interface StockTransaction {
   id: string;
-  productId: string;
+  product_id: string;
   type: 'add' | 'reduce' | 'adjustment' | 'sale' | 'return';
   quantity: number;
-  previousQuantity: number;
-  newQuantity: number;
+  previous_quantity: number;
+  new_quantity: number;
   note?: string;
-  performedBy: string;
-  createdAt: string;
+  performed_by: string;
+  created_at: string;
+  products?: { name: string; sku: string };
+  product_variants?: { name: string; sku: string };
+  variant_id?: string;
+  store_id?: string;
 }
 
 export interface InventoryAlert {
   id: string;
-  productId: string;
-  productName: string;
-  currentStock: number;
+  product_id: string;
+  product_name: string;
+  current_stock: number;
   threshold: number;
   severity: 'low' | 'critical' | 'out_of_stock';
-  createdAt: string;
+  created_at: string;
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
@@ -370,4 +376,7 @@ export interface AuditLog {
   delta?: AuditDeltaEntry[] | null;
   details?: Record<string, unknown>;
   createdAt: string;
+  human_readable?: string | null;
+  change_category?: string | null;
+  device_fingerprint?: string | null;
 }

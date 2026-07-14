@@ -804,8 +804,8 @@ class AuthService {
     }
 
     // Admin Methods
-    async listUsers(page = 1, limit = 10) {
-      return await userModel.findAll(page, limit);
+    async listUsers(page = 1, limit = 10, search = '') {
+      return await userModel.findAll(page, limit, { search });
     }
     
     async updateUserStatus(userId, updates) {

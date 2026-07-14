@@ -94,3 +94,44 @@ exports.exportRevenue = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getForecast = async (req, res, next) => {
+  try {
+    const { metric, from, to } = req.query;
+    const data = await AnalyticsService.getForecast(metric || 'revenue', from, to);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.saveForecast = async (req, res, next) => {
+  try {
+    const { metric, forecast } = req.body;
+    const data = await AnalyticsService.saveForecast(metric || 'revenue', forecast);
+    res.status(201).json({ success: true, data, message: 'Forecast saved' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getCustomerHeatmap = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const { from, to } = req.query;
+    const data = await AnalyticsService.getCustomerHeatmap(productId, from, to);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getHeatmapSummary = async (req, res, next) => {
+  try {
+    const { from, to } = req.query;
+    const data = await AnalyticsService.getHeatmapSummary(from, to);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -225,6 +225,10 @@ class UserModel {
       query = query.eq('store_id', options.store_id);
     }
 
+    if (options.search) {
+      query = query.or(`first_name.ilike.%${options.search}%,last_name.ilike.%${options.search}%,email.ilike.%${options.search}%`);
+    }
+
     query = query
       .range(from, to)
       .order('created_at', { ascending: false });

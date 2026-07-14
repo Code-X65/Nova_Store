@@ -472,8 +472,8 @@ class AuthController {
   // Admin Controllers
   async adminListUsers(req, res, next) {
     try {
-      const { page, limit } = req.query;
-      const result = await authService.listUsers(parseInt(page), parseInt(limit));
+      const { page, limit, search } = req.query;
+      const result = await authService.listUsers(parseInt(page), parseInt(limit), search);
       res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);

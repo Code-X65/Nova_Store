@@ -27,6 +27,7 @@ const runCleanup = require('./jobs/cleanup.job.js');
 const runReservationCleanup = require('./jobs/reservation-cleanup.job.js');
 
 const { startWorker: startNotifyWorker } = require('./services/notification-queue.service');
+const { startImportWorker, shutdownImportWorker } = require('./services/bulk-import.worker');
 const { initRealtime } = require('./realtime/sse.gateway');
 const eventBus = require('./realtime/event-bus');
 const notificationRouter = require('./services/notification-router.service');
@@ -35,6 +36,9 @@ const PORT = process.env.PORT || 5000;
 
 // 1. Notification delivery worker — starts immediately on boot
 startNotifyWorker().catch(err => console.error('[Server] Notify queue failed to start:', err.message));
+
+// 1b. Bulk import worker — processes queued Excel ingestion jobs (Redis list)
+startImportWorker().catch(err => console.error('[Server] Import worker failed to start:', err.message));
 
 // 2. Daily garbage-collection: 02:00 UTC
 new CronJob('0 2 * * *', runCleanup, null, true, 'UTC');
@@ -51,6 +55,9 @@ initRealtime().catch(err => console.warn('[Server] Realtime init skipped:', err.
 // Role-Based Notification Routing Engine handlers.
 eventBus.initRealtime().catch(err => console.warn('[Server] Event bus init skipped:', err.message));
 notificationRouter.initHandlers();
+
+// Auto-generate gross-NGN invoices when orders are delivered / paid
+require('./services/invoice.service').initAutoInvoice();
 
 let server;
 
@@ -106,6 +113,12 @@ const gracefulShutdown = async (signal) => {
     await shutdownWorker();
   } catch (err) {
     console.error('Error shutting down notification worker:', err.message);
+  }
+
+  try {
+    await shutdownImportWorker();
+  } catch (err) {
+    console.error('Error shutting down import worker:', err.message);
   }
 
   // Disconnect Redis

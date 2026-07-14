@@ -42,7 +42,7 @@ class AccessController {
       // Instantly kill every active session on all devices.
       await sessionModel.revokeAllAdminSessionsForUser(id);
 
-      await AuditService.log(req, 'admin.locked', 'user', id, null, { reason, actor: req.admin.id }).catch(() => {});
+      await AuditService.log(req, 'admin.locked', 'user', id, null, { reason, actor: req.admin.id });
       await realtime.emitAccessChange(id, 'account.locked', { actor: req.admin.id, reason });
 
       logger.info(`[Access] Account ${id} locked by ${req.admin.id}`);
@@ -65,7 +65,7 @@ class AccessController {
 
       await userModel.setLockState(id, { locked: false });
 
-      await AuditService.log(req, 'admin.unlocked', 'user', id, null, { actor: req.admin.id }).catch(() => {});
+      await AuditService.log(req, 'admin.unlocked', 'user', id, null, { actor: req.admin.id });
       await realtime.emitAccessChange(id, 'account.unlocked', { actor: req.admin.id });
 
       return res.json({ success: true, message: 'Account unlocked.' });
@@ -104,7 +104,7 @@ class AccessController {
       await sessionModel.revokeAllAdminSessionsForUser(id);
       await userModel.hardDeleteAdmin(id, user.email);
 
-      await AuditService.log(req, 'admin.removed', 'user', id, null, { email: user.email, actor: req.admin.id }).catch(() => {});
+      await AuditService.log(req, 'admin.removed', 'user', id, null, { email: user.email, actor: req.admin.id });
       await realtime.emitAccessChange(id, 'account.removed', { actor: req.admin.id });
 
       logger.info(`[Access] Account ${id} (${user.email}) permanently removed by ${req.admin.id}`);

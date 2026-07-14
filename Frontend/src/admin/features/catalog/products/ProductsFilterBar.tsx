@@ -153,7 +153,7 @@ export function ProductsFilterBar({ filters, onChange }: ProductsFilterBarProps)
 
  <div>
  <label className={labelCls}>
- Price Range {priceRange ? `($${priceRange.min} - $${priceRange.max})` : ''}
+  Price Range {priceRange ? `(₦${priceRange.min} - ₦${priceRange.max})` : ''}
  </label>
  <div className="flex items-center gap-2">
  <input

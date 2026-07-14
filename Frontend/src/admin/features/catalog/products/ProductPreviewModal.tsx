@@ -83,14 +83,14 @@ export function ProductPreviewModal({ isOpen, onClose, product }: ProductPreview
  </div>
 
  <div className="flex items-center gap-3">
- <span className="text-2xl font-bold text-emerald-400">
- ${Number(product.price).toFixed(2)}
- </span>
- {product.cost_price > 0 && (
- <span className="text-sm font-medium text-[var(--neu-text)]" title="Cost Price">
- (Cost: ${Number(product.cost_price).toFixed(2)})
- </span>
- )}
+  <span className="text-2xl font-bold text-emerald-400">
+  ₦{Number(product.price).toFixed(2)}
+  </span>
+  {product.cost_price > 0 && (
+  <span className="text-sm font-medium text-[var(--neu-text)]" title="Cost Price">
+  (Cost: ₦{Number(product.cost_price).toFixed(2)})
+  </span>
+  )}
  {product.status === 'published' && (
  <span className="badge-success">Published</span>
  )}

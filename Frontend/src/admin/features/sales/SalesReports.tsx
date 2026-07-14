@@ -120,22 +120,22 @@ export default function SalesReports() {
  ) : (
  <>
  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
- <StatCard 
- title="Total Revenue" 
- value={`$${Number(metrics.totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
- icon={<CurrencyDollarIcon className="w-6 h-6" />}
- trendUp={true}
- />
+  <StatCard 
+  title="Total Revenue" 
+  value={formatNaira(metrics.totalRevenue)}
+  icon={<CurrencyDollarIcon className="w-6 h-6" />}
+  trendUp={true}
+  />
  <StatCard 
  title="Order Volume" 
  value={metrics.totalOrders}
  icon={<ChartBarIcon className="w-6 h-6" />}
  />
- <StatCard 
- title="Average Order Value" 
- value={`$${Number(metrics.averageOrderValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
- icon={<PresentationChartLineIcon className="w-6 h-6" />}
- />
+  <StatCard 
+  title="Average Order Value" 
+  value={formatNaira(metrics.averageOrderValue)}
+  icon={<PresentationChartLineIcon className="w-6 h-6" />}
+  />
  </div>
 
  <div className="grid grid-cols-1 gap-6">
@@ -144,8 +144,8 @@ export default function SalesReports() {
  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
  <XAxis dataKey="date" stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} />
- <YAxis stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
- <Tooltip content={<CustomTooltip formatter={(value: number) => `$${value.toFixed(2)}`} />} />
+  <YAxis stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₦${value}`} />
+  <Tooltip content={<CustomTooltip formatter={(value: number) => `₦${value.toFixed(2)}`} />} />
  <Bar dataKey="revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} />
  </BarChart>
  </ResponsiveContainer>

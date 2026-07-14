@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { XMarkIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { ImageUploadInput } from '@/admin/components/ui/ImageUploadInput';
 import type { Brand } from './BrandsTable';
+import { PermissionGuard } from '@/admin/components/guards/PermissionGuard';
 
 type FormMode =
  | { type: 'create' }
@@ -385,20 +386,22 @@ export function BrandForm({ mode, onClose }: BrandFormProps) {
  )}
  </form>
 
- {/* Footer */}
- <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--panel-border)]">
- <button type="button" onClick={onClose} className="btn-secondary text-sm px-5 py-2">
- Cancel
- </button>
- <button
- type="submit"
- form="brand-form"
- disabled={saveMutation.isPending || !form.name.trim()}
- className="btn-primary text-sm px-5 py-2 disabled:opacity-40"
- >
- {saveMutation.isPending ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Brand'}
- </button>
- </div>
+  {/* Footer */}
+  <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--panel-border)]">
+  <button type="button" onClick={onClose} className="btn-secondary text-sm px-5 py-2">
+  Cancel
+  </button>
+  <PermissionGuard permission="brand:write" anyOf={['brand:manage']}>
+  <button
+  type="submit"
+  form="brand-form"
+  disabled={saveMutation.isPending || !form.name.trim()}
+  className="btn-primary text-sm px-5 py-2 disabled:opacity-40"
+  >
+  {saveMutation.isPending ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Brand'}
+  </button>
+  </PermissionGuard>
+  </div>
 
  </div>
  </div>

@@ -48,13 +48,14 @@ class ProductCategoryController {
     try {
       const category = await categoryService.createCategory(req.user.id, req.body, req.store?.id);
 
-      AuditService.log(req, 'category.created', 'category', category.id, null, {
+      res.locals.auditResource = {
+        id: category.id,
         name: category.name,
         slug: category.slug,
         parent_id: category.parent_id,
         is_active: category.is_active,
         sort_order: category.sort_order
-      });
+      };
 
       res.status(201).json({ success: true, data: { category } });
     } catch (error) {
@@ -101,7 +102,7 @@ class ProductCategoryController {
       }
       const category = await categoryService.updateCategory(id, req.body, req.store?.id);
 
-      const oldValues = oldCategory ? {
+      req.auditBefore = oldCategory ? {
         name: oldCategory.name,
         slug: oldCategory.slug,
         parent_id: oldCategory.parent_id,
@@ -109,7 +110,7 @@ class ProductCategoryController {
         sort_order: oldCategory.sort_order
       } : null;
 
-      const newValues = {
+      res.locals.auditResource = {
         name: category.name,
         slug: category.slug,
         parent_id: category.parent_id,
@@ -117,7 +118,6 @@ class ProductCategoryController {
         sort_order: category.sort_order
       };
 
-      AuditService.log(req, 'category.updated', 'category', id, oldValues, newValues);
       res.status(200).json({ success: true, data: { category } });
     } catch (error) {
       next(error);
@@ -130,7 +130,9 @@ class ProductCategoryController {
       const cascade = req.query.cascade === 'true';
 
       await categoryService.deleteCategory(id, { cascade }, req.store?.id);
-      AuditService.log(req, 'category.deleted', 'category', id);
+
+      res.locals.auditResource = { id };
+
       res.status(200).json({ success: true, message: 'Category archived' });
     } catch (error) {
       next(error);

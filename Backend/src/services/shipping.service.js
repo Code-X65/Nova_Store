@@ -14,12 +14,9 @@ class ShippingService {
 
     const zones = await shippingZoneModel.findAll({ isActive: true });
     
-    // Find matching zone
     let matchedZone = null;
     for (const zone of zones) {
       if (zone.countries.includes(address.country)) {
-        // If state is "*", it matches any state in that country
-        // Otherwise, check if the specific state is in the zone's states array
         const states = zone.states || [];
         if (
           states.length === 0 || 
@@ -27,43 +24,68 @@ class ShippingService {
           (address.state && states.includes(address.state))
         ) {
           matchedZone = zone;
-          break; // Use the first matching zone
+          break;
         }
       }
     }
 
     if (!matchedZone) {
-      // Return empty array or throw error if shipping isn't available
       return [];
     }
 
-    // Get active rates for the matched zone
     const rates = await shippingRateModel.findByZoneId(matchedZone.id, { isActive: true });
 
-    // Filter rates based on cart total and weight
-    const availableOptions = rates.filter(rate => {
-      // Check min order amount (e.g., Free shipping over $50)
+    let availableOptions = rates.filter(rate => {
       if (rate.min_order_amount && cartTotal < rate.min_order_amount) {
-        // Only exclude if rate is 0.00 (free shipping tier) and total is below min.
-        // Wait, standard rate could also have a min amount.
-        // Let's strictly apply min_order_amount if it's > 0
         if (rate.rate == 0 && cartTotal < rate.min_order_amount) {
           return false;
         }
       }
-
-      // Check weight constraints
       if (rate.min_weight && cartWeight < rate.min_weight) {
         return false;
       }
       if (rate.max_weight && cartWeight > rate.max_weight) {
         return false;
       }
-
       return true;
     });
 
-    // Map to friendly format
+    const strategy = matchedZone.rate_strategy && typeof matchedZone.rate_strategy === 'object'
+      ? matchedZone.rate_strategy
+      : null;
+
+    if (strategy && strategy.type) {
+      const existingIds = new Set(availableOptions.map(r => r.id));
+      if (strategy.type === 'flat' && strategy.amount != null && !existingIds.has('zone-flat')) {
+        availableOptions.push({
+          id: 'zone-flat',
+          name: strategy.name || 'Standard Flat',
+          rate: Number(strategy.amount),
+          estimated_days_min: strategy.estimated_days_min || null,
+          estimated_days_max: strategy.estimated_days_max || null,
+          isActive: true,
+        });
+      } else if (strategy.type === 'free_over_x' && strategy.threshold != null) {
+        if (cartTotal >= Number(strategy.threshold)) {
+          availableOptions = availableOptions.map(r => ({ ...r, rate: 0 }));
+        }
+      } else if (strategy.type === 'price_threshold' && strategy.threshold != null && strategy.amount != null) {
+        if (cartTotal >= Number(strategy.threshold)) {
+          const flatId = 'zone-threshold';
+          if (!existingIds.has(flatId)) {
+            availableOptions.push({
+              id: flatId,
+              name: strategy.name || 'Discounted Rate',
+              rate: Number(strategy.amount),
+              estimated_days_min: strategy.estimated_days_min || null,
+              estimated_days_max: strategy.estimated_days_max || null,
+              isActive: true,
+            });
+          }
+        }
+      }
+    }
+
     return availableOptions.map(rate => ({
       id: rate.id,
       name: rate.name,
@@ -71,7 +93,7 @@ class ShippingService {
       estimatedDays: rate.estimated_days_min && rate.estimated_days_max 
         ? `${rate.estimated_days_min}-${rate.estimated_days_max}` 
         : null
-    })).sort((a, b) => a.price - b.price); // Sort cheapest first
+    })).sort((a, b) => a.price - b.price);
   }
 }
 

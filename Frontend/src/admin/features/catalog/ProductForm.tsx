@@ -19,7 +19,7 @@ const INITIAL_FORM_DATA = {
  short_description: '',
  price: 0,
  cost_price: 0,
- currency: 'USD',
+  currency: 'NGN',
  weight: 0,
  dimensions_length: 0,
  dimensions_width: 0,
@@ -91,7 +91,7 @@ export default function ProductForm() {
  short_description: productData.short_description || '',
  price: Number(productData.price) || 0,
  cost_price: Number(productData.cost_price) || 0,
- currency: productData.currency || 'USD',
+  currency: productData.currency || 'NGN',
  weight: Number(productData.weight) || 0,
  dimensions_length: Number(productData.dimensions_length) || 0,
  dimensions_width: Number(productData.dimensions_width) || 0,
@@ -379,22 +379,22 @@ export default function ProductForm() {
  <div>
  <label className={labelCls}>Selling Price *</label>
  <div className="relative">
- <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--neu-text)]">$</span>
- <input
- type="number"
- step="0.01"
- min="0"
- required
- value={formData.price || ''}
- onChange={(e) => setVal('price', parseFloat(e.target.value) || 0)}
- className={`${inputCls} pl-8`}
- />
- </div>
- </div>
- <div>
- <label className={labelCls}>Cost Price</label>
- <div className="relative">
- <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--neu-text)]">$</span>
+  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--neu-text)]">₦</span>
+  <input
+  type="number"
+  step="0.01"
+  min="0"
+  required
+  value={formData.price || ''}
+  onChange={(e) => setVal('price', parseFloat(e.target.value) || 0)}
+  className={`${inputCls} pl-8`}
+  />
+  </div>
+  </div>
+  <div>
+  <label className={labelCls}>Cost Price</label>
+  <div className="relative">
+  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--neu-text)]">₦</span>
  <input
  type="number"
  step="0.01"

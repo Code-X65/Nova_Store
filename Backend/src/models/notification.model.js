@@ -33,15 +33,29 @@ class NotificationModel {
   }
 
   async getUnreadCount(userId) {
-    const { count, error } = await supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .is('read_at', null)
-      .contains('channel', ['inapp']);
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .is('read_at', null)
+        .contains('channel', ['inapp']);
 
-    if (error) throw error;
-    return count;
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      // Fallback: fetch unread notification IDs and count manually.
+      // This handles environments where the `channel` column may be missing
+      // or the PostgREST `contains` operator fails for any reason.
+      const { data, error: fetchError } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', userId)
+        .is('read_at', null);
+
+      if (fetchError) throw fetchError;
+      return (data || []).length;
+    }
   }
 
   async markAsRead(id, userId) {

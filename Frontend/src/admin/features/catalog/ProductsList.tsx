@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { ProductsFilterBar, type ProductFilters } from './products/ProductsFilterBar';
 import { BulkProductImportModal } from './products/BulkProductImportModal';
 import { ProductPreviewModal } from './products/ProductPreviewModal';
+import { PermissionGuard } from '@/admin/components/guards/PermissionGuard';
 
 export default function ProductsList() {
  const qc = useQueryClient();
@@ -143,11 +144,11 @@ export default function ProductsList() {
  <div className="font-mono">
  {hasSale ? (
  <div className="flex flex-col">
- <span className="text-emerald-400 font-bold">${sale.toFixed(2)}</span>
- <span className="text-[10px] text-[var(--neu-text)] line-through">${price.toFixed(2)}</span>
+  <span className="text-emerald-400 font-bold">₦{sale.toFixed(2)}</span>
+  <span className="text-[10px] text-[var(--neu-text)] line-through">₦{price.toFixed(2)}</span>
  </div>
  ) : (
- <span className="text-white font-bold">${price.toFixed(2)}</span>
+  <span className="text-white font-bold">₦{price.toFixed(2)}</span>
  )}
  </div>
  );
@@ -202,34 +203,38 @@ export default function ProductsList() {
  id: 'actions',
  header: '',
  cell: ({ row }) => (
- <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
- <button
- onClick={() => setPreviewProduct(row.original)}
- className="p-1.5 text-[var(--neu-text)] hover:text-white hover:bg-white/10 rounded-lg transition-colors"
- title="Preview Product"
- >
- <EyeIcon className="w-4 h-4" />
- </button>
- <button
- onClick={() => navigate(`/catalog/products/${row.original.id}`)}
- className="p-1.5 text-[var(--neu-text)] hover:text-white hover:bg-white/10 rounded-lg transition-colors"
- title="Edit Product"
- >
- <PencilIcon className="w-4 h-4" />
- </button>
- <button
- onClick={() => {
- if (confirm(`Archive ${row.original.sku}? It will be hidden from the storefront.`)) {
- deleteMutation.mutate(row.original.id);
- }
- }}
- disabled={row.original.status === 'archived' || deleteMutation.isPending}
- className="p-1.5 text-[var(--neu-text)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors disabled:opacity-30"
- title="Archive Product"
- >
- <TrashIcon className="w-4 h-4" />
- </button>
- </div>
+  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+  <button
+  onClick={() => setPreviewProduct(row.original)}
+  className="p-1.5 text-[var(--neu-text)] hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+  title="Preview Product"
+  >
+  <EyeIcon className="w-4 h-4" />
+  </button>
+  <PermissionGuard permission="product:write">
+  <button
+  onClick={() => navigate(`/catalog/products/${row.original.id}`)}
+  className="p-1.5 text-[var(--neu-text)] hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+  title="Edit Product"
+  >
+  <PencilIcon className="w-4 h-4" />
+  </button>
+  </PermissionGuard>
+  <PermissionGuard permission="product:delete">
+  <button
+  onClick={() => {
+  if (confirm(`Archive ${row.original.sku}? It will be hidden from the storefront.`)) {
+  deleteMutation.mutate(row.original.id);
+  }
+  }}
+  disabled={row.original.status === 'archived' || deleteMutation.isPending}
+  className="p-1.5 text-[var(--neu-text)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors disabled:opacity-30"
+  title="Archive Product"
+  >
+  <TrashIcon className="w-4 h-4" />
+  </button>
+  </PermissionGuard>
+  </div>
  ),
  },
  ], []);
@@ -244,19 +249,21 @@ export default function ProductsList() {
  Manage your store's catalog, pricing, and inventory.
  </p>
  </div>
- <div className="flex items-center gap-3">
- <button 
- onClick={() => setIsBulkImportOpen(true)}
- className="btn-secondary flex items-center gap-2"
- >
- <ArrowUpTrayIcon className="w-4 h-4" />
- Bulk Import
- </button>
- <Link to="/catalog/products/new" className="btn-primary flex items-center gap-2">
- <PlusIcon className="w-4 h-4" />
- New Product
- </Link>
- </div>
+  <div className="flex items-center gap-3">
+  <button 
+  onClick={() => setIsBulkImportOpen(true)}
+  className="btn-secondary flex items-center gap-2"
+  >
+  <ArrowUpTrayIcon className="w-4 h-4" />
+  Bulk Import
+  </button>
+  <PermissionGuard permission="product:create">
+  <Link to="/catalog/products/new" className="btn-primary flex items-center gap-2">
+  <PlusIcon className="w-4 h-4" />
+  New Product
+  </Link>
+  </PermissionGuard>
+  </div>
  </div>
 
  {/* Filter Bar */}

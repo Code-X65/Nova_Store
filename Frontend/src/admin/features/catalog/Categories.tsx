@@ -9,6 +9,7 @@ import { AttributeManager } from './categories/AttributeManager';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { PermissionGuard } from '@/admin/components/guards/PermissionGuard';
 
 type FormMode =
  | { type: 'create' }
@@ -102,22 +103,24 @@ export default function Categories() {
  return (
  <div className="space-y-6">
  {/* Page header */}
- <div className="flex items-start justify-between ">
- <div>
- <h1 className="page-title">Categories</h1>
- <p className="text-sm text-[var(--neu-text)] mt-1">
- Manage your product classification tree.
- {!showAttributes && <span className="opacity-60"> Click a category to manage its attributes.</span>}
- </p>
- </div>
- <button
- onClick={() => setFormMode({ type: 'create' })}
- className="btn-primary flex items-center gap-2"
- >
- <PlusIcon className="w-4 h-4" />
- New Category
- </button>
- </div>
+  <div className="flex items-start justify-between ">
+  <div>
+  <h1 className="page-title">Categories</h1>
+  <p className="text-sm text-[var(--neu-text)] mt-1">
+  Manage your product classification tree.
+  {!showAttributes && <span className="opacity-60"> Click a category to manage its attributes.</span>}
+  </p>
+  </div>
+  <PermissionGuard permission="category:manage">
+  <button
+  onClick={() => setFormMode({ type: 'create' })}
+  className="btn-primary flex items-center gap-2"
+  >
+  <PlusIcon className="w-4 h-4" />
+  New Category
+  </button>
+  </PermissionGuard>
+  </div>
 
 
 

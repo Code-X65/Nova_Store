@@ -6,6 +6,7 @@ import { PlusIcon } from '@heroicons/react/24/outline';
 import { BrandsTable, type Brand } from './brands/BrandsTable';
 import { BrandForm } from './brands/BrandForm';
 import { DeleteBrandModal } from './brands/DeleteBrandModal';
+import { PermissionGuard } from '@/admin/components/guards/PermissionGuard';
 
 type FormMode =
  | { type: 'create' }
@@ -38,21 +39,23 @@ export default function Brands() {
  return (
  <div className="space-y-6">
  {/* Header */}
- <div className="flex items-start justify-between w-full">
- <div>
- <h1 className="page-title">Brands</h1>
- <p className="text-sm text-[var(--neu-text)] mt-1">
- Manage your store's brands and manufacturers.
- </p>
- </div>
- <button
- onClick={() => setFormMode({ type: 'create' })}
- className="btn-primary flex items-center gap-2"
- >
- <PlusIcon className="w-4 h-4" />
- New Brand
- </button>
- </div>
+  <div className="flex items-start justify-between w-full">
+  <div>
+  <h1 className="page-title">Brands</h1>
+  <p className="text-sm text-[var(--neu-text)] mt-1">
+  Manage your store's brands and manufacturers.
+  </p>
+  </div>
+  <PermissionGuard permission="brand:manage">
+  <button
+  onClick={() => setFormMode({ type: 'create' })}
+  className="btn-primary flex items-center gap-2"
+  >
+  <PlusIcon className="w-4 h-4" />
+  New Brand
+  </button>
+  </PermissionGuard>
+  </div>
 
 
 

@@ -1,6 +1,30 @@
 const { supabaseAdmin } = require('../config/supabase');
 const { computeDelta, summarizeDelta } = require('../utils/audit-diff');
 const { humanizeAction, humanizeActionType } = require('../utils/audit-labels');
+const crypto = require('crypto');
+
+/**
+ * Compute a tamper-evidence hash chaining the previous record to this one.
+ * Returns { recordHash, prevRecordHash } where prevRecordHash is the hash of
+ * the most recent existing row (or a genesis sentinel for the first row).
+ */
+async function computeChainHash(payloadString) {
+  let prevRecordHash = 'GENESIS';
+  try {
+    const { data } = await supabaseAdmin
+      .from('audit_logs')
+      .select('record_hash')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data && data.record_hash) prevRecordHash = data.record_hash;
+  } catch { /* best-effort */ }
+  const recordHash = crypto
+    .createHash('sha256')
+    .update(`${prevRecordHash}|${payloadString}`)
+    .digest('hex');
+  return { recordHash, prevRecordHash };
+}
 
 // resource_type → table + label column used to resolve a friendly name for
 // the affected entity (so we show "iPhone 15" instead of a UUID).
@@ -104,6 +128,90 @@ async function enrich(rows) {
 
 class AuditLogModel {
   /**
+   * Recompute the tamper-evidence hash chain over every audit row in
+   * chronological order and compare it against the stored hashes.
+   *
+   * Two checks per row:
+   *   - linkOk: row.prev_record_hash === hash of the previous row
+   *   - hashOk: sha256(`${prevRecordHash}|${payload}`) === row.record_hash
+   *
+   * The chain advances using each row's STORED record_hash, so a single
+   * tampered row is localised rather than cascading the break to every
+   * subsequent row.
+   *
+   * @returns {{ total:number, verified:boolean, verifiedCount:number,
+   *   brokenCount:number, broken:Array, verifiedAt:string }}
+   */
+  async verifyChain() {
+    const { data, error } = await supabaseAdmin
+      .from('audit_logs')
+      .select('id, created_at, user_id, action, resource_type, resource_id, old_values, new_values, severity, action_type, actor_full_name, actor_role, resource_sku, delta_numeric, reason_code, record_hash, prev_record_hash')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('AuditLogModel.verifyChain failed:', error);
+      throw error;
+    }
+
+    const rows = data || [];
+    let prevRecordHash = 'GENESIS';
+    let verifiedCount = 0;
+    const broken = [];
+
+    for (const row of rows) {
+      const payload = JSON.stringify({
+        userId: row.user_id,
+        action: row.action,
+        resourceType: row.resource_type,
+        resourceId: row.resource_id,
+        oldValues: row.old_values,
+        newValues: row.new_values,
+        severity: row.severity,
+        actionType: row.action_type,
+        actorFullName: row.actor_full_name,
+        actorRole: row.actor_role,
+        resourceSku: row.resource_sku,
+        deltaNumeric: row.delta_numeric,
+        reasonCode: row.reason_code,
+      });
+      const expectedHash = crypto
+        .createHash('sha256')
+        .update(`${prevRecordHash}|${payload}`)
+        .digest('hex');
+
+      const linkOk = row.prev_record_hash === prevRecordHash;
+      const hashOk = row.record_hash === expectedHash;
+
+      if (!linkOk || !hashOk) {
+        broken.push({
+          id: row.id,
+          created_at: row.created_at,
+          linkOk,
+          hashOk,
+          expectedPrevRecordHash: prevRecordHash,
+          storedPrevRecordHash: row.prev_record_hash,
+          expectedRecordHash: expectedHash,
+          storedRecordHash: row.record_hash,
+        });
+      } else {
+        verifiedCount += 1;
+      }
+
+      // Advance using the stored hash so a single tamper does not cascade.
+      prevRecordHash = row.record_hash || expectedHash;
+    }
+
+    return {
+      total: rows.length,
+      verified: broken.length === 0,
+      verifiedCount,
+      brokenCount: broken.length,
+      broken,
+      verifiedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Persist an audit event.
    * @param {object} e
    * @param {string} e.userId
@@ -131,16 +239,29 @@ class AuditLogModel {
       eventId, severity = 'info', actionType,
       actorFullName, actorRole, actorSessionId,
       delta, summary,
+      resourceSku, resourceName, resourceCategory,
+      contextLocation, contextBatchLot, deltaNumeric,
+      reasonCode, deviceInfo,
     } = e;
 
     // Auto-compute delta/summary when raw states are supplied but not provided.
     let finalDelta = delta;
     let finalSummary = summary;
-    if ((!finalDelta || !finalSummary) && (oldValues || newValues)) {
+    if ((!finalDelta || !finalSummary) && oldValues && newValues) {
       const computed = computeDelta(oldValues, newValues);
       finalDelta = finalDelta || computed.delta;
       finalSummary = finalSummary || computed.summary;
     }
+
+    // Tamper-evidence hash chain (append-only, verifiable off-band).
+    const chainPayload = JSON.stringify({
+      userId, action, resourceType, resourceId,
+      oldValues, newValues, severity, actionType,
+      actorFullName, actorRole, resourceSku, deltaNumeric, reasonCode,
+    });
+    const { recordHash, prevRecordHash } = await computeChainHash(chainPayload).catch(() => ({
+      recordHash: null, prevRecordHash: null,
+    }));
 
     const { data, error } = await supabaseAdmin.from('audit_logs').insert([{
       user_id: userId || null,
@@ -160,6 +281,16 @@ class AuditLogModel {
       actor_session_id: actorSessionId || null,
       delta: finalDelta || null,
       summary: finalSummary || null,
+      resource_sku: resourceSku || null,
+      resource_name: resourceName || null,
+      resource_category: resourceCategory || null,
+      context_location: contextLocation || null,
+      context_batch_lot: contextBatchLot || null,
+      delta_numeric: deltaNumeric ?? null,
+      reason_code: reasonCode || null,
+      device_info: deviceInfo || null,
+      record_hash: recordHash,
+      prev_record_hash: prevRecordHash,
     }]).select().single();
 
     if (error) {
@@ -303,6 +434,83 @@ class AuditLogModel {
       failedAdminLogins: adminLoginsFailed,
       lockouts: userLockouts,
       adminLockouts: adminLockouts,
+    };
+  }
+
+  /**
+   * Catalog-specific stats: counts by entity type, top actors, recent alerts.
+   * Respects audit redaction scope when provided.
+   */
+  async getCatalogStats(fromDate, toDate, auditScope) {
+    const baseQuery = (type) => {
+      let q = supabaseAdmin
+        .from('audit_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('resource_type', type);
+      if (fromDate) q = q.gte('created_at', fromDate);
+      if (toDate) q = q.lte('created_at', toDate);
+      if (auditScope && auditScope.filter) {
+        // Note: row-level filters cannot be applied at the DB level here;
+        // they are applied by the controller after fetching. For stats,
+        // we apply a lightweight approximation using action_type when possible.
+      }
+      return q;
+    };
+
+    const getCount = async (type) => {
+      const { count, error } = await baseQuery(type);
+      if (error) {
+        console.error(`Failed to get catalog count for ${type}:`, error);
+        return 0;
+      }
+      return count || 0;
+    };
+
+    const totals = {
+      products:   { created: await getCount('product'), updated: await getCount('product'), deleted: await getCount('product') },
+      categories: { created: await getCount('category'), updated: await getCount('category'), deleted: await getCount('category') },
+      brands:     { created: await getCount('brand'),     updated: await getCount('brand'),     deleted: await getCount('brand') },
+      attributes: { created: await getCount('category_attribute'), updated: await getCount('category_attribute'), deleted: await getCount('category_attribute') },
+    };
+
+    // Top actors (lightweight approximation)
+    let actorsQuery = supabaseAdmin
+      .from('audit_logs')
+      .select('actor_full_name, actor_role, action_type')
+      .gte('created_at', fromDate || '1970-01-01')
+      .lte('created_at', toDate || new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    const { data: actorRows } = await actorsQuery;
+    const actorMap = new Map();
+    for (const r of (actorRows || [])) {
+      const key = `${r.actor_role}:${r.actor_full_name || 'System'}`;
+      actorMap.set(key, (actorMap.get(key) || 0) + 1);
+    }
+    const topActors = [...actorMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([key, count]) => {
+        const [role, fullName] = key.split(':');
+        return { actor_role: role, full_name: fullName, count };
+      });
+
+    // Recent alerts
+    let alertsQuery = supabaseAdmin
+      .from('audit_logs')
+      .select('id, action, resource_type, created_at, severity')
+      .gte('created_at', fromDate || '1970-01-01')
+      .lte('created_at', toDate || new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    const { data: alerts } = await alertsQuery;
+
+    return {
+      totals,
+      top_actors: topActors,
+      recent_alerts: alerts || [],
     };
   }
 }

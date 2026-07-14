@@ -6,6 +6,7 @@ import { XMarkIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { CategorySelect } from './CategorySelect';
 import { ImageUploadInput } from '@/admin/components/ui/ImageUploadInput';
 import type { CategoryNode } from './useCategoryTree';
+import { PermissionGuard } from '@/admin/components/guards/PermissionGuard';
 
 type FormMode =
  | { type: 'create' }
@@ -468,20 +469,22 @@ export function CategoryForm({ mode, onClose }: CategoryFormProps) {
  </form>
  )}
 
- {/* Footer */}
- <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--panel-border)]">
- <button type="button" onClick={onClose} className="btn-secondary text-sm px-5 py-2">
- Cancel
- </button>
- <button
- type="submit"
- form="category-form"
- disabled={saveMutation.isPending || !form.name.trim()}
- className="btn-primary text-sm px-5 py-2"
- >
- {saveMutation.isPending ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Category'}
- </button>
- </div>
+  {/* Footer */}
+  <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--panel-border)]">
+  <button type="button" onClick={onClose} className="btn-secondary text-sm px-5 py-2">
+  Cancel
+  </button>
+  <PermissionGuard permission="category:write" anyOf={['category:manage']}>
+  <button
+  type="submit"
+  form="category-form"
+  disabled={saveMutation.isPending || !form.name.trim()}
+  className="btn-primary text-sm px-5 py-2"
+  >
+  {saveMutation.isPending ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Category'}
+  </button>
+  </PermissionGuard>
+  </div>
  </div>
  </div>
  );

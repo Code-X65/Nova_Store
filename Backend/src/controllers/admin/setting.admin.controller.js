@@ -12,6 +12,27 @@ exports.getAllSettings = async (req, res, next) => {
   }
 };
 
+exports.getGroupSettings = async (req, res, next) => {
+  try {
+    const { group } = req.params;
+    const data = await SettingService.getByGroup(group);
+    res.status(200).json({ success: true, data, group });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateGroupSettings = async (req, res, next) => {
+  try {
+    const { group } = req.params;
+    const payload = req.body;
+    const updated = await SettingService.updateByGroup(group, payload, req.user.id, `Update ${group} via grouped endpoint`);
+    res.status(200).json({ success: true, data: updated, group });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getSettingByKey = async (req, res, next) => {
   try {
     const setting = await SettingModel.getByKey(req.params.key);

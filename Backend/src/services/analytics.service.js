@@ -154,6 +154,111 @@ class AnalyticsService {
     // Stock alerts ignore date ranges
     return await AnalyticsModel.getInventoryAlerts(limit);
   }
+
+  async getForecast(metric, from, to) {
+    const { from: fFrom, to: fTo } = this.parseDateRange(from, to);
+
+    // Seasonal naive forecast: average same-weekday values from past 4 weeks
+    const endDate = new Date(fTo);
+    const startDate = new Date(fFrom);
+    const days = [];
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      days.push(new Date(d));
+    }
+
+    // Fetch historical daily data for the past 28 days before the forecast window
+    const historyStart = new Date(startDate);
+    historyStart.setDate(historyStart.getDate() - 28);
+    const historyEnd = new Date(startDate);
+    historyEnd.setDate(historyEnd.getDate() - 1);
+
+    let history = [];
+    try {
+      const summary = await AnalyticsModel.getSalesSummary(historyStart.toISOString(), historyEnd.toISOString(), 'day');
+      history = summary || [];
+    } catch {
+      history = [];
+    }
+
+    const byDate = new Map();
+    for (const row of history) {
+      const date = row.period ? row.period.substring(0, 10) : null;
+      if (date) byDate.set(date, Number(row.revenue) || 0);
+    }
+
+    const getHistoricalValue = (date) => {
+      const key = date.toISOString().substring(0, 10);
+      return byDate.get(key) || 0;
+    };
+
+    const forecast = days.map((date) => {
+      const dow = date.getDay();
+      let values = [];
+      for (let w = 1; w <= 4; w++) {
+        const ref = new Date(date);
+        ref.setDate(ref.getDate() - w * 7);
+        values.push(getHistoricalValue(ref));
+      }
+      const forecastValue = values.reduce((a, b) => a + b, 0) / values.length;
+      const confidenceLow = forecastValue * 0.8;
+      const confidenceHigh = forecastValue * 1.2;
+
+      return {
+        period: date.toISOString().substring(0, 10),
+        forecast_value: Math.max(0, forecastValue),
+        confidence_low: Math.max(0, confidenceLow),
+        confidence_high: Math.max(0, confidenceHigh),
+      };
+    });
+
+    return { metric, forecast, generatedAt: new Date().toISOString() };
+  }
+
+  async saveForecast(metric, forecast) {
+    const records = forecast.map((f) => ({
+      metric,
+      period_start: f.period,
+      period_end: f.period,
+      forecast_value: f.forecast_value,
+      confidence_low: f.confidence_low,
+      confidence_high: f.confidence_high,
+      model_name: 'seasonal_naive',
+      actual_value: null,
+    }));
+
+    const saved = [];
+    for (const rec of records) {
+      try {
+        const row = await AnalyticsModel.saveForecast(rec);
+        saved.push(row);
+      } catch {
+        // skip duplicate or failed inserts
+      }
+    }
+    return saved;
+  }
+
+  async getCustomerHeatmap(productId, from, to) {
+    const events = await AnalyticsModel.getCustomerHeatmap(productId, from, to);
+    return events.map((e) => ({
+      event_type: e.event_type,
+      created_at: e.created_at,
+      customer: e.customer ? `${e.customer.first_name} ${e.customer.last_name}` : 'Anonymous',
+    }));
+  }
+
+  async getHeatmapSummary(from, to) {
+    const events = await AnalyticsModel.getHeatmapSummary(from, to);
+    return events.map((e) => ({
+      event_type: e.event_type,
+      product_id: e.product_id,
+      product_name: e.product?.name,
+      category_id: e.category_id,
+      category_name: e.category?.name,
+      created_at: e.created_at,
+      customer: e.customer ? `${e.customer.first_name} ${e.customer.last_name}` : 'Anonymous',
+    }));
+  }
 }
 
 module.exports = new AnalyticsService();

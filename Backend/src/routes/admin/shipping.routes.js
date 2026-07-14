@@ -17,7 +17,15 @@ const zoneSchema = joi.object({
   name: joi.string().required(),
   countries: joi.array().items(joi.string()).min(1).required(),
   states: joi.array().items(joi.string()).optional(),
-  is_active: joi.boolean().optional()
+  is_active: joi.boolean().optional(),
+  rate_strategy: joi.object({
+    type: joi.string().valid('flat', 'weight_based', 'price_threshold', 'free_over_x').optional(),
+    amount: joi.number().min(0).optional(),
+    threshold: joi.number().min(0).optional(),
+    name: joi.string().optional(),
+    estimated_days_min: joi.number().min(0).optional(),
+    estimated_days_max: joi.number().min(0).optional(),
+  }).optional()
 });
 
 const rateSchema = joi.object({

@@ -4,7 +4,9 @@ import {
   HomeIcon, ShoppingBagIcon, ArchiveBoxIcon, TagIcon, UsersIcon,
   TicketIcon, TruckIcon, StarIcon, UserGroupIcon, ChartBarIcon,
   CogIcon, ShieldCheckIcon, BellIcon, DocumentTextIcon, Squares2X2Icon,
-  SparklesIcon, CurrencyDollarIcon
+  SparklesIcon, CurrencyDollarIcon, DocumentIcon, ExclamationTriangleIcon,
+  AdjustmentsHorizontalIcon, BellAlertIcon, UserPlusIcon, KeyIcon, GlobeAltIcon,
+  MapIcon, ArrowUturnLeftIcon, BanknotesIcon
 } from '@heroicons/react/24/outline';
 import { useMyPermissions } from '@/admin/hooks/useMyPermissions';
 import { useAdminStore } from '@/admin/hooks/useAdminStore';
@@ -25,20 +27,37 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',    to: '/dashboard',          icon: HomeIcon, group: 'MAIN MENU' },
   { label: 'Products',     to: '/catalog/products',   icon: TagIcon,          perm: 'product:read', group: 'MAIN MENU' },
   { label: 'Categories',   to: '/catalog/categories', icon: Squares2X2Icon,   anyOf: ['category:read', 'category:write'], group: 'MAIN MENU' },
+  { label: 'Variants',     to: '/catalog/variants',   icon: Squares2X2Icon,   anyOf: ['product:read', 'product:write'], group: 'MAIN MENU' },
   { label: 'Brands',       to: '/catalog/brands',     icon: SparklesIcon,     anyOf: ['brand:read', 'brand:write'], group: 'MAIN MENU' },
+  { label: 'Bulk Import',  to: '/catalog/import',     icon: DocumentIcon,     anyOf: ['product:create', 'product:write', 'inventory:write'], group: 'MAIN MENU' },
   { label: 'Orders',       to: '/orders',             icon: ShoppingBagIcon,  perm: 'order:read', group: 'MAIN MENU' },
   { label: 'Customers',    to: '/customers',          icon: UsersIcon,        anyOf: ['user:read', 'role:manage'], group: 'MAIN MENU' },
   { label: 'Analytics',    to: '/sales',              icon: ChartBarIcon,     perm: 'sales:read', group: 'MAIN MENU' },
   { label: 'Marketing',    to: '/coupons',            icon: TicketIcon,       perm: 'coupon:read', group: 'MAIN MENU' },
   
   { label: 'Inventory',    to: '/inventory',          icon: ArchiveBoxIcon,   perm: 'inventory:read', group: 'MANAGEMENT' },
+  { label: 'Low Stock',    to: '/inventory/low-stock', icon: ExclamationTriangleIcon, perm: 'inventory:read', group: 'MANAGEMENT' },
+  { label: 'Transactions', to: '/inventory/transactions', icon: DocumentTextIcon, perm: 'inventory:read', group: 'MANAGEMENT' },
+  { label: 'Catalog History', to: '/inventory/transactions/catalog', icon: DocumentTextIcon, anyOf: ['product:read', 'category:read', 'brand:read', 'inventory:read'], group: 'MANAGEMENT' },
+  { label: 'Thresholds',   to: '/inventory/thresholds', icon: AdjustmentsHorizontalIcon, anyOf: ['inventory:alert', 'inventory:write'], group: 'MANAGEMENT' },
+  { label: 'Alerts',       to: '/inventory/alerts',   icon: BellAlertIcon,    anyOf: ['inventory:alert', 'inventory:write'], group: 'MANAGEMENT' },
+  { label: 'Warehouses',   to: '/inventory/warehouses', icon: ArchiveBoxIcon, perm: 'inventory:read', group: 'MANAGEMENT' },
+  { label: 'Alert Rules',  to: '/inventory/alert-rules', icon: BellAlertIcon, anyOf: ['inventory:alert', 'inventory:write'], group: 'MANAGEMENT' },
   { label: 'Shipping',     to: '/shipping',           icon: TruckIcon,        perm: 'shipping:read', group: 'MANAGEMENT' },
   { label: 'Reviews',      to: '/reviews',            icon: StarIcon,         perm: 'review:read', group: 'MANAGEMENT' },
   { label: 'Team & Roles', to: '/staff',              icon: UserGroupIcon,    perm: 'staff:read', group: 'MANAGEMENT' },
+  { label: 'Riders',       to: '/riders',             icon: UserPlusIcon,     anyOf: ['rider:read', 'rider:write', '*'], group: 'MANAGEMENT' },
+  { label: 'Rider Tracking',to: '/logistics/rider-tracking', icon: MapIcon,   perm: 'logistics:read', group: 'MANAGEMENT' },
+  { label: 'Fulfillment',  to: '/logistics/fulfillment', icon: TruckIcon,     perm: 'fulfillment:read', group: 'MANAGEMENT' },
+  { label: 'Returns',      to: '/logistics/returns',  icon: ArrowUturnLeftIcon, perm: 'returns:read', group: 'MANAGEMENT' },
+  { label: 'Invoices',     to: '/billing/invoices',   icon: DocumentTextIcon, perm: 'billing:read', group: 'MANAGEMENT' },
+  { label: 'Refunds',      to: '/finance/refunds',    icon: BanknotesIcon,    perm: 'finance:read', group: 'MANAGEMENT' },
+  { label: 'Disputes',     to: '/finance/disputes',    icon: ExclamationTriangleIcon, perm: 'disputes:read', group: 'MANAGEMENT' },
   { label: 'Settings',     to: '/settings/general',   icon: CogIcon,          perm: 'settings:read', group: 'MANAGEMENT' },
-  { label: 'Currencies',   to: '/settings/currencies',icon: CurrencyDollarIcon, perm: 'settings:read', group: 'MANAGEMENT' },
+  { label: 'Security',     to: '/settings/security',   icon: KeyIcon,          perm: 'settings:read', group: 'MANAGEMENT' },
+  { label: 'IP Allowlist', to: '/staff/ip-allowlist',  icon: GlobeAltIcon,  perm: 'rbac:read', group: 'MANAGEMENT' },
   { label: 'Audit',        to: '/audit',              icon: ShieldCheckIcon,  perm: 'audit:read', group: 'MANAGEMENT' },
-  { label: 'Notifications',to: '/notifications/admin',icon: BellIcon,         perm: 'notifications:write', group: 'MANAGEMENT' },
+  { label: 'Notifications',to: '/notifications',    icon: BellIcon,         perm: 'notifications:read', group: 'MANAGEMENT' },
   { label: 'Sessions',     to: '/profile/sessions',   icon: DocumentTextIcon, group: 'MANAGEMENT' },
 ];
 

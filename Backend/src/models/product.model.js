@@ -157,59 +157,43 @@ class ProductModel {
 
   // Inventory Management Methods
   async updateStock(productId, quantityChange, transactionData = null) {
-    // 1. Get current stock
-    const { data: product, error: fetchError } = await supabase
-      .from('products')
-      .select('stock_quantity')
-      .eq('id', productId)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    const previousQuantity = product.stock_quantity;
-    const newQuantity = previousQuantity + quantityChange;
-
-    // 2. Update product stock
-    const { data: updatedProduct, error: updateError } = await supabase
-      .from('products')
-      .update({ 
-        stock_quantity: newQuantity,
-        status: newQuantity <= 0 ? 'out_of_stock' : 'published',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', productId)
-      .select()
-      .single();
+    // 1. Atomic, race-free stock + version update (no read-then-write in JS).
+    const { data: rows, error: updateError } = await supabase
+      .rpc('apply_stock_delta', { p_product_id: productId, p_delta: quantityChange });
 
     if (updateError) throw updateError;
-
-    // 3. Update variant stock if variant_id is provided
-    let prevVarQty = 0;
-    let newVarQty = 0;
-    const variantId = transactionData?.variant_id;
-
-    if (variantId) {
-      const { data: variant, error: varFetchError } = await supabase
-        .from('product_variants')
-        .select('stock_quantity')
-        .eq('id', variantId)
-        .single();
-      if (varFetchError) throw varFetchError;
-
-      prevVarQty = variant.stock_quantity || 0;
-      newVarQty = prevVarQty + quantityChange;
-
-      const { error: varUpdateError } = await supabase
-        .from('product_variants')
-        .update({
-          stock_quantity: newVarQty,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', variantId);
-      if (varUpdateError) throw varUpdateError;
+    if (!rows || rows.length === 0) {
+      const err = new Error(`Insufficient stock: requested change would drop below zero`);
+      err.statusCode = 400;
+      err.code = 'INSUFFICIENT_STOCK';
+      throw err;
     }
 
-    // 4. Log transaction if provided
+    const updatedProduct = {
+      id: rows[0].out_id,
+      stock_quantity: rows[0].out_stock,
+      version: Number(rows[0].out_version),
+      status: rows[0].out_status,
+    };
+    const previousQuantity = updatedProduct.stock_quantity - quantityChange;
+    const newQuantity = updatedProduct.stock_quantity;
+
+    // 2. Variant stock (atomic increment)
+    const variantId = transactionData?.variant_id;
+    let prevVarQty = 0;
+    let newVarQty = 0;
+
+    if (variantId) {
+      const { data: vrows, error: vErr } = await supabase
+        .rpc('apply_variant_stock_delta', { p_variant_id: variantId, p_delta: quantityChange });
+      if (vErr) throw vErr;
+      if (vrows && vrows.length) {
+        prevVarQty = (vrows[0].out_stock ?? 0) - quantityChange;
+        newVarQty = vrows[0].out_stock ?? 0;
+      }
+    }
+
+    // 3. Log transaction if provided
     if (transactionData) {
       const { error: transError } = await supabase
         .from('inventory_transactions')
@@ -219,13 +203,15 @@ class ProductModel {
           previous_quantity: variantId ? prevVarQty : previousQuantity,
           new_quantity: variantId ? newVarQty : newQuantity,
           quantity_change: quantityChange,
-          store_id: updatedProduct?.store_id || transactionData.store_id || null
+          store_id: transactionData.store_id || null,
         }]);
-      
+
       if (transError) throw transError;
     }
 
-    return updatedProduct;
+    // Expose previous quantity + version so callers (audit summary, SSE
+    // reconciliation) can render the signed delta without a second fetch.
+    return { ...updatedProduct, previous_quantity: previousQuantity };
   }
 
   async getLowStockProducts(storeId = null) {
@@ -316,10 +302,11 @@ class ProductModel {
    * only if the result does not exceed stock_quantity.
    * Returns the updated row or null if insufficient available stock.
    */
-  async updateReservedStock(productId, quantity) {
+  async updateReservedStock(productId, quantity, variantId = null) {
     const { data, error } = await supabase.rpc('reserve_stock_increment', {
       p_product_id: productId,
-      p_quantity:   quantity
+      p_quantity:   quantity,
+      p_variant_id: variantId
     }).single();
 
     if (error) throw error;

@@ -1,6 +1,7 @@
 const { redisClient } = require('../config/redis');
 const NotificationService = require('./notification.service');
 const logger = require('../utils/logger');
+const NotificationDlqModel = require('../models/notification-dlq.model');
 
 const QUEUE_KEY      = 'nova:notification:queue';    // sorted-set, score = unix ts (ms)
 const INFLIGHT_KEY   = 'nova:notification:inflight'; // hash  field=jobId  value=JSON
@@ -96,6 +97,21 @@ async function _dequeueBatch() {
         // Send to Dead-Letter Queue
         const dlqPayload = JSON.stringify({ ...job, attempts, error: err.message, failedAt: Date.now() });
         await redisClient.hSet('nova:notification:dlq', jobId, dlqPayload).catch(() => {});
+
+        // Persist to Postgres for compliance/queryability
+        try {
+          await NotificationDlqModel.create({
+            jobId,
+            userId: job.userId || null,
+            templateKey: job.templateKey,
+            data: job.data || {},
+            attempts,
+            error: err.message,
+          });
+        } catch (dbErr) {
+          logger.error(`[NotifyQueue] Failed to persist DLQ entry for ${jobId}:`, dbErr.message);
+        }
+
         logger.error(`[NotifyQueue] Job ${jobId} exceeded max attempts (${MAX_ATTEMPTS}). Sent to DLQ. Recipient: ${job.userId}`);
       } else {
         // Re-enqueue with exponential back-off

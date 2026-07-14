@@ -77,9 +77,9 @@ const router = express.Router();
  *             type: string
  *         currency:
  *           type: string
- *           example: USD
- *           description: ISO-4217 currency code for product pricing (e.g. USD, NGN, GBP)
- *           default: USD
+ *           example: NGN
+ *           description: ISO-4217 currency code for product pricing (NGN only)
+ *           default: NGN
  *         status:
  *           type: string
  *           enum: [draft, published, archived]
@@ -262,7 +262,7 @@ const productSchema = {
       then: Joi.array().min(2).required(),
       otherwise: Joi.array().optional()
     }),
-    currency:          Joi.string().length(3).uppercase().default('USD'),
+    currency:          Joi.string().length(3).uppercase().default('NGN'),
     // Physical attributes (for shipping)
     color:             Joi.string().max(50).optional().allow(null, '').example('#1A73E8'),
     weight:            Joi.number().positive().optional().allow(null).example(0.25),
@@ -311,7 +311,7 @@ const bulkProductSchema = {
           then: Joi.array().min(2).required(),
           otherwise: Joi.array().optional()
         }),
-        currency:          Joi.string().length(3).uppercase().default('USD'),
+        currency:          Joi.string().length(3).uppercase().default('NGN'),
         color:             Joi.string().max(50).optional().allow(null, ''),
         weight:            Joi.number().positive().optional().allow(null),
         dimensions_length: Joi.number().positive().optional().allow(null),

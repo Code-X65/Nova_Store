@@ -9,6 +9,8 @@ const PaymentService = require('./payment.service');
 const NotificationTemplateModel = require('../models/notification-template.model');
 const logger = require('../utils/logger');
 const AuditService = require('./audit.service');
+const SettingService = require('./setting.service');
+const eventBus = require('../realtime/event-bus');
 const { SINGLE_STORE_ID } = require('../config/store');
 
 /** Days after delivery within which a return can be requested (hard rule). */
@@ -125,6 +127,18 @@ class OrderService {
       userName,
       orderNumber: order.order_number,
       reason: reason || (isAdmin ? 'Admin action' : 'Customer request')
+    });
+
+    eventBus.emit('order.cancelled', {
+      actor: { id: userId, fullName: await resolveUserName(userId), role: isAdmin ? 'admin' : 'customer' },
+      resourceType: 'order',
+      resourceId: orderId,
+      actionType: 'STATUS_CHANGE',
+      severity: 'warning',
+      title: 'Order cancelled',
+      message: `Order #${order.order_number} was cancelled${isAdmin ? ' by admin' : ' by customer'}.`,
+      data: { orderId, orderNumber: order.order_number, reason: reason || (isAdmin ? 'Admin action' : 'Customer request'), isAdmin },
+      deepLink: `/orders/${orderId}`,
     });
 
     return updatedOrder;
@@ -255,40 +269,80 @@ class OrderService {
   /**
    * Assign a driver and create a dispatch record.
    * Transitions order to status=dispatched, delivery_status=assigned.
+   * Accepts optional rider_id for structured rider assignment.
    */
-  async dispatchOrder(orderId, { driverName, driverPhone, dispatchNotes, deliveryWindow }, adminId) {
+  async dispatchOrder(orderId, { riderId, riderName, riderPhone, driverName, driverPhone, dispatchNotes, deliveryWindow, paymentMethod }, adminId) {
     const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
-    const allowed = ['confirmed', 'processing', 'ready_for_dispatch'];
-    if (!allowed.includes(order.status)) {
-      throw new Error(`Cannot dispatch order from status: ${order.status}`);
-    }
     if (!driverName) throw new Error('Driver name is required to dispatch');
+
+    const allowed = ['ready_for_dispatch'];
+    if (!allowed.includes(order.status)) {
+      throw new Error(`Cannot dispatch order unless it is ready for dispatch (current status: ${order.status}). Please mark the order as ready first.`);
+    }
+
+    const storeModel = require('../models/store.model');
+    const storeService = require('./store.service');
+    const storeProfile = await storeService.getStoreProfile(SINGLE_STORE_ID);
+    const podEnabled = storeProfile?.settings?.['payment.pay_on_delivery_enabled'] === 'true';
+
+    if (paymentMethod && ['pay_on_delivery', 'cod'].includes(paymentMethod) && !podEnabled) {
+      throw new Error('Pay on Delivery is not enabled for this store');
+    }
 
     const now = new Date().toISOString();
 
-    // Create dispatch record
+    const resolvedRiderName = riderName || (riderId ? null : null);
+    const resolvedRiderPhone = riderPhone || null;
+
+    if (riderId && !resolvedRiderName) {
+      const RiderModel = require('../models/rider.model');
+      const rider = await RiderModel.findById(riderId);
+      if (!rider) {
+        throw new Error('Selected rider not found');
+      }
+      if (!rider.is_active) {
+        throw new Error('Cannot assign an inactive rider');
+      }
+      resolvedRiderName = `${rider.first_name} ${rider.last_name}`;
+    }
+
+    const finalDriverName = riderId ? resolvedRiderName : driverName;
+    const finalDriverPhone = riderId ? (resolvedRiderPhone || (riderId ? null : driverPhone)) : driverPhone;
+
     await DeliveryDispatchModel.create({
       order_id:      orderId,
       assigned_by:   adminId,
       driver_name:   driverName,
       driver_phone:  driverPhone,
+      rider_id:      riderId || null,
+      rider_name:    resolvedRiderName,
+      rider_phone:   resolvedRiderPhone,
       dispatch_notes: dispatchNotes
     });
 
-    const updatedOrder = await OrderModel.update(orderId, {
+    const updateData = {
       status:               'dispatched',
       delivery_status:      'assigned',
       driver_name:          driverName,
       driver_phone:         driverPhone || null,
+      rider_id:             riderId || null,
+      rider_name:           resolvedRiderName,
+      rider_phone:          resolvedRiderPhone,
       dispatched_at:        now,
       manual_dispatch_notes: dispatchNotes || null,
       delivery_window:      deliveryWindow || null,
       updated_at:           now
-    });
+    };
 
-    await logHistory(orderId, 'dispatched', `Assigned to driver: ${driverName}`, adminId);
+    if (paymentMethod) {
+      updateData.payment_method = paymentMethod;
+    }
+
+    const updatedOrder = await OrderModel.update(orderId, updateData);
+
+    await logHistory(orderId, 'dispatched', `Assigned to rider: ${resolvedRiderName || riderId || driverName}`, adminId);
     const userName = await resolveUserName(order.user_id);
     await fireNotification(order.user_id, 'order_dispatched', { userName, orderNumber: order.order_number });
 
@@ -424,6 +478,18 @@ class OrderService {
     const userName = await resolveUserName(order.user_id);
     await fireNotification(order.user_id, 'order_delivered', { userName, orderNumber: order.order_number });
 
+    eventBus.emit('order.delivered', {
+      actor: { id: adminId, fullName: await resolveUserName(adminId), role: 'admin' },
+      resourceType: 'order',
+      resourceId: orderId,
+      actionType: 'STATUS_CHANGE',
+      severity: 'info',
+      title: 'Order delivered',
+      message: `Order #${order.order_number} was marked as delivered.`,
+      data: { orderId, orderNumber: order.order_number },
+      deepLink: `/orders/${orderId}`,
+    });
+
     return updatedOrder;
   }
 
@@ -446,6 +512,30 @@ class OrderService {
     });
 
     await logHistory(orderId, 'returned_to_store', note || 'Package returned to store by driver — awaiting re-dispatch', adminId);
+
+    return updatedOrder;
+  }
+
+  /**
+   * Mark a delivered order as completed (terminal state).
+   * Closes the return window and prevents further status transitions.
+   */
+  async completeOrder(orderId, adminId) {
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
+    if (!order) throw new Error('Order not found');
+
+    if (!['delivered'].includes(order.status)) {
+      throw new Error(`Cannot complete order unless it has been delivered (current status: ${order.status})`);
+    }
+
+    const now = new Date().toISOString();
+
+    const updatedOrder = await OrderModel.update(orderId, {
+      status:     'completed',
+      updated_at: now
+    });
+
+    await logHistory(orderId, 'completed', 'Order marked as completed', adminId);
 
     return updatedOrder;
   }
@@ -500,6 +590,18 @@ class OrderService {
       userName,
       orderNumber: order.order_number,
       reason: reason || 'Customer request'
+    });
+
+    eventBus.emit('order.returned', {
+      actor: { id: userId, fullName: userName, role: 'customer' },
+      resourceType: 'order',
+      resourceId: orderId,
+      actionType: 'STATUS_CHANGE',
+      severity: 'warning',
+      title: 'Return requested',
+      message: `Return requested for order #${order.order_number} by customer.`,
+      data: { orderId, orderNumber: order.order_number, reason: reason || 'Customer request' },
+      deepLink: `/orders/${orderId}`,
     });
 
     return updatedOrder;
@@ -726,19 +828,16 @@ class OrderService {
             resolve(Buffer.concat(buffers));
           });
 
-          // Header
           doc.fillColor('#DC2626').fontSize(20).text('NOVA STORE', 40, 40, { continued: true });
           doc.fillColor('#333333').fontSize(16).text(' - ORDERS EXPORT REPORT', { align: 'left' });
           doc.moveDown(0.5);
 
-          // Filters and Date
           doc.fontSize(9).fillColor('#666666');
           doc.text(`Generated At: ${new Date().toLocaleString()}`);
           doc.text(`Status Filter: ${filters.status || 'All'}`);
           doc.text(`Date Range: ${filters.dateFrom || 'N/A'} to ${filters.dateTo || 'N/A'}`);
           doc.moveDown();
 
-          // Metrics Summary
           let totalCount = orders.length;
           let totalRevenue = 0;
           let totalTax = 0;
@@ -759,7 +858,6 @@ class OrderService {
           doc.text(`Total Shipping: ₦${totalShipping.toFixed(2)}`);
           doc.moveDown(1.5);
 
-          // Table Header
           const tableHeaderY = doc.y;
           doc.fontSize(9).fillColor('#111111');
           doc.text('Order No', 40, tableHeaderY, { width: 90 });
@@ -773,15 +871,12 @@ class OrderService {
           doc.moveTo(40, doc.y).lineTo(550, doc.y).strokeColor('#cccccc').stroke();
           doc.moveDown(0.5);
 
-          // Rows
           doc.fillColor('#444444').fontSize(8);
           for (const order of orders) {
-            // Check if page height exceeds margin
             if (doc.y > 700) {
               doc.addPage();
-              // Re-draw small header on new page
-              doc.fontSize(9).fillColor('#111111');
               const newPageHeaderY = doc.y;
+              doc.fontSize(9).fillColor('#111111');
               doc.text('Order No', 40, newPageHeaderY, { width: 90 });
               doc.text('Date', 130, newPageHeaderY, { width: 90 });
               doc.text('Customer Name/Email', 220, newPageHeaderY, { width: 150 });
@@ -815,7 +910,6 @@ class OrderService {
       });
     }
 
-    // CSV Format
     const flatList = orders.map(order => {
       const customerName = order.user ? `${order.user.first_name || ''} ${order.user.last_name || ''}`.trim() : '';
       return {
@@ -834,6 +928,66 @@ class OrderService {
 
     return reportExporter.toCSV(flatList);
   }
+
+  async bulkAssignRider(orderIds, riderId, adminId, reqContext) {
+    const RiderModel = require('../models/rider.model');
+    const rider = await RiderModel.findById(riderId);
+    if (!rider) {
+      throw new Error('Rider not found');
+    }
+    if (!rider.is_active) {
+      throw new Error('Cannot assign an inactive rider');
+    }
+
+    const successes = [];
+    const failures = [];
+
+    for (const orderId of orderIds) {
+      try {
+        const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
+        if (!order) {
+          failures.push({ orderId, error: 'Order not found' });
+          continue;
+        }
+
+        if (order.status !== 'ready_for_dispatch') {
+          failures.push({ orderId, error: `Order is not ready for dispatch (current: ${order.status})` });
+          continue;
+        }
+
+        await this.dispatchOrder(orderId, {
+          riderId: rider.id,
+          riderName: `${rider.first_name} ${rider.last_name}`,
+          riderPhone: rider.phone,
+          driverName: `${rider.first_name} ${rider.last_name}`,
+          driverPhone: rider.phone
+        }, adminId);
+
+        successes.push(orderId);
+      } catch (err) {
+        failures.push({ orderId, error: err.message });
+      }
+    }
+
+    if (successes.length > 0) {
+      await AuditService.log(reqContext, 'order.bulk_assign_rider', 'order', null, null, {
+        riderId,
+        riderName: `${rider.first_name} ${rider.last_name}`,
+        successCount: successes.length,
+        failureCount: failures.length,
+        successes
+      });
+    }
+
+    return {
+      successCount: successes.length,
+      failureCount: failures.length,
+      successes,
+      failures
+    };
+  }
+
+
 }
 
 module.exports = new OrderService();

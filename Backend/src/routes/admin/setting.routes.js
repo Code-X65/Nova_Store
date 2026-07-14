@@ -33,23 +33,44 @@ router.get('/', hasPermission('settings:read'), settingAdminController.getAllSet
 
 /**
  * @swagger
- * /admin/settings/bulk:
- *   patch:
- *     summary: Bulk update settings
+ * /admin/settings/{group}:
+ *   get:
+ *     summary: Get settings for a specific group
  *     tags: [Admin Settings]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: group
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Grouped settings object
+ *   put:
+ *     summary: Update settings for a specific group (bulk by key)
+ *     tags: [Admin Settings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: group
+ *         required: true
+ *         schema: { type: string }
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             description: Map of setting keys to their new values
+  *             description: "Map of sub-keys to new values (e.g. { store_timezone: \"Africa/Lagos\" })"
  *     responses:
  *       200:
  *         description: Settings updated
  */
+router.get('/:group', hasPermission('settings:read'), settingAdminController.getGroupSettings);
+router.put('/:group', hasPermission('settings:write'), settingAdminController.updateGroupSettings);
+
 router.patch('/bulk', hasPermission('settings:write'), settingAdminController.bulkUpdate);
 
 /**

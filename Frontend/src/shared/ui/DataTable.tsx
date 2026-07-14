@@ -15,6 +15,7 @@ export interface DataTableProps<TData, TValue> {
   data: TData[];
   onRowClick?: (row: TData) => void;
   pageSize?: number;
+  disablePagination?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -22,6 +23,7 @@ export function DataTable<TData, TValue>({
   data,
   onRowClick,
   pageSize = 10,
+  disablePagination = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -32,8 +34,8 @@ export function DataTable<TData, TValue>({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
+    ...(disablePagination ? {} : { getPaginationRowModel: getPaginationRowModel() }),
+    initialState: disablePagination ? undefined : {
       pagination: {
         pageSize,
       },
@@ -115,7 +117,7 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Pagination Controls */}
-      {table.getPageCount() > 1 && (
+      {!disablePagination && table.getPageCount() > 1 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-[#1a1a1a] bg-black">
           <div className="flex items-center text-xs text-gray-400">
             Page {table.getState().pagination.pageIndex + 1} of{' '}

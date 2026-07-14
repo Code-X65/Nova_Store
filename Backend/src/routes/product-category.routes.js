@@ -5,6 +5,7 @@ const { hasPermission } = require('../middlewares/permission.middleware');
 const validate = require('../middlewares/validate.middleware');
 const categoryValidator = require('../validators/category.validator');
 const scopeToStore = require('../middlewares/scope-to-store.middleware');
+const auditAction = require('../middlewares/audit-action.middleware');
 
 const router = express.Router();
 
@@ -267,7 +268,12 @@ router.use(scopeToStore);
  *       409:
  *         description: Slug already in use
  */
-router.post('/', hasPermission('category:create'), validate(categoryValidator.createCategory), categoryController.createCategory);
+router.post('/', hasPermission('category:create'), validate(categoryValidator.createCategory), auditAction({
+  resourceType: 'category',
+  actionType: 'CREATE',
+  severity: 'info',
+  action: 'category.created',
+}), categoryController.createCategory);
 
 /**
  * @swagger
@@ -429,7 +435,12 @@ router.put('/reorder', hasPermission('category:write'), categoryController.reord
  *       404:
  *         description: Category not found
  */
-router.patch('/:id', hasPermission('category:write'), validate(categoryValidator.updateCategory), categoryController.updateCategory);
+router.patch('/:id', hasPermission('category:write'), validate(categoryValidator.updateCategory), auditAction({
+  resourceType: 'category',
+  actionType: 'UPDATE',
+  severity: 'info',
+  action: 'category.updated',
+}), categoryController.updateCategory);
 
 /**
  * @swagger
@@ -454,6 +465,12 @@ router.patch('/:id', hasPermission('category:write'), validate(categoryValidator
  *       409:
  *         description: Cannot delete — category has subcategories
  */
-router.delete('/:id', hasPermission('category:write'), categoryController.deleteCategory);
+router.delete('/:id', hasPermission('category:write'), auditAction({
+  resourceType: 'category',
+  actionType: 'DELETE',
+  severity: 'info',
+  action: 'category.deleted',
+  getResourceId: (req) => req.params.id,
+}), categoryController.deleteCategory);
 
 module.exports = router;

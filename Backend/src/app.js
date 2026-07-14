@@ -7,7 +7,6 @@ const crypto = require('crypto');
 const csrfProtection = require('./middlewares/csrf.middleware');
 
 const adminUploadRoutes = require('./routes/admin/upload.routes');
-const currencyRoutes = require('./routes/currency.routes');
 
 const { authLimiter, adminLoginLimiter, swaggerLoginLimiter, resetLimiter, refreshLimiter, adminLimiter, apiLimiter, healthLimiter } = require('./middlewares/rate-limit.middleware');
 const cookieParser = require('cookie-parser');
@@ -57,9 +56,22 @@ const { Pool } = require('pg');
 const requireAdmin = require('./middlewares/require-admin.middleware');
 const storeContext = require('./middlewares/store-context.middleware');
 const adminAuthRoutes = require('./routes/admin/auth.routes');
+const adminSecurityRoutes = require('./routes/admin/security.routes');
+const ipAllowlistRoutes = require('./routes/admin/ip-allowlist.routes');
+const ipAllowlistMiddleware = require('./middlewares/ip-allowlist.middleware');
 const idempotencyMiddleware = require('./middlewares/idempotency.middleware');
 const invitationRoutes = require('./routes/admin/invitation.routes');
 const adminManagementRoutes = require('./routes/admin/admin-management.routes');
+const catalogAuditRoutes = require('./routes/admin/catalog-audit.routes');
+const riderRoutes = require('./routes/admin/rider.routes');
+const orderLifecycleRoutes = require('./routes/admin/order-lifecycle.routes');
+const invoiceRoutes = require('./routes/admin/invoice.routes');
+const refundRoutes = require('./routes/admin/refund.routes');
+const disputeRoutes = require('./routes/admin/dispute.routes');
+const fulfillmentRoutes = require('./routes/admin/fulfillment.routes');
+const fulfillmentWebhookRoutes = require('./routes/fulfillment-webhook.routes');
+const riderTrackingRoutes = require('./routes/admin/rider-tracking.routes');
+const returnsRoutes = require('./routes/admin/returns.routes');
 const acceptInviteRoutes = require('./routes/public/accept-invite.routes');
 const swaggerAuth = require('./middlewares/swagger-auth.middleware');
 
@@ -72,7 +84,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(compression());
-app.use(requestTimeout(15000));
+app.use(requestTimeout(30000));
 
 app.use(requestIdMiddleware);
 app.use(metricsMiddleware);
@@ -188,7 +200,7 @@ app.use('/api/v1/auth/refresh-token', refreshLimiter);
 app.use('/api/v1/admin', adminLimiter);
 app.use('/api/v1', apiLimiter);
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '1mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use(xssSanitize);
@@ -211,9 +223,13 @@ app.use('/api/v1', storeContext);
 app.use('/api/v1/admin', adminAuthRoutes);
 app.use('/api/v1/admin', requireAdmin);
 app.use('/api/v1/admin', storeContext);
+// Enforce the admin IP allowlist for sensitive roles on every authenticated
+// admin route (fail-open when no entries match the actor's roles).
+app.use('/api/v1/admin', ipAllowlistMiddleware);
 app.use('/api/v1/admin/sessions', require('./routes/admin/session.routes'));
 app.use('/api/v1/admin/migrations', require('./routes/admin/migration.routes'));
 app.use('/api/v1/admin/audit', require('./routes/admin/audit.routes'));
+app.use('/api/v1/admin/audit/catalog', catalogAuditRoutes);
 app.use('/api/v1/admin/users', adminUserRoutes);
 app.use('/api/v1/admin/shipping', adminShippingRoutes);
 app.use('/api/v1/admin/reviews', adminReviewRoutes);
@@ -225,12 +241,32 @@ app.use('/api/v1/admin/sales', adminSalesRoutes);
 app.use('/api/v1/admin/dashboard', adminDashboardRoutes);
 app.use('/api/v1/admin/settings', adminSettingRoutes);
 app.use('/api/v1/admin/store', require('./routes/admin/store.routes'));
+app.use('/api/v1/admin/security', adminSecurityRoutes);
+app.use('/api/v1/admin/ip-allowlist', ipAllowlistRoutes);
+app.use('/api/v1/admin/warehouses', require('./routes/admin/warehouse.routes'));
+app.use('/api/v1/admin/import', require('./routes/admin/import.routes'));
+app.use('/api/v1/admin/products', require('./routes/admin/variant.routes'));
+app.use('/api/v1/admin/stock-alerts', require('./routes/admin/stock-alert.routes'));
 app.use('/api/v1/admin/upload', adminUploadRoutes);
 app.use('/api/v1/admin/invitations', invitationRoutes);
 // Access routes (incl. /stream) MUST be registered before adminManagementRoutes,
 // whose GET /:id catch-all would otherwise swallow /admin/stream.
 app.use('/api/v1/admin', require('./routes/admin/access.routes'));
+app.use('/api/v1/admin/search', require('./routes/admin/search.routes'));
+app.use('/api/v1/admin/riders', riderRoutes);
 app.use('/api/v1/admin', adminManagementRoutes);
+// ── Phase 4 & 5 feature routers ───────────────────────────────────────────────
+app.use('/api/v1/admin/orders', orderLifecycleRoutes);
+app.use('/api/v1/admin/invoices', invoiceRoutes);
+app.use('/api/v1/admin/refunds', refundRoutes);
+app.use('/api/v1/admin/disputes', disputeRoutes);
+app.use('/api/v1/admin/fulfillment', fulfillmentRoutes);
+app.use('/api/v1/admin/rider-tracking', riderTrackingRoutes);
+app.use('/api/v1/admin/returns', returnsRoutes);
+app.use('/api/v1/admin/crm', require('./routes/admin/crm.routes'));
+app.use('/api/v1/admin/tickets', require('./routes/admin/ticket.routes'));
+// Public 3PL webhook ingestion (outside admin auth guard; HMAC-verified)
+app.use('/api/v1/fulfillment/webhook', fulfillmentWebhookRoutes);
 app.use('/api/v1/accept-invite', acceptInviteRoutes);
 
 app.use('/api/v1/auth', authRoutes);
@@ -256,8 +292,10 @@ app.use('/api/v1/coupons', couponRoutes);
 app.use('/api/v1/analytics', telemetryRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/settings', publicSettingRoutes);
-app.use('/api/v1/currencies', currencyRoutes);
 app.use('/api/v1/health', healthLimiter, healthRoutes);
+
+// Public SEO endpoints (robots.txt, sitemap.xml)
+app.use('/api/v1', require('./routes/public/seo.routes'));
 
 app.use(errorMiddleware);
 

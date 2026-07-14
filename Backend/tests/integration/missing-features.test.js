@@ -107,41 +107,6 @@ describe('Missing Features Integration Tests', () => {
     supabaseClient.from.mockImplementation(() => queryBuilder);
   });
 
-  describe('Currencies Router', () => {
-    it('GET /api/v1/currencies should list active currencies', async () => {
-      const mockCurrencies = [
-        { code: 'USD', symbol: '$', rate_to_base: 1.0, is_active: true },
-        { code: 'NGN', symbol: '₦', rate_to_base: 1500.0, is_active: true }
-      ];
-
-      const queryBuilder = supabaseClient.from('currencies');
-      queryBuilder._data = mockCurrencies;
-      queryBuilder._error = null;
-
-      const res = await request(app).get('/api/v1/currencies');
-      expect(res.statusCode).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data).toEqual(mockCurrencies);
-      expect(supabaseClient.from).toHaveBeenCalledWith('currencies');
-    });
-
-    it('PUT /api/v1/currencies/admin/:code should update currency exchange rate', async () => {
-      const mockUpdated = { code: 'NGN', symbol: '₦', rate_to_base: 1600.0, is_active: true };
-      
-      supabaseClient.from().maybeSingle.mockResolvedValue({ data: mockUpdated, error: null });
-
-      const res = await request(app)
-        .put('/api/v1/currencies/admin/ngn')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({ rate_to_base: 1600.0 });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data).toEqual(mockUpdated);
-      expect(supabaseClient.from).toHaveBeenCalledWith('currencies');
-    });
-  });
-
   describe('Upload Router', () => {
     const testFilePath = path.join(__dirname, 'test-upload.txt');
 

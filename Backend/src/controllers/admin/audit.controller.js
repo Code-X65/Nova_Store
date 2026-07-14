@@ -24,6 +24,11 @@ class AdminAuditController {
         page,
         limit
       });
+
+      if (req._auditScope && req._auditScope.filter) {
+        result.logs = result.logs.filter(req._auditScope.filter);
+      }
+
       res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -39,10 +44,14 @@ class AdminAuditController {
       const { userId, action, resourceType, resourceId, fromDate, toDate,
         severity, actionType, actor, q, format = 'csv' } = req.query;
 
-      const rows = await AuditLogModel.findAllExport({
+      let rows = await AuditLogModel.findAllExport({
         userId, action, resourceType, resourceId, fromDate, toDate,
         severity, actionType, actor, q,
       });
+
+      if (req._auditScope && req._auditScope.filter) {
+        rows = rows.filter(req._auditScope.filter);
+      }
 
       if (format === 'pdf') {
         const buffer = await auditExporter.toPDF(rows);
@@ -106,6 +115,21 @@ class AdminAuditController {
     try {
       const stats = await AuditLogModel.getStats();
       res.status(200).json({ success: true, data: stats });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Non-repudiation verification of the audit hash chain.
+   * POST /admin/audit/verify  (and GET for convenience)
+   * Recomputes each row's record_hash from its predecessor and reports any
+   * tampering.
+   */
+  async verifyChain(req, res, next) {
+    try {
+      const result = await AuditService.verifyChain();
+      res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

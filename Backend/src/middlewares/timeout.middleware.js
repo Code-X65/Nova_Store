@@ -1,17 +1,10 @@
 const ErrorResponse = require('../utils/errorResponse');
 
-/**
- * Express middleware to enforce request execution timeout.
- * Automatically exempts high-latency routes like uploads and webhooks.
- *
- * @param {number} [ms=15000] Timeout in milliseconds
- */
 const requestTimeout = (ms = 15000) => {
   return (req, res, next) => {
-    // Exempt routes that inherently take longer
     if (
-      req.originalUrl.includes('/uploads') || 
-      req.originalUrl.includes('/webhooks') || 
+      req.originalUrl.includes('/uploads') ||
+      req.originalUrl.includes('/webhooks') ||
       req.originalUrl.includes('/accept-invite')
     ) {
       return next();
@@ -19,9 +12,11 @@ const requestTimeout = (ms = 15000) => {
 
     const timer = setTimeout(() => {
       if (!res.headersSent) {
-        const timeoutError = new ErrorResponse('Request Timeout', 503);
-        timeoutError.code = 'TIMEOUT';
-        next(timeoutError);
+        res.status(408).json({
+          success: false,
+          message: 'The request timed out. Please check your connection and try again.',
+          code: 'TIMEOUT'
+        });
       }
     }, ms);
 

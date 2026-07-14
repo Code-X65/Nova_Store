@@ -51,6 +51,12 @@ async function initRealtime() {
   if (subscriberReady || !redisClient) return;
   try {
     subscriber = redisClient.duplicate();
+    // A duplicate client has its OWN emitter; without this handler a socket
+    // reset (ECONNRESET) on the subscriber becomes an uncaughtException and
+    // kills the process. Handle it here so it stays a benign, logged event.
+    subscriber.on('error', (err) => {
+      console.warn('[EventBus] Redis subscriber error:', err.message);
+    });
     await subscriber.connect();
     await subscriber.subscribe(CHANNEL, (message) => {
       try {

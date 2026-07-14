@@ -9,7 +9,7 @@
 BEGIN;
 
 -- 1. Ensure the single 'nova-store' row exists in stores.
-INSERT INTO stores (id, name, slug, is_active, created_at, updated_at)
+INSERT INTO stores (id, name, slug, is_active, created_at, updated_at, created_by)
 SELECT
   COALESCE((
     SELECT id FROM stores WHERE slug = 'nova-store' LIMIT 1
@@ -18,7 +18,8 @@ SELECT
   'nova-store',
   true,
   now(),
-  now()
+  now(),
+  (SELECT id FROM users ORDER BY created_at ASC LIMIT 1)
 ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
   is_active = true,
@@ -43,12 +44,6 @@ BEGIN
   END IF;
 END $$;
 
--- 3. Mark this migration as applied in the migrations metadata table if it
---    exists (created by the run-migrations script).
-INSERT INTO migrations (name, applied_at, status)
-SELECT '060_single_store_hardcode.sql', now(), 'applied'
-WHERE NOT EXISTS (
-  SELECT 1 FROM migrations WHERE name = '060_single_store_hardcode.sql'
-);
+
 
 COMMIT;

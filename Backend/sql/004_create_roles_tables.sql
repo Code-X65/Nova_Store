@@ -1,7 +1,7 @@
 -- 1. Roles Table
 CREATE TABLE IF NOT EXISTS roles (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  name TEXT UNIQUE NOT NULL,                 -- e.g., 'admin', 'customer', 'moderator', 'vendor'
+  name TEXT UNIQUE NOT NULL,                 -- e.g., 'admin', 'customer', 'moderator'
   display_name TEXT,                          -- e.g., 'Administrator', 'Customer'
   description TEXT,
   color_code TEXT DEFAULT '#6B7280',          -- UI color for badges

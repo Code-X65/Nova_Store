@@ -1,4 +1,5 @@
 const invitationService = require('../../services/invitation.service');
+const AuditService = require('../../services/audit.service');
 const logger = require('../../utils/logger');
 
 /**
@@ -90,7 +91,8 @@ class InvitationController {
       const requesterId  = req.admin.id;
       const isStoreOwner = req.admin.hasRole('STORE_OWNER');
 
-      await invitationService.revokeInvitation(id, requesterId, isStoreOwner, req);
+      const invitation = await invitationService.revokeInvitation(id, requesterId, isStoreOwner, req);
+      AuditService.log(req, 'admin_invitation_revoked', 'invitation', id, null, { email: invitation.email });
       return res.json({ success: true, message: 'Invitation revoked.' });
     } catch (err) {
       next(err);
@@ -107,7 +109,9 @@ class InvitationController {
       const requesterId  = req.admin.id;
       const isStoreOwner = req.admin.hasRole('STORE_OWNER');
 
+      const invitation = await invitationService.getInvitation(id, requesterId, isStoreOwner);
       await invitationService.resendInvitation(id, requesterId, isStoreOwner, req);
+      AuditService.log(req, 'admin_invitation_resent', 'invitation', id, null, { email: invitation.email });
       return res.json({ success: true, message: 'Invitation resent.' });
     } catch (err) {
       next(err);

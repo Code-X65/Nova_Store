@@ -5,11 +5,14 @@ import toast from 'react-hot-toast';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 export default function ShippingZones() {
- const qc = useQueryClient();
- const [editingId, setEditingId] = useState<string | null>(null);
- const [name, setName] = useState('');
- const [countries, setCountries] = useState<string[]>([]);
- const [countryInput, setCountryInput] = useState('');
+  const qc = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [countries, setCountries] = useState<string[]>([]);
+  const [countryInput, setCountryInput] = useState('');
+  const [rateStrategy, setRateStrategy] = useState<string>('none');
+  const [rateAmount, setRateAmount] = useState<string>('');
+  const [rateThreshold, setRateThreshold] = useState<string>('');
 
  const { data: zonesData, isLoading } = useQuery({
  queryKey: ['admin-shipping-zones'],
@@ -19,14 +22,15 @@ export default function ShippingZones() {
  }
  });
 
- const saveMutation = useMutation({
- mutationFn: async () => {
- if (editingId) {
- return api.put(`/admin/shipping/zones/${editingId}`, { name, countries });
- } else {
- return api.post('/admin/shipping/zones', { name, countries });
- }
- },
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload: any = { name, countries, rate_strategy: buildRateStrategy() };
+      if (editingId) {
+        return api.put(`/admin/shipping/zones/${editingId}`, payload);
+      } else {
+        return api.post('/admin/shipping/zones', payload);
+      }
+    },
  onSuccess: () => {
  toast.success(editingId ? 'Zone updated' : 'Zone created');
  qc.invalidateQueries({ queryKey: ['admin-shipping-zones'] });
@@ -46,29 +50,53 @@ export default function ShippingZones() {
  onError: () => toast.error('Failed to delete zone')
  });
 
- const resetForm = () => {
- setEditingId(null);
- setName('');
- setCountries([]);
- setCountryInput('');
- };
+  const resetForm = () => {
+    setEditingId(null);
+    setName('');
+    setCountries([]);
+    setCountryInput('');
+    setRateStrategy('none');
+    setRateAmount('');
+    setRateThreshold('');
+  };
 
- const handleEdit = (zone: any) => {
- setEditingId(zone.id);
- setName(zone.name);
- setCountries(zone.countries || []);
- };
+  const handleEdit = (zone: any) => {
+    setEditingId(zone.id);
+    setName(zone.name);
+    setCountries(zone.countries || []);
+    const rs = zone.rate_strategy && typeof zone.rate_strategy === 'object' ? zone.rate_strategy : null;
+    setRateStrategy(rs?.type || 'none');
+    setRateAmount(rs?.amount != null ? String(rs.amount) : '');
+    setRateThreshold(rs?.threshold != null ? String(rs.threshold) : '');
+  };
 
- const addCountry = () => {
- if (countryInput.trim() && !countries.includes(countryInput.trim().toUpperCase())) {
- setCountries([...countries, countryInput.trim().toUpperCase()]);
- setCountryInput('');
- }
- };
+  const addCountry = () => {
+    if (countryInput.trim() && !countries.includes(countryInput.trim().toUpperCase())) {
+      setCountries([...countries, countryInput.trim().toUpperCase()]);
+      setCountryInput('');
+    }
+  };
 
- const removeCountry = (code: string) => {
- setCountries(countries.filter(c => c !== code));
- };
+  const removeCountry = (code: string) => {
+    setCountries(countries.filter(c => c !== code));
+  };
+
+  const buildRateStrategy = () => {
+    if (rateStrategy === 'none') return undefined;
+    const payload: any = { type: rateStrategy };
+    if (rateStrategy === 'flat' || rateStrategy === 'price_threshold') {
+      payload.amount = Number(rateAmount) || 0;
+    }
+    if (rateStrategy === 'price_threshold' || rateStrategy === 'free_over_x') {
+      payload.threshold = Number(rateThreshold) || 0;
+    }
+    if (rateStrategy === 'flat') {
+      payload.name = 'Standard Flat';
+    } else if (rateStrategy === 'price_threshold') {
+      payload.name = 'Discounted Rate';
+    }
+    return payload;
+  };
 
  const zones = Array.isArray(zonesData) ? zonesData : (zonesData?.zones || []);
 
@@ -154,9 +182,45 @@ export default function ShippingZones() {
  </span>
  ))}
  </div>
- </div>
+  </div>
 
- <div className="pt-4 flex gap-2">
+  <div className="space-y-2">
+    <label className="text-sm font-medium text-white">Rate Strategy (NGN)</label>
+    <select
+      value={rateStrategy}
+      onChange={(e) => setRateStrategy(e.target.value)}
+      className="w-full bg-surface-2 border rounded-lg px-4 py-2 text-white focus:border-nova-500 focus:ring-1 focus:ring-nova-500"
+    >
+      <option value="none">Use standard rates only</option>
+      <option value="flat">Flat rate (fixed NGN amount)</option>
+      <option value="free_over_x">Free over threshold (NGN)</option>
+      <option value="price_threshold">Discounted rate above threshold (NGN)</option>
+    </select>
+    {(rateStrategy === 'flat' || rateStrategy === 'price_threshold') && (
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={rateAmount}
+        onChange={(e) => setRateAmount(e.target.value)}
+        placeholder="Amount (NGN)"
+        className="w-full bg-surface-2 border rounded-lg px-4 py-2 text-white focus:border-nova-500 focus:ring-1 focus:ring-nova-500"
+      />
+    )}
+    {(rateStrategy === 'free_over_x' || rateStrategy === 'price_threshold') && (
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={rateThreshold}
+        onChange={(e) => setRateThreshold(e.target.value)}
+        placeholder="Threshold (NGN)"
+        className="w-full bg-surface-2 border rounded-lg px-4 py-2 text-white focus:border-nova-500 focus:ring-1 focus:ring-nova-500"
+      />
+    )}
+  </div>
+
+  <div className="pt-4 flex gap-2">
  {editingId && (
  <button type="button" onClick={resetForm} className="flex-1 px-4 py-2 text-sm font-medium text-white bg-surface-2 border rounded-lg">
  Cancel

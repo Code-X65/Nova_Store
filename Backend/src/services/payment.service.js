@@ -125,6 +125,18 @@ class PaymentService {
         reference, provider, total: order.total_amount, orderNumber: order.order_number
       });
 
+      eventBus.emit('order.payment_succeeded', {
+        actor: { id: order.user_id, fullName: null, role: 'customer' },
+        resourceType: 'order',
+        resourceId: orderId,
+        actionType: 'STATUS_CHANGE',
+        severity: 'info',
+        title: 'Payment successful',
+        message: `Payment of ${order.total_amount} for order #${order.order_number} was successful (${provider}).`,
+        data: { orderId, orderNumber: order.order_number, reference, provider, total: order.total_amount },
+        deepLink: `/orders/${orderId}`,
+      });
+
       // 5. Clear Cart
       await CartService.clearCart(order.user_id, null);
 

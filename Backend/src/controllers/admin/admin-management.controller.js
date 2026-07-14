@@ -156,7 +156,7 @@ class AdminManagementController {
       await AuditService.log(req, 'admin_roles_updated', 'user', id, null, { roleIds: validRoleIds, newRole: primaryRole }, {
         actionType: 'STATUS_CHANGE',
         severity: 'critical',
-      }).catch(() => {});
+      });
 
       // Security-critical team alert → Owners.
       const oldRoleNames = (existingRoles || []).map(r => r.name);

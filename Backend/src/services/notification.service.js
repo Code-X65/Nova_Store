@@ -6,6 +6,7 @@ const SMSService = require('./sms.service');
 const UserModel = require('../models/user.model');
 const notificationQueue = require('./notification-queue.service');
 const logger = require('../utils/logger');
+const NotificationDeliveryModel = require('../models/notification-delivery.model');
 
 class NotificationService {
   async sendToUser(userId, templateKey, data = {}, customTitle = null, customMessage = null, opts = {}) {
@@ -27,6 +28,9 @@ class NotificationService {
     }
 
     // ── Synchronous (inline) path ─────────────────────────────────────────────
+    let notificationId = null;
+    const deliveryLogs = [];
+
     try {
       // 1. Get user and settings
       const user = await UserModel.findById(userId);
@@ -36,7 +40,6 @@ class NotificationService {
       // 2. Get template — findByKey only returns active templates
       const template = await NotificationTemplateModel.findByKey(templateKey);
       if (!template && !customTitle) {
-        // Check if template exists but is deactivated, to surface a clearer warning
         const anyTemplate = await NotificationTemplateModel.findByKeyAny(templateKey).catch(() => null);
         if (anyTemplate) {
           logger.warn(`[Notification] Template '${templateKey}' is deactivated — skipping notification for user ${userId}`);
@@ -50,7 +53,7 @@ class NotificationService {
       // 3. Render content
       let title = customTitle || template.subject;
       let message = customMessage || template.text_template;
-      
+
       // Simple handlebar-like replacement
       for (const [key, value] of Object.entries(data)) {
         title = title.replace(new RegExp(`{{${key}}}`, 'g'), value);
@@ -65,8 +68,6 @@ class NotificationService {
         channelsToUse.push('inapp');
       }
 
-      // Note: In a real app, map templateKey to specific setting
-      // For simplicity, if template allows email and it's not disabled, we send
       if (templateChannels.includes('email') && user.email) {
         channelsToUse.push('email');
       }
@@ -76,7 +77,6 @@ class NotificationService {
       }
 
       // 5. Create Notification Record (if inapp is used)
-      let notificationId = null;
       if (channelsToUse.includes('inapp')) {
         const notif = await NotificationModel.create({
           user_id: userId,
@@ -89,31 +89,60 @@ class NotificationService {
           sent_at: new Date().toISOString()
         });
         notificationId = notif.id;
+        deliveryLogs.push({ channel: 'inapp', status: 'sent', sentAt: new Date().toISOString() });
       }
 
       // 6. Send via Channels
       if (channelsToUse.includes('email')) {
-        await EmailService.sendTemplate(templateKey, user.email, data, notificationId);
+        try {
+          await EmailService.sendTemplate(templateKey, user.email, data, notificationId);
+          deliveryLogs.push({ channel: 'email', status: 'sent', sentAt: new Date().toISOString() });
+        } catch (emailErr) {
+          deliveryLogs.push({ channel: 'email', status: 'failed', error: emailErr.message });
+        }
       }
 
       if (channelsToUse.includes('sms')) {
-        const smsResult = await SMSService.send(user.phone_number, message);
-        const SmsLogModel = require('../models/sms-log.model');
-        await SmsLogModel.log({
-          notification_id: notificationId,
-          phone: user.phone_number,
-          message,
-          provider_message_id: smsResult.messageId,
-          provider: smsResult.provider,
-          status: smsResult.success ? 'sent' : 'failed',
-          error: smsResult.error
-        });
+        try {
+          const smsResult = await SMSService.send(user.phone_number, message);
+          const SmsLogModel = require('../models/sms-log.model');
+          await SmsLogModel.log({
+            notification_id: notificationId,
+            phone: user.phone_number,
+            message,
+            provider_message_id: smsResult.messageId,
+            provider: smsResult.provider,
+            status: smsResult.success ? 'sent' : 'failed',
+            error: smsResult.error
+          });
+          deliveryLogs.push({ channel: 'sms', status: smsResult.success ? 'sent' : 'failed', sentAt: new Date().toISOString(), error: smsResult.error });
+        } catch (smsErr) {
+          deliveryLogs.push({ channel: 'sms', status: 'failed', error: smsErr.message });
+        }
       }
 
       return true;
     } catch (error) {
       logger.error('Failed to send notification:', error);
+      deliveryLogs.push({ channel: 'system', status: 'failed', error: error.message });
       return false; // Swallow error for background task
+    } finally {
+      // Persist delivery audit trail
+      for (const log of deliveryLogs) {
+        try {
+          await NotificationDeliveryModel.create({
+            notificationId,
+            userId,
+            templateKey,
+            channel: log.channel,
+            status: log.status,
+            error: log.error || null,
+            sentAt: log.sentAt || null,
+          });
+        } catch (dbErr) {
+          logger.error('[Notification] Failed to log delivery:', dbErr.message);
+        }
+      }
     }
   }
 

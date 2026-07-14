@@ -4,39 +4,51 @@ const supabase = require('../config/supabase');
 const { SINGLE_STORE_ID } = require('../config/store');
 
 class InventoryService {
-  async addStock(productId, quantity, userId, notes, variantId = null) {
+  async addStock(productId, quantity, userId, notes, variantId = null, context = {}) {
+    const { warehouseLocation, batchLot } = context;
     const transactionData = {
       type: 'restock',
       quantity_change: quantity,
       variant_id: variantId,
       performed_by: userId,
-      notes: notes || 'Manual restock'
+      notes: notes || 'Manual restock',
+      warehouse_location: warehouseLocation || null,
+      batch_lot: batchLot || null,
+      store_id: SINGLE_STORE_ID
     };
 
     return await ProductModel.updateStock(productId, quantity, transactionData);
   }
 
-  async reduceStock(productId, quantity, referenceId, type = 'sale', userId = null, notes = null, variantId = null) {
+  async reduceStock(productId, quantity, referenceId, type = 'sale', userId = null, notes = null, variantId = null, context = {}) {
+    const { warehouseLocation, batchLot } = context;
     const transactionData = {
       type: type,
       quantity_change: -Math.abs(quantity),
       variant_id: variantId,
       reference_id: referenceId,
       performed_by: userId,
-      notes: notes || `Stock reduced due to ${type}`
+      notes: notes || `Stock reduced due to ${type}`,
+      warehouse_location: warehouseLocation || null,
+      batch_lot: batchLot || null,
+      store_id: SINGLE_STORE_ID
     };
 
     return await ProductModel.updateStock(productId, -Math.abs(quantity), transactionData);
   }
 
-  async adjustStock(productId, quantityChange, reasonCode, userId = null, notes = null, variantId = null) {
+  async adjustStock(productId, quantityChange, reasonCode, userId = null, notes = null, variantId = null, storeId = null, context = {}) {
+    const { warehouseLocation, batchLot } = context;
     const transactionData = {
       type: reasonCode, // 'damaged', 'restock', 'correction', 'return', 'loss', 'other'
       quantity_change: quantityChange,
       variant_id: variantId,
       performed_by: userId,
       notes: notes || `Manual adjustment: ${reasonCode}`,
-      store_id: SINGLE_STORE_ID
+      reason_code: reasonCode,
+      warehouse_location: warehouseLocation || null,
+      batch_lot: batchLot || null,
+      store_id: storeId || SINGLE_STORE_ID
     };
 
     return await ProductModel.updateStock(productId, quantityChange, transactionData);
@@ -114,6 +126,33 @@ class InventoryService {
       if (error) throw error;
       return data;
     }
+  }
+
+  async deleteAlert(id) {
+    const { error } = await supabase
+      .from('inventory_alerts')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  }
+
+  async updateAlert(id, alertData) {
+    const { threshold, notifyEmails, enabled } = alertData;
+    const { data, error } = await supabase
+      .from('inventory_alerts')
+      .update({ 
+        threshold, 
+        notify_emails: notifyEmails, 
+        enabled, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   }
 }
 

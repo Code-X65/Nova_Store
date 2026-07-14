@@ -1,18 +1,21 @@
 import { api } from '@/admin/lib/api';
 
 export interface Order {
- id: string;
- order_number: string;
- status: string;
- delivery_status: string;
- total_amount: number;
- payment_status: string;
- created_at: string;
- user: {
- first_name: string;
- last_name: string;
- email: string;
- };
+  id: string;
+  order_number: string;
+  status: string;
+  delivery_status: string;
+  total_amount: number;
+  payment_status: string;
+  created_at: string;
+  rider_id?: string;
+  rider_name?: string;
+  rider_phone?: string;
+  user: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  };
 }
 
 export interface PaginatedOrders {
@@ -54,12 +57,27 @@ export async function markReadyForDispatch(id: string, note?: string) {
  return data;
 }
 
-export async function dispatchOrder(id: string, payload: { driverName: string; driverPhone?: string; dispatchNotes?: string; deliveryWindow?: string }) {
- const { data } = await api.post(`/orders/admin/${id}/dispatch`, payload);
- return data;
+export async function updateOrderStatus(id: string, payload: { status: string; note?: string }) {
+  const { data } = await api.patch(`/orders/admin/${id}`, payload);
+  return data;
 }
 
-export async function updateOrderStatus(id: string, payload: { status: string; note?: string }) {
- const { data } = await api.patch(`/orders/admin/${id}`, payload);
- return data;
+export async function completeOrder(id: string, note?: string) {
+  const { data } = await api.post(`/orders/admin/${id}/complete`, { note });
+  return data;
+}
+
+export async function bulkAssignRider(orderIds: string[], riderId: string) {
+  const { data } = await api.post('/orders/admin/bulk-assign-rider', { orderIds, riderId });
+  return data;
+}
+
+export async function fetchActiveRiders(params: { search?: string }): Promise<{ success: boolean; data: any[] }> {
+  const { data } = await api.get('/admin/riders/active', { params });
+  return data;
+}
+
+export async function dispatchOrder(id: string, payload: { riderId?: string; driverName: string; driverPhone?: string; dispatchNotes?: string; deliveryWindow?: string }) {
+  const { data } = await api.post(`/orders/admin/${id}/dispatch`, payload);
+  return data;
 }

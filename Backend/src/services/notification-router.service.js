@@ -68,7 +68,7 @@ async function getRule(eventKey) {
 /**
  * Create the in-app notification record and push it over SSE to the recipient.
  */
-async function deliverOne({ userId, role, type, title, message, data = {}, severity = 'info' }) {
+async function deliverOne({ userId, role, type, title, message, data = {}, severity = 'info', eventId = null }) {
   try {
     const notif = await NotificationModel.create({
       user_id: userId,
@@ -81,6 +81,7 @@ async function deliverOne({ userId, role, type, title, message, data = {}, sever
       sent_at: new Date().toISOString(),
       severity,
       recipient_role: role || null,
+      event_id: eventId || null,
     });
     sseGateway.publishToUser(userId, { type: 'notification', notification: notif });
     return notif;
@@ -106,6 +107,7 @@ async function route(eventKey, payload = {}) {
       actionType: payload.actionType || 'OTHER',
       oldValues: payload.oldValues || null,
       newValues: payload.newValues || null,
+      eventId: payload.eventId || null,
     });
   } catch (err) {
     logger.error(`[NotifyRouter] Audit failed for ${eventKey}:`, err.message);
@@ -131,6 +133,7 @@ async function route(eventKey, payload = {}) {
       message,
       data: { ...data, deepLink: payload.deepLink || data.deepLink || null },
       severity,
+      eventId: payload.eventId || null,
     });
   }
 }
@@ -150,9 +153,23 @@ const HANDLED_EVENTS = [
   'order.shipped',
   'inventory.low_stock',
   'inventory.out_of_stock',
+  'inventory.adjustment',
   'inventory.discrepancy',
   'catalog.product.deleted',
   'catalog.attribute.bulk_changed',
+  'product.updated',
+  'product.price_changed',
+  'product.status_changed',
+  'product.stock_zero',
+  'category.created',
+  'category.updated',
+  'category.deleted',
+  'brand.created',
+  'brand.updated',
+  'brand.deleted',
+  'attribute.created',
+  'attribute.updated',
+  'attribute.deleted',
   'review.created',
   'staff.permission_changed',
   'staff.role_escalated',

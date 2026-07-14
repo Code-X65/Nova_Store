@@ -205,7 +205,7 @@ export function VariantManager({ productId, variants, onChange }: VariantManager
  {v.image_url ? (
  <img src={v.image_url} alt="" className="w-8 h-8 rounded-md object-cover shadow-[var(--neu-inner-sm)]" />
  ) : (
- <div className="w-8 h-8 rounded-md bg-[var(--panel-bg)] shadow-[var(--neu-inner-sm)] flex items-center justify-center">
+ <div className="w-8 h-8 rounded-md bg-[var(--panel-bg)] shadow-[var(--neu-inner-sm)] flex items-center justify-center" />
  )}
  {v.name}
  </td>

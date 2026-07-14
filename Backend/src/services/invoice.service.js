@@ -1,5 +1,24 @@
+const fs = require('fs');
+const path = require('path');
 const PDFDocument = require('pdfkit');
+const OrderModel = require('../models/order.model');
+const InvoiceModel = require('../models/invoice.model');
+const OrderStatusHistoryModel = require('../models/order-status-history.model');
+const NotificationService = require('./notification.service');
+const AuditService = require('./audit.service');
+const { SINGLE_STORE_ID } = require('../config/store');
+const logger = require('../utils/logger');
+const eventBus = require('../realtime/event-bus');
 
+const UPLOAD_DIR = path.join(__dirname, '../../uploads/invoices');
+
+/**
+ * Invoice service (Phase 4 §5.2)
+ *
+ * Generates gross-NGN invoices (no tax lines), persists them to the
+ * `invoices` table, writes a downloadable PDF, and auto-issues one
+ * when an order is delivered or paid (idempotent — one per order).
+ */
 class InvoiceService {
   generateInvoicePdf(order, orderItems) {
     return new Promise((resolve, reject) => {
@@ -18,6 +37,7 @@ class InvoiceService {
         doc.moveDown(0.5);
 
         doc.fontSize(10).fillColor('#666666');
+        doc.text(`Invoice No: ${order.invoice_no || order.order_number}`);
         doc.text(`Invoice Date: ${new Date(order.created_at || Date.now()).toLocaleString()}`);
         doc.text(`Order Number: ${order.order_number}`);
         doc.text(`Payment Status: ${order.payment_status.toUpperCase()}`);
@@ -69,7 +89,7 @@ class InvoiceService {
         doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#cccccc').stroke();
         doc.moveDown(1);
 
-        // 5. Summary / Totals block
+        // 5. Summary / Totals block (gross NGN — no tax computation)
         const totalsY = doc.y;
         doc.fontSize(10).fillColor('#111111');
         doc.text('Subtotal:', 320, totalsY, { width: 120, align: 'right' });
@@ -77,9 +97,6 @@ class InvoiceService {
 
         doc.text('Shipping Cost:', 320, doc.y, { width: 120, align: 'right' });
         doc.text(`₦${Number(order.shipping_cost).toFixed(2)}`, 450, doc.y, { width: 100, align: 'right' });
-
-        doc.text('Tax Amount:', 320, doc.y, { width: 120, align: 'right' });
-        doc.text(`₦${Number(order.tax_amount).toFixed(2)}`, 450, doc.y, { width: 100, align: 'right' });
 
         if (Number(order.discount_amount) > 0) {
           doc.text('Discount:', 320, doc.y, { width: 120, align: 'right' });
@@ -91,12 +108,98 @@ class InvoiceService {
         doc.text('Grand Total:', 320, doc.y, { width: 120, align: 'right', bold: true });
         doc.text(`₦${Number(order.total_amount).toFixed(2)}`, 450, doc.y, { width: 100, align: 'right', bold: true });
 
-        // footer note
         doc.fontSize(8).fillColor('#999999').text('Thank you for shopping at Nova Store!', 50, 700, { align: 'center' });
 
         doc.end();
       } catch (err) {
         reject(err);
+      }
+    });
+  }
+
+  /**
+   * Issue (or fetch existing) invoice for an order. Idempotent.
+   * @param {string} orderId
+   * @param {string} [actorId]
+   */
+  async issueForOrder(orderId, actorId = null) {
+    const existing = await InvoiceModel.findByOrderId(orderId);
+    if (existing) return existing;
+
+    const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
+    if (!order) throw new Error('Order not found');
+
+    const invoiceNo = `INV-${order.order_number}`;
+    const pdfBuffer = await this.generateInvoicePdf(order, order.items || []);
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    const fileName = `invoice-${order.order_number}.pdf`;
+    const filePath = path.join(UPLOAD_DIR, fileName);
+    fs.writeFileSync(filePath, pdfBuffer);
+
+    const record = await InvoiceModel.create({
+      order_id: order.id,
+      order_number: order.order_number,
+      invoice_no: invoiceNo,
+      subtotal: order.subtotal || 0,
+      shipping_cost: order.shipping_cost || 0,
+      discount_amount: order.discount_amount || 0,
+      tax_amount: 0,
+      total_amount: order.total_amount || 0,
+      currency: 'NGN',
+      pdf_url: `/uploads/invoices/${fileName}`,
+      issued_at: new Date().toISOString(),
+      created_by: actorId
+    });
+
+    await OrderStatusHistoryModel.create({
+      order_id: orderId,
+      status: order.status,
+      note: `Invoice ${invoiceNo} issued`,
+      changed_by: actorId
+    });
+
+    try {
+      await NotificationService.sendToUser(
+        order.user_id,
+        'invoice_ready',
+        { orderNumber: order.order_number, invoiceNo },
+        null, null, { async: true }
+      );
+    } catch (err) {
+      logger.warn(`[InvoiceService] notify failed for ${order.order_number}: ${err.message}`);
+    }
+
+    return record;
+  }
+
+  async getInvoice(invoiceId) {
+    return await InvoiceModel.findById(invoiceId);
+  }
+
+  async listInvoices(filters, pagination) {
+    return await InvoiceModel.list(filters, pagination);
+  }
+
+  /**
+   * Subscribe to domain events so invoices auto-generate on
+   * delivered / paid. Called once at boot from server.js.
+   */
+  initAutoInvoice() {
+    eventBus.on('order.delivered', async (payload) => {
+      try {
+        await this.issueForOrder(payload.resourceId || payload.orderId);
+      } catch (err) {
+        logger.warn(`[InvoiceService] auto-issue on delivered failed: ${err.message}`);
+      }
+    });
+
+    eventBus.on('order.payment_succeeded', async (payload) => {
+      try {
+        if (payload && (payload.orderId || payload.resourceId)) {
+          await this.issueForOrder(payload.orderId || payload.resourceId);
+        }
+      } catch (err) {
+        logger.warn(`[InvoiceService] auto-issue on paid failed: ${err.message}`);
       }
     });
   }

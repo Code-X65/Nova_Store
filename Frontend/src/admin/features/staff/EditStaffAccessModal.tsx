@@ -9,6 +9,7 @@ interface EditStaffAccessModalProps {
  onClose: () => void;
  staffId: string | null;
  staffName: string;
+}
 export function EditStaffAccessModal({ isOpen, onClose, staffId, staffName }: EditStaffAccessModalProps) {
  const qc = useQueryClient();
  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);

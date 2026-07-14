@@ -30,12 +30,17 @@ const LowStock      = lazy(() => import('@/admin/features/inventory/LowStock'));
 const Transactions  = lazy(() => import('@/admin/features/inventory/Transactions'));
 const Thresholds    = lazy(() => import('@/admin/features/inventory/Thresholds'));
 const AlertsPage    = lazy(() => import('@/admin/features/inventory/Alerts'));
+const Warehouses    = lazy(() => import('@/admin/features/inventory/Warehouses'));
+const AlertRules    = lazy(() => import('@/admin/features/inventory/AlertRules'));
+const CatalogHistory = lazy(() => import('@/admin/features/catalog/TransactionHistory'));
 
 // Catalog
 const ProductsList  = lazy(() => import('@/admin/features/catalog/ProductsList'));
 const ProductForm   = lazy(() => import('@/admin/features/catalog/ProductForm'));
 const Categories    = lazy(() => import('@/admin/features/catalog/Categories'));
 const Brands        = lazy(() => import('@/admin/features/catalog/Brands'));
+const BulkImport    = lazy(() => import('@/admin/features/catalog/BulkImport'));
+const VariantManager = lazy(() => import('@/admin/features/catalog/VariantManager'));
 
 // Customers
 const UsersList     = lazy(() => import('@/admin/features/customers/UsersList'));
@@ -59,6 +64,10 @@ const Invitations     = lazy(() => import('@/admin/features/staff/Invitations'))
 const AcceptInvite    = lazy(() => import('@/admin/features/staff/AcceptInvite'));
 const RoleManager     = lazy(() => import('@/admin/features/staff/RoleManager'));
 const MyPermissions   = lazy(() => import('@/admin/features/staff/MyPermissions'));
+const IpAllowlist     = lazy(() => import('@/admin/features/staff/IpAllowlist'));
+
+// Riders
+const RidersList      = lazy(() => import('@/admin/features/riders/RidersList'));
 // Sales
 const SalesReports    = lazy(() => import('@/admin/features/sales/SalesReports'));
 const TopProducts     = lazy(() => import('@/admin/features/sales/TopProducts'));
@@ -67,7 +76,7 @@ const DailySummary    = lazy(() => import('@/admin/features/sales/DailySummary')
 
 // Settings
 const StoreSettings   = lazy(() => import('@/admin/features/settings/StoreSettings'));
-const CurrenciesPage  = lazy(() => import('@/admin/features/settings/CurrenciesPage'));
+const SecuritySettings = lazy(() => import('@/admin/features/settings/SecuritySettings'));
 
 // Audit
 const AuditLogs       = lazy(() => import('@/admin/features/audit/AuditLogs'));
@@ -77,6 +86,26 @@ const MigrationsPage  = lazy(() => import('@/admin/features/audit/Migrations'));
 // Notifications Admin
 const SendBroadcast   = lazy(() => import('@/admin/features/notifications/SendBroadcast'));
 const Templates       = lazy(() => import('@/admin/features/notifications/Templates'));
+const NotificationsInbox = lazy(() => import('@/admin/features/notifications/NotificationsInbox'));
+
+// Phase 4 — Order & Lifecycle
+const Invoices       = lazy(() => import('@/admin/features/billing/Invoices'));
+const Refunds         = lazy(() => import('@/admin/features/finance/Refunds'));
+const Disputes        = lazy(() => import('@/admin/features/finance/Disputes'));
+
+// Phase 5 — Logistics & Fulfillment
+const Fulfillment     = lazy(() => import('@/admin/features/logistics/Fulfillment'));
+const RmaReturns      = lazy(() => import('@/admin/features/logistics/Returns'));
+const RiderTracking   = lazy(() => import('@/admin/features/logistics/RiderTracking'));
+
+// Phase 7 — CRM & Support
+const Segments        = lazy(() => import('@/admin/features/crm/Segments'));
+const Tickets         = lazy(() => import('@/admin/features/crm/Tickets'));
+const CustomerEvents  = lazy(() => import('@/admin/features/crm/CustomerEvents'));
+
+// Phase 8 — Analytics Intelligence
+const Forecasting     = lazy(() => import('@/admin/features/analytics/Forecasting'));
+const CustomerHeatmaps = lazy(() => import('@/admin/features/analytics/CustomerHeatmaps'));
 
 // Fallback pages
 const NotFoundPage    = lazy(() => import('@/admin/features/errors/NotFoundPage'));
@@ -154,6 +183,11 @@ export function AppRoutes() {
                 <Transactions />
               </RequirePermission>
             } />
+            <Route path="transactions/catalog" element={
+              <RequirePermission anyOf={['product:read', 'category:read', 'brand:read', 'inventory:read']}>
+                <CatalogHistory />
+              </RequirePermission>
+            } />
             <Route path="thresholds" element={
               <RequirePermission anyOf={['inventory:alert', 'inventory:write']}>
                 <Thresholds />
@@ -162,6 +196,16 @@ export function AppRoutes() {
             <Route path="alerts" element={
               <RequirePermission anyOf={['inventory:alert', 'inventory:write']}>
                 <AlertsPage />
+              </RequirePermission>
+            } />
+            <Route path="warehouses" element={
+              <RequirePermission permission="inventory:read">
+                <Warehouses />
+              </RequirePermission>
+            } />
+            <Route path="alert-rules" element={
+              <RequirePermission anyOf={['inventory:alert', 'inventory:write']}>
+                <AlertRules />
               </RequirePermission>
             } />
           </Route>
@@ -191,6 +235,16 @@ export function AppRoutes() {
             <Route path="brands" element={
               <RequirePermission anyOf={['brand:write', 'brand:read']}>
                 <Brands />
+              </RequirePermission>
+            } />
+            <Route path="variants" element={
+              <RequirePermission anyOf={['product:read', 'product:write']}>
+                <VariantManager />
+              </RequirePermission>
+            } />
+            <Route path="import" element={
+              <RequirePermission anyOf={['product:create', 'product:write', 'inventory:write']}>
+                <BulkImport />
               </RequirePermission>
             } />
           </Route>
@@ -274,7 +328,21 @@ export function AppRoutes() {
                 <RoleManager />
               </RequirePermission>
             } />
+            <Route path="ip-allowlist" element={
+              <RequirePermission permission="rbac:read">
+                <IpAllowlist />
+              </RequirePermission>
+            } />
             <Route path="my-permissions" element={<MyPermissions />} />
+          </Route>
+
+          {/* Riders */}
+          <Route path="riders">
+            <Route index element={
+              <RequirePermission anyOf={['rider:read', 'rider:write', '*']}>
+                <RidersList />
+              </RequirePermission>
+            } />
           </Route>
 
           {/* Sales */}
@@ -309,9 +377,9 @@ export function AppRoutes() {
                 <StoreSettings />
               </RequirePermission>
             } />
-            <Route path="currencies" element={
+            <Route path="security" element={
               <RequirePermission permission="settings:read">
-                <CurrenciesPage />
+                <SecuritySettings />
               </RequirePermission>
             } />
           </Route>
@@ -334,18 +402,95 @@ export function AppRoutes() {
           <Route path="profile/sessions" element={<SessionsPage />} />
 
           {/* Notifications Admin — backend has no slug guard, only requireAdmin */}
-          <Route path="notifications/admin">
+          <Route path="notifications">
             <Route index element={
-              <RequirePermission permission="notifications:write">
-                <SendBroadcast />
+              <RequirePermission permission="notifications:read">
+                <NotificationsInbox />
               </RequirePermission>
             } />
-            <Route path="templates" element={
-              <RequirePermission permission="notifications:write">
-                <Templates />
+            <Route path="admin" element={<Navigate to="/notifications" replace />}>
+              <Route index element={
+                <RequirePermission permission="notifications:write">
+                  <SendBroadcast />
+                </RequirePermission>
+              } />
+              <Route path="templates" element={
+                <RequirePermission permission="notifications:write">
+                  <Templates />
+                </RequirePermission>
+              } />
+            </Route>
+          </Route>
+
+          {/* Billing & Finance (Phase 4 §5.2 / §5.3) */}
+          <Route path="billing/invoices" element={
+            <RequirePermission permission="billing:read">
+              <Invoices />
+            </RequirePermission>
+          } />
+          <Route path="finance/refunds" element={
+            <RequirePermission permission="finance:read">
+              <Refunds />
+            </RequirePermission>
+          } />
+          <Route path="finance/disputes" element={
+            <RequirePermission permission="disputes:read">
+              <Disputes />
+            </RequirePermission>
+          } />
+
+          {/* Logistics & Fulfillment (Phase 5 §7) */}
+          <Route path="logistics/fulfillment" element={
+            <RequirePermission permission="fulfillment:read">
+              <Fulfillment />
+            </RequirePermission>
+          } />
+          <Route path="logistics/returns" element={
+             <RequirePermission permission="returns:read">
+               <RmaReturns />
+             </RequirePermission>
+           } />
+          <Route path="logistics/rider-tracking" element={
+            <RequirePermission permission="logistics:read">
+              <RiderTracking />
+            </RequirePermission>
+          } />
+
+          {/* CRM & Support (Phase 7 §9) */}
+          <Route path="crm">
+            <Route index element={
+              <RequirePermission permission="crm:read">
+                <Segments />
+              </RequirePermission>
+            } />
+            <Route path="segments" element={
+              <RequirePermission permission="segment:read">
+                <Segments />
+              </RequirePermission>
+            } />
+            <Route path="tickets" element={
+              <RequirePermission permission="ticket:read">
+                <Tickets />
+              </RequirePermission>
+            } />
+            <Route path="events" element={
+              <RequirePermission permission="customer_event:read">
+                <CustomerEvents />
               </RequirePermission>
             } />
           </Route>
+
+          {/* Analytics Intelligence (Phase 8 §10) */}
+          <Route path="analytics/forecasting" element={
+            <RequirePermission permission="analytics:read">
+              <Forecasting />
+            </RequirePermission>
+          } />
+          <Route path="analytics/heatmaps" element={
+            <RequirePermission permission="analytics:read">
+              <CustomerHeatmaps />
+            </RequirePermission>
+          } />
 
           {/* Error pages */}
           <Route path="403" element={<ForbiddenPage />} />

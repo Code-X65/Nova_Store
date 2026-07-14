@@ -70,6 +70,7 @@ class OrderModel {
     if (status === 'out_for_delivery')    updateData.out_for_delivery_at    = now;
     if (status === 'delivery_attempted')  updateData.attempted_at           = now;
     if (status === 'delivered')           updateData.delivered_at           = now;
+    if (status === 'completed')           updateData.completed_at           = now;
     if (status === 'cancelled')           updateData.cancelled_at           = now;
     if (paymentStatus === 'paid')         updateData.paid_at                = now;
 

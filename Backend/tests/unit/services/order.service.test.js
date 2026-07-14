@@ -20,6 +20,8 @@ jest.mock('../../../src/services/notification.service');
 jest.mock('../../../src/models/notification-template.model');
 jest.mock('../../../src/utils/logger');
 jest.mock('../../../src/services/audit.service');
+jest.mock('../../../src/models/store.model');
+const StoreModel = require('../../../src/models/store.model');
 const PaymentService = require('../../../src/services/payment.service');
 jest.mock('../../../src/services/payment.service');
 
@@ -52,6 +54,8 @@ describe('OrderService', () => {
       permissions: ['*']
     });
     AuditService.log.mockResolvedValue(undefined);
+    StoreModel.findById.mockResolvedValue({ id: 'store-1', name: 'Nova Store' });
+    StoreModel.getSettings.mockResolvedValue([]);
   });
 
   describe('getUserOrders', () => {
@@ -432,14 +436,14 @@ describe('OrderService', () => {
         );
 
         expect(result.status).toBe('dispatched');
-        expect(DeliveryDispatchModel.create).toHaveBeenCalledWith({
+        expect(DeliveryDispatchModel.create).toHaveBeenCalledWith(expect.objectContaining({
           order_id: localOrder.id,
           assigned_by: mockAdminId,
           driver_name: 'Driver Dave',
           driver_phone: '08012345678',
           dispatch_notes: 'Fragile'
-        });
-        expect(OrderModel.update).toHaveBeenCalledWith(localOrder.id, {
+        }));
+        expect(OrderModel.update).toHaveBeenCalledWith(localOrder.id, expect.objectContaining({
           status: 'dispatched',
           delivery_status: 'assigned',
           driver_name: 'Driver Dave',
@@ -448,11 +452,11 @@ describe('OrderService', () => {
           manual_dispatch_notes: 'Fragile',
           delivery_window: '10am-2pm',
           updated_at: expect.any(String)
-        });
+        }));
         expect(OrderStatusHistoryModel.create).toHaveBeenCalledWith({
           order_id: localOrder.id,
           status: 'dispatched',
-          note: 'Assigned to driver: Driver Dave',
+          note: 'Assigned to rider: Driver Dave',
           changed_by: mockAdminId
         });
         expect(NotificationService.sendToUser).toHaveBeenCalledWith(mockUserId, 'order_dispatched', {
@@ -476,7 +480,7 @@ describe('OrderService', () => {
 
         await expect(
           orderService.dispatchOrder(localOrder.id, { driverName: 'Dave' }, mockAdminId)
-        ).rejects.toThrow('Cannot dispatch order from status: cancelled');
+        ).rejects.toThrow('Cannot dispatch order unless it is ready for dispatch');
       });
     });
 

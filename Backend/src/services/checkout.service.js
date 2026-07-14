@@ -103,12 +103,24 @@ class CheckoutService {
 
 
   async createCheckoutSession(userId, sessionId, checkoutData) {
-    const { cartId, shippingOption, address, couponCode, notes } = checkoutData;
+    const { cartId, shippingOption, address, couponCode, notes, paymentMethod } = checkoutData;
     
     // 1. Validate cart again
     const validation = await this.validateCheckout(userId, sessionId, cartId, address);
     if (!validation.valid) {
       throw new Error(`Checkout validation failed: ${validation.issues.join(', ')}`);
+    }
+
+    // 1b. Validate Pay on Delivery setting
+    if (paymentMethod && ['pay_on_delivery', 'cod'].includes(paymentMethod)) {
+      const storeModel = require('../models/store.model');
+      const storeService = require('./store.service');
+      const storeId = SINGLE_STORE_ID;
+      const storeProfile = await storeService.getStoreProfile(storeId);
+      const podEnabled = storeProfile?.settings?.['payment.pay_on_delivery_enabled'] === 'true';
+      if (!podEnabled) {
+        throw new Error('Pay on Delivery is not available at this time');
+      }
     }
 
     // 2. Handle Coupon
@@ -123,7 +135,7 @@ class CheckoutService {
 
     // 3. Calculate Final Totals
     const shippingCost = await this.getShippingCost(shippingOption, validation.subtotal);
-    const taxAmount = await this.calculateTax(validation.subtotal, address);
+    const taxAmount = this.calculateTax(validation.subtotal, address);
     const totalAmount = validation.subtotal + shippingCost + taxAmount - discountAmount;
 
     // 4. Prepare Order Data
@@ -141,11 +153,12 @@ class CheckoutService {
       coupon_id: couponId,
       shipping_address: address,
       shipping_method: shippingOption,
-      customer_email: address.email || (userId ? null : checkoutData.email), // Should be provided
+      customer_email: address.email || (userId ? null : checkoutData.email),
       customer_phone: address.phone,
       notes: notes,
       checkout_session_id: checkoutSessionId,
-      store_id: SINGLE_STORE_ID
+      store_id: SINGLE_STORE_ID,
+      payment_method: paymentMethod || null
     };
 
     const orderItems = validation.cart.items.map(item => ({
@@ -165,7 +178,7 @@ class CheckoutService {
     const reservationErrors = [];
     for (const item of validation.cart.items) {
       try {
-        await InventoryReservationService.reserveStock(item.productId, item.quantity);
+        await InventoryReservationService.reserveStock(item.productId, item.quantity, item.variantId || null);
       } catch (err) {
         reservationErrors.push(`${item.product.name}: ${err.message}`);
       }

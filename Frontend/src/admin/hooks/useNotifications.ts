@@ -1,44 +1,39 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/admin/lib/api';
+import type { Notification } from '@/shared/api/types';
 
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-  type: string;
-}
-
-export function useNotifications() {
+export function useNotifications(filter: 'all' | 'unread' | 'catalog' = 'unread') {
   const qc = useQueryClient();
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => {
       const { data } = await api.get('/notifications/unread-count');
-      return data.data.count || 0;
+      return data.data.unreadCount || 0;
     },
-    refetchInterval: 30000, // Poll every 30s
+    refetchInterval: 30000,
   });
 
+  const notifyFilter = filter === 'catalog' ? 'all' : filter;
+
   const { data: notifications = [], refetch: fetchList } = useQuery({
-    queryKey: ['notifications', 'list'],
+    queryKey: ['notifications', 'list', notifyFilter],
     queryFn: async () => {
-      const { data } = await api.get('/notifications');
-      // Normalize casing since backend might return snake_case
+      const { data } = await api.get(`/notifications?isRead=${notifyFilter === 'unread' ? 'false' : 'true'}`);
       return (data.data || []).map((n: any) => ({
         id: n.id,
         title: n.title,
         message: n.message,
-        read: n.is_read || n.read,
+        read: n.is_read || n.read || false,
         createdAt: n.created_at || n.createdAt,
         type: n.type,
-        severity: (n.severity as Notification['severity']) || 'info',
+        severity: n.severity || 'info',
         recipientRole: n.recipient_role || null,
+        deepLink: n.data?.deepLink || n.deepLink || null,
+        data: n.data || {},
       })) as Notification[];
     },
-    enabled: false, // Only fetch when opened
+    enabled: false,
   });
 
   const markReadMutation = useMutation({

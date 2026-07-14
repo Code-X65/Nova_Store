@@ -438,6 +438,31 @@ router.post('/admin/:id/return',
   orderController.processReturn
 );
 
+/**
+ * @swagger
+ * /orders/admin/{id}/complete:
+ *   post:
+ *     summary: Mark a delivered order as completed (terminal state)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *       - in: query
+ *         name: note
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Order marked as completed
+ */
+router.post('/admin/:id/complete',
+  requireOrderStaff,
+  orderController.completeOrder
+);
+
 // Legacy alias — ship endpoint forwards to the generic status updater
 router.post('/admin/:id/ship', requireOrderStaff, orderController.updateOrderStatus);
 
@@ -489,6 +514,38 @@ router.post('/admin/bulk-action',
   requireOrderStaff,
   validate(deliveryValidator.bulkOrderAction),
   orderController.bulkAction
+);
+
+/**
+ * @swagger
+ * /orders/admin/bulk-assign-rider:
+ *   post:
+ *     summary: Assign a rider to multiple orders at once (Manager only)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [orderIds, riderId]
+ *             properties:
+ *               orderIds:
+ *                 type: array
+ *                 items: { type: string, format: uuid }
+ *               riderId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: Rider assigned to orders
+ */
+router.post('/admin/bulk-assign-rider',
+  requireManager,
+  validate(deliveryValidator.bulkAssignRider),
+  orderController.bulkAssignRider
 );
 
 module.exports = router;

@@ -6,31 +6,13 @@ const errorHandler = (err, req, res, next) => {
     return next(err);
   }
 
-  logger.error('Unhandled request error', {
-    error: err.message,
-    stack: err.stack,
-    method: req.method,
-    url: req.originalUrl,
-  });
-
-  // Track unhandled 5xx server errors in Sentry
   let statusCode = err.statusCode || 500;
-  if (statusCode >= 500) {
-    errorTracker.captureException(err, {
-      extra: {
-        method: req.method,
-        url: req.originalUrl,
-        requestId: req.id,
-      }
-    });
-  }
-  
-  // Default error
   let errorCode = err.code || 'SERVER_ERROR';
   let message = err.message || 'Internal server error';
   let details = err.details || [];
-  
-  // Handle Specific Error Types
+
+  const isOperational = err.isOperational !== false;
+
   if (err.isJoi) {
     statusCode = 400;
     errorCode = 'VALIDATION_ERROR';
@@ -58,17 +40,46 @@ const errorHandler = (err, req, res, next) => {
   } else if (statusCode === 409) {
     errorCode = 'CONFLICT_ERROR';
   }
-  
-  res.status(statusCode).json({
+
+  const logMeta = {
+    error: message,
+    method: req.method,
+    url: req.originalUrl,
+    statusCode,
+    errorCode,
+    isOperational,
+    requestId: req.id,
+  };
+
+  if (isOperational) {
+    logger.warn('Operational error', logMeta);
+  } else {
+    logger.error('Programmer error detected', {
+      ...logMeta,
+      stack: err.stack,
+    });
+    errorTracker.captureException(err, {
+      extra: {
+        method: req.method,
+        url: req.originalUrl,
+        requestId: req.id,
+      }
+    });
+  }
+
+  const response = {
     success: false,
-    error: {
-      code: errorCode,
-      message: message,
-      details: details
-    },
+    message: message,
+    code: errorCode,
     timestamp: new Date().toISOString(),
     path: req.originalUrl || req.path
-  });
+  };
+
+  if (details.length > 0) {
+    response.details = details;
+  }
+
+  res.status(statusCode).json(response);
 };
 
 module.exports = errorHandler;

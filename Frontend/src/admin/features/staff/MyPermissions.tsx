@@ -74,7 +74,7 @@ export default function MyPermissions() {
  </div>
  )}
  </div>
-
+ </div>
  </div>
  );
 }

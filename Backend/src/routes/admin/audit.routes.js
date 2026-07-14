@@ -1,14 +1,15 @@
 const express = require('express');
 const requireAdmin = require('../../middlewares/require-admin.middleware');
 const { hasPermission } = require('../../middlewares/permission.middleware');
+const { auditRedaction } = require('../../middlewares/audit-redaction.middleware');
 const adminAuditController = require('../../controllers/admin/audit.controller');
 
 const router = express.Router();
 
-// All routes require authentication
+// All routes require authentication + audit permission + role-aware redaction
 router.use(requireAdmin);
-// Require admin permissions for audit access
 router.use(hasPermission('audit:read'));
+router.use(auditRedaction);
 
 /**
  * @swagger
@@ -100,6 +101,23 @@ router.get('/admin-auth', adminAuditController.getAdminAuthAuditLogs);
 router.get('/stats', adminAuditController.getAuditStats);
 
 router.get('/export', adminAuditController.exportLogs);
+
+/**
+ * @swagger
+ * /admin/audit/verify:
+ *   post:
+ *     summary: Verify the audit log tamper-evidence hash chain
+ *     tags: [Admin Audit]
+ *     description: >
+ *       Recomputes each audit row's record_hash from its predecessor and
+ *       reports whether the chain is intact (non-repudiable proof of no
+ *       tampering).
+ *     responses:
+ *       200:
+ *         description: Verification result (verified true/false + broken rows)
+ */
+router.post('/verify', adminAuditController.verifyChain);
+router.get('/verify', adminAuditController.verifyChain);
 
 router.get('/', adminAuditController.getActivityLogs);
 

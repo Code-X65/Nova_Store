@@ -12,6 +12,8 @@ describe('RequestTimeout Middleware', () => {
     };
     res = {
       headersSent: false,
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
       on: jest.fn()
     };
     next = jest.fn();
@@ -31,15 +33,16 @@ describe('RequestTimeout Middleware', () => {
   it('should trigger timeout error if request hangs beyond limit', () => {
     const middleware = requestTimeout(5000);
     middleware(req, res, next);
-    
-    // Fast-forward timers
+
     jest.advanceTimersByTime(5000);
 
-    expect(next).toHaveBeenCalledTimes(2); // First on start, second on timeout
-    const timeoutErr = next.mock.calls[1][0];
-    expect(timeoutErr).toBeDefined();
-    expect(timeoutErr.statusCode).toBe(503);
-    expect(timeoutErr.message).toBe('Request Timeout');
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(408);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: 'The request timed out. Please check your connection and try again.',
+      code: 'TIMEOUT'
+    });
   });
 
   it('should not trigger timeout if headers are already sent', () => {

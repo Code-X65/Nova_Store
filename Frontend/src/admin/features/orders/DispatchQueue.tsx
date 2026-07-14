@@ -21,23 +21,30 @@ export default function DispatchQueue() {
  const readyForDispatch = orders.filter(o => o.delivery_status === 'ready_for_dispatch');
  const dispatched = orders.filter(o => o.delivery_status === 'dispatched' || o.delivery_status === 'out_for_delivery');
 
- const QueueCard = ({ order }: { order: Order }) => (
- <div 
- onClick={() => navigate(`/orders/${order.id}`)}
- className="bg-black rounded-xl p-4 hover:border-nova-500/50 cursor-pointer transition-colors"
- >
- <div className="flex justify-between items-start mb-2">
- <span className="font-bold text-white">#{order.order_number}</span>
- <span className="text-xs text-gray-500">{format(new Date(order.created_at), 'HH:mm')}</span>
- </div>
- <p className="text-sm text-gray-300 mb-4">{order.user?.first_name} {order.user?.last_name}</p>
- <div className="flex justify-between items-center mt-auto">
- <span className="px-2 py-1 bg-gray-800 text-gray-400 rounded text-xs font-medium">
- {order.delivery_status.replace(/_/g, ' ').toUpperCase()}
- </span>
- </div>
- </div>
- );
+  const QueueCard = ({ order }: { order: Order }) => (
+  <div 
+  onClick={() => navigate(`/orders/${order.id}`)}
+  className="bg-black rounded-xl p-4 hover:border-nova-500/50 cursor-pointer transition-colors"
+  >
+  <div className="flex justify-between items-start mb-2">
+  <span className="font-bold text-white">#{order.order_number}</span>
+  <span className="text-xs text-gray-500">{format(new Date(order.created_at), 'HH:mm')}</span>
+  </div>
+  <p className="text-sm text-gray-300 mb-4">{order.user?.first_name} {order.user?.last_name}</p>
+  {order.rider_name && (
+  <div className="flex items-center gap-2 mb-2">
+  <TruckIcon className="w-4 h-4 text-gray-400" />
+  <span className="text-sm text-gray-300">{order.rider_name}</span>
+  {order.rider_phone && <span className="text-xs text-gray-500">{order.rider_phone}</span>}
+  </div>
+  )}
+  <div className="flex justify-between items-center mt-auto">
+  <span className="px-2 py-1 bg-gray-800 text-gray-400 rounded text-xs font-medium">
+  {order.delivery_status.replace(/_/g, ' ').toUpperCase()}
+  </span>
+  </div>
+  </div>
+  );
 
  return (
  <div className="flex flex-col h-full space-y-6">

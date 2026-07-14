@@ -251,6 +251,18 @@ class OrderController {
     }
   }
 
+  async completeOrder(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { note } = req.body;
+      const order = await OrderService.completeOrder(id, req.user.id, req.store?.id);
+      AuditService.log(req, 'order.completed', 'order', id);
+      res.status(200).json({ success: true, data: { order }, message: 'Order marked as completed' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Admin — return processing
   // ─────────────────────────────────────────────────────────────────────────────
@@ -373,6 +385,20 @@ class OrderController {
       }
 
       res.status(200).send(fileData);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkAssignRider(req, res, next) {
+    try {
+      const { orderIds, riderId } = req.body;
+      const result = await OrderService.bulkAssignRider(orderIds, riderId, req.user.id, req);
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `Rider assigned to ${result.successCount} order(s)`
+      });
     } catch (error) {
       next(error);
     }

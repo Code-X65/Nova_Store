@@ -20,7 +20,7 @@ export function clearAccessToken() {
 export function createBearerClient(baseURL: string, refreshFn?: () => Promise<string>): AxiosInstance {
   const client = axios.create({
     baseURL,
-    timeout: 15_000,
+    timeout: 30_000,
   });
 
   // Request interceptor — attach Bearer token
@@ -31,10 +31,25 @@ export function createBearerClient(baseURL: string, refreshFn?: () => Promise<st
     return config;
   });
 
-  // Response interceptor — attempt token refresh on 401
+  // Response interceptor — normalize errors and attempt token refresh on 401
   client.interceptors.response.use(
     (response) => response,
     async (error) => {
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (data.message) {
+          error.message = data.message;
+        } else if (data.error?.message) {
+          error.message = data.error.message;
+        } else {
+          error.message = 'Something went wrong';
+        }
+      } else if (error.message) {
+        error.message = error.message;
+      } else {
+        error.message = 'Something went wrong';
+      }
+
       const original = error.config;
       if (error.response?.status === 401 && !original._retried && refreshFn) {
         original._retried = true;

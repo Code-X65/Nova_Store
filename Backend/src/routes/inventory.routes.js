@@ -15,7 +15,9 @@ const stockUpdateSchema = {
     productId: Joi.string().uuid().required(),
     variantId: Joi.string().uuid().allow(null),
     quantity: Joi.number().integer().required(),
-    notes: Joi.string().max(500).allow('', null)
+    notes: Joi.string().max(500).allow('', null),
+    warehouseLocation: Joi.string().max(100).allow('', null),
+    batchLot: Joi.string().max(100).allow('', null)
   })
 };
 
@@ -26,7 +28,9 @@ const reduceStockSchema = {
     quantity: Joi.number().integer().positive().required(),
     referenceId: Joi.string().uuid().allow(null),
     type: Joi.string().valid('sale', 'adjustment', 'return', 'reservation').default('adjustment'),
-    notes: Joi.string().max(500).allow('', null)
+    notes: Joi.string().max(500).allow('', null),
+    warehouseLocation: Joi.string().max(100).allow('', null),
+    batchLot: Joi.string().max(100).allow('', null)
   })
 };
 
@@ -36,7 +40,22 @@ const adjustStockSchema = {
     variantId: Joi.string().uuid().optional().allow(null),
     quantityChange: Joi.number().integer().required(),
     reasonCode: Joi.string().valid('damaged', 'restock', 'correction', 'return', 'loss', 'other').required(),
-    notes: Joi.string().max(500).optional().allow('', null)
+    notes: Joi.string().max(500).optional().allow('', null),
+    warehouseLocation: Joi.string().max(100).allow('', null),
+    batchLot: Joi.string().max(100).allow('', null)
+  })
+};
+
+const bulkUpdateSchema = {
+  body: Joi.object({
+    updates: Joi.array().items(
+      Joi.object({
+        productId: Joi.string().uuid().required(),
+        variantId: Joi.string().uuid().optional().allow(null),
+        quantity: Joi.number().integer().required(),
+        notes: Joi.string().max(500).optional().allow('', null)
+      })
+    ).min(1).max(100).required()
   })
 };
 
@@ -203,7 +222,7 @@ router.get('/low-stock', hasPermission('inventory:read'), inventoryController.ge
  *       200:
  *         description: Bulk update completed
  */
-router.post('/bulk-update', requireInventoryStaff, inventoryController.bulkUpdate);
+router.post('/bulk-update', requireInventoryStaff, validate(bulkUpdateSchema), inventoryController.bulkUpdate);
 
 /**
  * @swagger
@@ -242,6 +261,8 @@ router.post('/bulk-update', requireInventoryStaff, inventoryController.bulkUpdat
  */
 router.get('/alerts', hasPermission('inventory:read'), inventoryController.getAlerts);
 router.post('/alerts', requireInventoryStaff, inventoryController.configureAlerts);
+router.put('/alerts/:id', requireInventoryStaff, inventoryController.updateAlert);
+router.delete('/alerts/:id', requireInventoryStaff, inventoryController.deleteAlert);
 
 /**
  * @swagger

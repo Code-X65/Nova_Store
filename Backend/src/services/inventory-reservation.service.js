@@ -6,8 +6,8 @@ const supabase = require('../config/supabase');
  * Uses an advisory lock on the product row to prevent concurrent double-reservation.
  * Returns the updated product row.
  */
-async function reserveStock(productId, quantity) {
-  return await ProductModel.updateReservedStock(productId, quantity);
+async function reserveStock(productId, quantity, variantId = null) {
+  return await ProductModel.updateReservedStock(productId, quantity, variantId);
 }
 
 /**

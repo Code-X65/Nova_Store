@@ -131,14 +131,14 @@ export default function AdminDashboard() {
  <div>
  <p className="text-xs text-gray-400 mb-1">Total Sales</p>
  <div className="flex items-end gap-3 mb-1">
- <span className="text-3xl font-bold text-white tracking-tight">
- ${metrics.totalSales?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
- </span>
+  <span className="text-3xl font-bold text-white tracking-tight">
+  ₦{metrics.totalSales?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+  </span>
  <span className="flex items-center text-xs font-semibold text-success mb-1">
  <ArrowUpIcon className="w-3 h-3 mr-0.5" /> 12.5%
  </span>
  </div>
- <p className="text-xs text-gray-500 mb-6">vs. ${(metrics.totalSales * 0.875).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} last month</p>
+  <p className="text-xs text-gray-500 mb-6">vs. ₦{(metrics.totalSales * 0.875).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} last month</p>
  </div>
  <div className="h-28 -mx-2 -mb-2">
  <ResponsiveContainer width="100%" height="100%">
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
  return (
  <div className="bg-black rounded-lg p-2 text-xs shadow-lg">
  <p className="text-gray-400 mb-1">{format(new Date(payload[0].payload.date), 'MMM d')}</p>
- <p className="font-bold text-white">${payload[0].value?.toLocaleString()}</p>
+  <p className="font-bold text-white">₦{payload[0].value?.toLocaleString()}</p>
  </div>
  );
  }
@@ -198,7 +198,7 @@ export default function AdminDashboard() {
  </div>
  <div className="text-right">
  <p className="text-xs text-gray-400 mb-0.5">{format(new Date(order.created_at || new Date()), 'MMM dd')}</p>
- <p className="text-sm font-medium text-nova-500">${Number(order.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+  <p className="text-sm font-medium text-nova-500">₦{Number(order.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
  </div>
  </div>
  ))}
@@ -280,27 +280,27 @@ export default function AdminDashboard() {
  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
  <div className="bg-[#111111] rounded-lg p-4">
  <p className="text-xs text-gray-400 mb-1">Gross Revenue</p>
- <p className="text-lg font-bold text-white tracking-tight mb-1">
- ${metrics.totalSales?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
- </p>
+  <p className="text-lg font-bold text-white tracking-tight mb-1">
+  ₦{metrics.totalSales?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+  </p>
  <span className="flex items-center text-[10px] font-semibold text-success">
  <ArrowUpIcon className="w-2.5 h-2.5 mr-0.5" /> 10.2%
  </span>
  </div>
  <div className="bg-[#111111] rounded-lg p-4">
  <p className="text-xs text-gray-400 mb-1">Net Revenue</p>
- <p className="text-lg font-bold text-white tracking-tight mb-1">
- ${(metrics.totalSales * 0.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
- </p>
+  <p className="text-lg font-bold text-white tracking-tight mb-1">
+  ₦{(metrics.totalSales * 0.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+  </p>
  <span className="flex items-center text-[10px] font-semibold text-success">
  <ArrowUpIcon className="w-2.5 h-2.5 mr-0.5" /> 9.8%
  </span>
  </div>
  <div className="bg-[#111111] rounded-lg p-4">
  <p className="text-xs text-gray-400 mb-1">Avg. Order Value</p>
- <p className="text-lg font-bold text-white tracking-tight mb-1">
- ${metrics.totalOrders ? (metrics.totalSales / metrics.totalOrders).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
- </p>
+  <p className="text-lg font-bold text-white tracking-tight mb-1">
+  ₦{metrics.totalOrders ? (metrics.totalSales / metrics.totalOrders).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+  </p>
  <span className="flex items-center text-[10px] font-semibold text-success">
  <ArrowUpIcon className="w-2.5 h-2.5 mr-0.5" /> 3.4%
  </span>
@@ -321,7 +321,7 @@ export default function AdminDashboard() {
  <BarChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={16}>
  <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
  <XAxis dataKey="date" stroke="#6b7280" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => format(new Date(v), 'MMM')} />
- <YAxis stroke="#6b7280" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v >= 1000 ? (v/1000)+'K' : v}`} />
+  <YAxis stroke="#6b7280" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `₦${v >= 1000 ? (v/1000)+'K' : v}`} />
  <Tooltip 
  cursor={{ fill: '#111111' }}
  content={({ active, payload }) => {
@@ -329,7 +329,7 @@ export default function AdminDashboard() {
  return (
  <div className="bg-black rounded-lg p-2 text-xs shadow-lg flex flex-col items-center">
  <p className="text-gray-400 mb-1">{format(new Date(payload[0].payload.date), 'MMM')}</p>
- <p className="font-bold text-white bg-[#111111] px-2 py-1 rounded">${payload[0].value?.toLocaleString()}</p>
+  <p className="font-bold text-white bg-[#111111] px-2 py-1 rounded">₦{payload[0].value?.toLocaleString()}</p>
  </div>
  );
  }
@@ -374,7 +374,7 @@ export default function AdminDashboard() {
  return (
  <div className="bg-black p-2 rounded shadow-lg text-xs">
  <span className="text-white font-medium">{payload[0].name}: </span>
- <span className="text-gray-400">${Number(payload[0].value)?.toLocaleString()}</span>
+  <span className="text-gray-400">₦{Number(payload[0].value)?.toLocaleString()}</span>
  </div>
  )
  }
@@ -384,7 +384,7 @@ export default function AdminDashboard() {
  </PieChart>
  </ResponsiveContainer>
  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
- <span className="text-xs text-white font-bold tracking-tight">${metrics.totalSales ? (metrics.totalSales > 1000 ? Math.floor(metrics.totalSales/1000)+','+Math.floor(metrics.totalSales%1000).toString().padStart(3,'0') : metrics.totalSales) : '0'}</span>
+  <span className="text-xs text-white font-bold tracking-tight">₦{metrics.totalSales ? (metrics.totalSales > 1000 ? Math.floor(metrics.totalSales/1000)+','+Math.floor(metrics.totalSales%1000).toString().padStart(3,'0') : metrics.totalSales) : '0'}</span>
  <span className="text-[10px] text-gray-400">Total</span>
  </div>
  </div>
@@ -398,7 +398,7 @@ export default function AdminDashboard() {
  </div>
  <div className="flex items-center gap-4">
  <span className="text-xs font-mono text-gray-400 w-8">{cat.percentage}%</span>
- <span className="text-xs font-mono text-white w-16 text-right">${Number(cat.value).toLocaleString()}</span>
+  <span className="text-xs font-mono text-white w-16 text-right">₦{Number(cat.value).toLocaleString()}</span>
  </div>
  </div>
  ))}
@@ -452,7 +452,7 @@ export default function AdminDashboard() {
  </td>
  <td className="py-4 text-sm text-gray-400">{product.category?.name || 'Uncategorized'}</td>
  <td className="py-4 text-sm text-white font-medium">{product.quantity_sold?.toLocaleString() || 0}</td>
- <td className="py-4 text-sm text-white font-medium">${Number(product.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+  <td className="py-4 text-sm text-white font-medium">₦{Number(product.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
  <td className="py-4 text-sm text-gray-400">{product.stock_quantity || 0} in stock</td>
  <td className="py-4">
  <span className="inline-flex items-center text-xs font-medium text-nova-500 bg-nova-500/10 border border-nova-500/20 px-2.5 py-0.5 rounded-full">

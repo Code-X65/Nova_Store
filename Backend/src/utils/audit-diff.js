@@ -27,7 +27,7 @@ function areEqual(a, b) {
 }
 
 function formatValue(value, field) {
-  if (value === null || value === undefined) return '(none)';
+  if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'object') return JSON.stringify(value);
   if (typeof value === 'number' && CURRENCY_FIELDS.has(field)) {

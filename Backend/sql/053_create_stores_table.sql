@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS stores (
   business_registration_number TEXT,                  -- CAC / company reg number
   tax_id                       TEXT,                  -- VAT / TIN number
   business_type TEXT DEFAULT 'retail'
-    CHECK (business_type IN ('retail','wholesale','dropshipping','marketplace','other')),
+    CHECK (business_type IN ('retail','wholesale','dropshipping','other')),
 
   -- ── Business Hours ────────────────────────────────────────
   -- Expected shape (all 7 days, 24h time):

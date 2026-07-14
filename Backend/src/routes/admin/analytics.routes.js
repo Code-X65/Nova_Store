@@ -226,4 +226,99 @@ router.get('/inventory', analyticsController.getInventory);
  */
 router.get('/export/revenue', analyticsController.exportRevenue);
 
+/**
+ * @swagger
+ * /admin/analytics/forecast:
+ *   get:
+ *     summary: Get sales forecast for a metric
+ *     tags: [Admin Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: metric
+ *         schema: { type: string, enum: [revenue, orders, customers, aov] }
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date-time }
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date-time }
+ *     responses:
+ *       200:
+ *         description: Forecast data
+ */
+router.get('/forecast', analyticsController.getForecast);
+
+/**
+ * @swagger
+ * /admin/analytics/forecast:
+ *   post:
+ *     summary: Save sales forecast snapshot
+ *     tags: [Admin Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               metric:
+ *                 type: string
+ *               forecast:
+ *                 type: array
+ *     responses:
+ *       201:
+ *         description: Forecast saved
+ */
+router.post('/forecast', analyticsController.saveForecast);
+
+/**
+ * @swagger
+ * /admin/analytics/heatmap/product/:productId:
+ *   get:
+ *     summary: Get customer event heatmap for a product
+ *     tags: [Admin Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date-time }
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date-time }
+ *     responses:
+ *       200:
+ *         description: Heatmap events
+ */
+router.get('/heatmap/product/:productId', analyticsController.getCustomerHeatmap);
+
+/**
+ * @swagger
+ * /admin/analytics/heatmap/summary:
+ *   get:
+ *     summary: Get heatmap event summary across all products
+ *     tags: [Admin Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date-time }
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date-time }
+ *     responses:
+ *       200:
+ *         description: Heatmap summary
+ */
+router.get('/heatmap/summary', analyticsController.getHeatmapSummary);
+
 module.exports = router;

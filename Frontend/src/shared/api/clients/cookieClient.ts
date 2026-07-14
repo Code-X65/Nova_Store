@@ -33,7 +33,7 @@ export function createCookieClient(baseURL: string): AxiosInstance {
   const client = axios.create({
     baseURL,
     withCredentials: true,
-    timeout: 15_000,
+    timeout: 30_000,
   });
 
   // Request interceptor — attach CSRF token for mutations
@@ -51,16 +51,29 @@ export function createCookieClient(baseURL: string): AxiosInstance {
     return config;
   });
 
-  // Response interceptor — handle 401 globally
+  // Response interceptor — normalize errors and handle 401/423
   client.interceptors.response.use(
     (response) => response,
     (error) => {
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (data.message) {
+          error.message = data.message;
+        } else if (data.error?.message) {
+          error.message = data.error.message;
+        } else {
+          error.message = 'Something went wrong';
+        }
+      } else if (error.message) {
+        error.message = error.message;
+      } else {
+        error.message = 'Something went wrong';
+      }
+
       if (error.response?.status === 401) {
         clearCsrfToken();
         if (typeof window !== 'undefined') {
           const path = window.location.pathname;
-          // Public pages (login, accept-invite) must not be bounced to /login
-          // on an expected 401 (e.g. the initial session-verification probe).
           const isPublicRoute = path.endsWith('/login') || path.startsWith('/accept-invite');
           if (!isPublicRoute) {
             try {
@@ -70,7 +83,6 @@ export function createCookieClient(baseURL: string): AxiosInstance {
             } catch (e) {
               // ignore
             }
-            // Redirect to admin login unless already there
             if (!path.endsWith('/login')) {
               const isAdminPath = path.startsWith('/admin');
               window.location.href = isAdminPath ? '/admin/login' : '/login';
@@ -86,7 +98,6 @@ export function createCookieClient(baseURL: string): AxiosInstance {
           } catch (e) {
             // ignore
           }
-          // Optionally dispatch a custom event on window so React components can listen
           window.dispatchEvent(new CustomEvent('account-locked'));
         }
       }

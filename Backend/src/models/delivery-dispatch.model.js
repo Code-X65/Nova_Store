@@ -24,6 +24,9 @@ class DeliveryDispatchModel {
         assigned_by:   data.assigned_by,
         driver_name:   data.driver_name,
         driver_phone:  data.driver_phone || null,
+        rider_id:      data.rider_id || null,
+        rider_name:    data.rider_name || null,
+        rider_phone:   data.rider_phone || null,
         dispatch_notes: data.dispatch_notes || null,
         status:        'assigned',
         dispatched_at: new Date().toISOString()
