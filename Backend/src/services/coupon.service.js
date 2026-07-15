@@ -42,7 +42,7 @@ class CouponService {
     return await CouponModel.findUserHistory(userId);
   }
 
-   async validateAndApplyCoupon(userId, cartId, code, cartTotal = null, customerEmail = null) {
+   async validateAndApplyCoupon(userId, sessionId, code, cartTotal = null, customerEmail = null) {
      const coupon = await CouponModel.findByCode(code);
      if (!coupon) throw new ErrorResponse('Invalid coupon code', 400);
 
@@ -101,43 +101,105 @@ class CouponService {
      // Note: If neither userId nor customerEmail is provided, we skip per-customer limit checks
      // but continue with other validations (min_order_amount, etc.)
 
-     // Get cart total if not provided
+     // Load the cart whenever we have identity to do so — needed both as a
+     // cartTotal fallback and (below) to enforce product/category scoping,
+     // which requires per-item detail that a pre-computed cartTotal can't provide.
+     let cart = null;
+     if (userId || sessionId) {
+       cart = await CartService.getOrCreateCart(userId, sessionId);
+     }
+
      let actualCartTotal = cartTotal;
      if (actualCartTotal === null) {
-       const cart = await CartService.getOrCreateCart(userId, null);
-       actualCartTotal = cart.subtotal;
+       actualCartTotal = cart ? cart.subtotal : 0;
      }
 
      if (coupon.min_order_amount && actualCartTotal < coupon.min_order_amount) {
        throw new ErrorResponse(`Minimum order amount for this coupon is ${coupon.min_order_amount}`, 400);
      }
 
+     // A coupon scoped to specific products/categories only discounts the
+     // eligible items' subtotal, not the whole cart — previously the full
+     // cartTotal was discounted regardless of what applicable_product_ids/
+     // applicable_category restricted it to.
+     const hasScope = (coupon.applicable_product_ids && coupon.applicable_product_ids.length > 0) || !!coupon.applicable_category;
+     let discountBase = actualCartTotal;
+     let eligibleItems = cart ? cart.items : [];
+
+     if (hasScope) {
+       if (!cart) {
+         throw new ErrorResponse('Unable to verify coupon eligibility for your cart', 400);
+       }
+       eligibleItems = cart.items.filter((item) => {
+         const inProducts = coupon.applicable_product_ids && coupon.applicable_product_ids.length > 0
+           && coupon.applicable_product_ids.includes(item.productId);
+         const inCategory = coupon.applicable_category
+           && (item.product?.category_id === coupon.applicable_category || item.product?.subcategory_id === coupon.applicable_category);
+         return inProducts || inCategory;
+       });
+       if (eligibleItems.length === 0) {
+         throw new ErrorResponse('No items in your cart are eligible for this coupon', 400);
+       }
+       discountBase = eligibleItems.reduce((sum, item) => sum + item.total, 0);
+     }
+
      let discount = 0;
      if (coupon.type === 'percentage') {
-       discount = (actualCartTotal * coupon.value) / 100;
+       discount = (discountBase * coupon.value) / 100;
        if (coupon.max_discount && discount > coupon.max_discount) {
          discount = coupon.max_discount;
        }
      } else {
-       discount = coupon.value;
+       // A fixed-amount discount must never exceed what's actually eligible.
+       discount = Math.min(coupon.value, discountBase);
+     }
+
+     // Allocate the total discount back across eligible items proportionally
+     // to each item's share of discountBase — needed by checkout so it can
+     // compare this per-item against any active campaign discount on the same
+     // item and apply only the larger one, rather than stacking both.
+     const itemDiscounts = {};
+     if (discountBase > 0) {
+       for (const item of eligibleItems) {
+         itemDiscounts[item.id] = parseFloat(((item.total / discountBase) * discount).toFixed(2));
+       }
      }
 
      return {
        coupon,
        discount: parseFloat(discount.toFixed(2)),
-       newTotal: parseFloat((actualCartTotal - discount).toFixed(2))
+       newTotal: parseFloat((actualCartTotal - discount).toFixed(2)),
+       itemDiscounts
      };
    }
 
   /**
-   * Record coupon usage after a successful order.
+   * Atomically claim a coupon's usage slot (global usage_limit + per-customer
+   * limit) at order-creation time. Must be called right after the order is
+   * created, before the checkout response is returned to the client — this is
+   * what actually closes the race between two concurrent checkouts both
+   * passing validateAndApplyCoupon before either had recorded usage.
+   * @returns {boolean} true if claimed, false if the coupon's limit was hit
+   *   by another concurrent request in the meantime.
+   */
+  async claimCouponUsage(userId, couponId, orderId) {
+    return await CouponModel.claimUsage(couponId, userId, orderId);
+  }
+
+  /**
+   * Release a coupon usage that was claimed but never paid for (order
+   * cancelled, or payment failed) — mirrors stock reservation release.
+   */
+  async releaseCouponUsage(couponId, orderId) {
+    await CouponModel.releaseUsage(couponId, orderId);
+  }
+
+  /**
+   * Confirm a claimed coupon usage after a successful order/payment.
    * Must be called by checkout/payment services — not by validateAndApplyCoupon alone.
    */
-  async recordCouponUsage(userId, couponId) {
-    await CouponModel.incrementUsage(couponId);
-    if (userId) {
-      await CouponModel.logUserUsage(userId, couponId);
-    }
+  async recordCouponUsage(userId, couponId, orderId = null) {
+    await CouponModel.confirmUsage(couponId, orderId, userId);
   }
 
   // Admin Operations
@@ -146,7 +208,11 @@ class CouponService {
   }
 
   async getCouponById(id) {
-    return await CouponModel.getUsageAnalytics(id); // Using the analytics method since it returns coupon + usage
+    return await CouponModel.findById(id);
+  }
+
+  async getCouponUsageAnalytics(id) {
+    return await CouponModel.getUsageAnalytics(id);
   }
 
   async createCoupon(data) {

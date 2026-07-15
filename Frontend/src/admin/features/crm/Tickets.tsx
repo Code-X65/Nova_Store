@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
 import { fetchTickets, createTicket, updateTicket, addTicketMessage, fetchBreachingSla, type Ticket, type TicketMessage } from './api/tickets';
+
+const columnHelper = createColumnHelper<Ticket>();
 
 const statusColor = (s: string) => {
   if (s === 'closed' || s === 'resolved') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
@@ -57,6 +61,55 @@ export default function Tickets() {
     msgMut.mutate({ id: selectedId, message: msg });
   };
 
+  const columns = useMemo(() => [
+    columnHelper.accessor('ticket_number', {
+      header: 'Ticket',
+      cell: (info) => (
+        <span className="text-gray-200 font-mono text-xs">
+          {info.getValue()}
+          {selectedId === info.row.original.id && <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-nova-500" />}
+        </span>
+      ),
+    }),
+    columnHelper.accessor('subject', {
+      header: 'Subject',
+      cell: (info) => <span className="text-gray-300">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('priority', {
+      header: 'Priority',
+      cell: (info) => <span className={`px-2 py-1 rounded text-xs ${priorityColor(info.getValue())}`}>{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('status', {
+      header: 'Status',
+      cell: (info) => <span className={`px-2 py-1 rounded text-xs border ${statusColor(info.getValue())}`}>{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('sla_due_at', {
+      header: 'SLA Due',
+      cell: (info) => <span className="text-gray-400 text-xs">{info.getValue() ? new Date(info.getValue() as string).toLocaleString() : '—'}</span>,
+    }),
+    columnHelper.display({
+      id: 'actions',
+      header: '',
+      cell: (info) => {
+        const t = info.row.original;
+        return (
+          <select
+            value={t.status}
+            onChange={(e) => { e.stopPropagation(); updateMut.mutate({ id: t.id, status: e.target.value }); }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-black border border-white/10 rounded p-1 text-gray-200 outline-none text-xs"
+          >
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="waiting_customer">Waiting Customer</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+        );
+      },
+    }),
+  ], [selectedId, updateMut]);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-white tracking-tight">Support Tickets</h1>
@@ -78,41 +131,12 @@ export default function Tickets() {
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-gray-500 border-b border-white/10">
-              <tr>
-                <th className="text-left p-3">Ticket</th>
-                <th className="text-left p-3">Subject</th>
-                <th className="text-left p-3">Priority</th>
-                <th className="text-left p-3">Status</th>
-                <th className="text-left p-3">SLA Due</th>
-                <th className="text-right p-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tickets.map((t) => (
-                <tr key={t.id} className={`border-b border-white/5 cursor-pointer ${selectedId === t.id ? 'bg-white/5' : ''}`} onClick={() => setSelectedId(t.id)}>
-                  <td className="p-3 text-gray-200 font-mono text-xs">{t.ticket_number}</td>
-                  <td className="p-3 text-gray-300">{t.subject}</td>
-                  <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${priorityColor(t.priority)}`}>{t.priority}</span></td>
-                  <td className="p-3"><span className={`px-2 py-1 rounded text-xs border ${statusColor(t.status)}`}>{t.status}</span></td>
-                  <td className="p-3 text-gray-400 text-xs">{t.sla_due_at ? new Date(t.sla_due_at).toLocaleString() : '—'}</td>
-                  <td className="p-3 text-right">
-                    <select value={t.status} onChange={(e) => { e.stopPropagation(); updateMut.mutate({ id: t.id, status: e.target.value }); }} className="bg-black border border-white/10 rounded p-1 text-gray-200 outline-none text-xs">
-                      <option value="open">Open</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="waiting_customer">Waiting Customer</option>
-                      <option value="resolved">Resolved</option>
-                      <option value="closed">Closed</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-              {tickets.length === 0 && (
-                <tr><td colSpan={6} className="p-6 text-center text-gray-500">No tickets found</td></tr>
-              )}
-            </tbody>
-          </table>
+          <DataTable
+            columns={columns}
+            data={tickets}
+            onRowClick={(row) => setSelectedId(row.id)}
+            rowClassName={(row) => (selectedId === row.id ? 'bg-white/5' : '')}
+          />
         )}
       </div>
 

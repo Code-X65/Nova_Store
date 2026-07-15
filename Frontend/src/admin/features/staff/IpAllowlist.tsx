@@ -1,20 +1,15 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchIpAllowlist, createIpAllowlistEntry, updateIpAllowlistEntry, deleteIpAllowlistEntry, type IpAllowlistEntry } from './api/ipAllowlist';
 import toast from 'react-hot-toast';
 import { GlobeAltIcon, PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
 
 const ALL_ROLES = ['STORE_OWNER', 'SUPER_ADMIN', 'MANAGER', 'CATALOG_MANAGER', 'LOGISTICS_COORDINATOR', 'CUSTOMER_SUPPORT', 'FINANCE_AUDITOR', 'MARKETING_SPECIALIST'];
 
-interface IpAllowlistEntry {
-  id: string;
-  ip_cidr: string;
-  label: string | null;
-  role_scope: string[];
-  is_active: boolean;
-  created_at: string;
-}
+const columnHelper = createColumnHelper<IpAllowlistEntry>();
 
 export default function IpAllowlist() {
   const qc = useQueryClient();
@@ -29,10 +24,7 @@ export default function IpAllowlist() {
 
   const { data: resp, isLoading } = useQuery({
     queryKey: ['ip-allowlist'],
-    queryFn: async () => {
-      const { data } = await api.get<{ success: boolean; data: IpAllowlistEntry[] }>('/admin/ip-allowlist');
-      return data.data;
-    },
+    queryFn: fetchIpAllowlist,
   });
 
   const openCreate = () => {
@@ -61,9 +53,9 @@ export default function IpAllowlist() {
         is_active: form.is_active,
       };
       if (editing) {
-        await api.put(`/admin/ip-allowlist/${editing.id}`, payload);
+        await updateIpAllowlistEntry(editing.id, payload);
       } else {
-        await api.post('/admin/ip-allowlist', payload);
+        await createIpAllowlistEntry(payload);
       }
     },
     onSuccess: () => {
@@ -75,7 +67,7 @@ export default function IpAllowlist() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => api.delete(`/admin/ip-allowlist/${id}`),
+    mutationFn: async (id: string) => deleteIpAllowlistEntry(id),
     onSuccess: () => {
       toast.success('Entry removed');
       qc.invalidateQueries({ queryKey: ['ip-allowlist'] });
@@ -93,6 +85,49 @@ export default function IpAllowlist() {
   };
 
   const entries = resp || [];
+
+  const columns = useMemo(() => [
+    columnHelper.accessor('ip_cidr', {
+      header: 'CIDR',
+      cell: (info) => <span className="font-mono text-white">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('label', {
+      header: 'Label',
+      cell: (info) => <span className="text-gray-300">{info.getValue() || '—'}</span>,
+    }),
+    columnHelper.accessor('role_scope', {
+      header: 'Applies To',
+      cell: (info) => <span className="text-gray-300">{info.getValue()?.join(', ') || '—'}</span>,
+    }),
+    columnHelper.accessor('is_active', {
+      header: 'Status',
+      cell: (info) => {
+        const active = info.getValue();
+        return (
+          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold uppercase ${active ? 'text-emerald-400 bg-emerald-400/15' : 'text-gray-400 bg-white/10'}`}>
+            {active ? 'active' : 'disabled'}
+          </span>
+        );
+      },
+    }),
+    columnHelper.display({
+      id: 'actions',
+      header: '',
+      cell: (info) => {
+        const e = info.row.original;
+        return (
+          <div className="flex justify-end gap-2">
+            <button onClick={(ev) => { ev.stopPropagation(); openEdit(e); }} className="p-1.5 text-muted-foreground hover:text-white rounded hover:bg-white/10" title="Edit">
+              <PencilIcon className="w-4 h-4" />
+            </button>
+            <button onClick={(ev) => { ev.stopPropagation(); deleteMutation.mutate(e.id); }} className="p-1.5 text-muted-foreground hover:text-danger rounded hover:bg-danger/10" title="Delete">
+              <TrashIcon className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      },
+    }),
+  ], [deleteMutation]);
 
   return (
     <div className="w-full space-y-6">
@@ -117,43 +152,7 @@ export default function IpAllowlist() {
         ) : entries.length === 0 ? (
           <p className="text-muted-foreground p-4">No allowlist entries. All admin roles are unrestricted by IP.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase text-muted-foreground border-b border-white/10">
-                  <th className="py-2 px-3">CIDR</th>
-                  <th className="py-2 px-3">Label</th>
-                  <th className="py-2 px-3">Applies To</th>
-                  <th className="py-2 px-3">Status</th>
-                  <th className="py-2 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((e) => (
-                  <tr key={e.id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="py-2 px-3 font-mono text-white">{e.ip_cidr}</td>
-                    <td className="py-2 px-3 text-gray-300">{e.label || '—'}</td>
-                    <td className="py-2 px-3 text-gray-300">{e.role_scope?.join(', ') || '—'}</td>
-                    <td className="py-2 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[11px] font-semibold uppercase ${e.is_active ? 'text-emerald-400 bg-emerald-400/15' : 'text-gray-400 bg-white/10'}`}>
-                        {e.is_active ? 'active' : 'disabled'}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => openEdit(e)} className="p-1.5 text-muted-foreground hover:text-white rounded hover:bg-white/10" title="Edit">
-                          <PencilIcon className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => deleteMutation.mutate(e.id)} className="p-1.5 text-muted-foreground hover:text-danger rounded hover:bg-danger/10" title="Delete">
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable columns={columns} data={entries} />
         )}
       </div>
 

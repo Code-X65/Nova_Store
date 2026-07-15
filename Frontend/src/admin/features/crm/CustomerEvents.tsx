@@ -1,7 +1,11 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
 import { fetchCustomerEvents, fetchTopViewedProducts, type CustomerEvent } from './api/events';
 import { subDays, format } from 'date-fns';
+
+const columnHelper = createColumnHelper<CustomerEvent>();
 
 export default function CustomerEvents() {
   const to = useMemo(() => new Date().toISOString(), []);
@@ -29,6 +33,36 @@ export default function CustomerEvents() {
     return map[type] || '📌';
   };
 
+  const columns = useMemo(() => [
+    columnHelper.accessor('event_type', {
+      id: 'icon',
+      header: 'Event',
+      cell: (info) => <span className="text-xl">{eventIcon(info.getValue())}</span>,
+    }),
+    columnHelper.accessor('event_type', {
+      id: 'type',
+      header: 'Type',
+      cell: (info) => <span className="text-gray-300 font-mono text-xs">{info.getValue()}</span>,
+    }),
+    columnHelper.display({
+      id: 'customer',
+      header: 'Customer',
+      cell: (info) => {
+        const e = info.row.original;
+        return <span className="text-gray-300">{e.customer ? `${e.customer.first_name} ${e.customer.last_name}` : 'Anonymous'}</span>;
+      },
+    }),
+    columnHelper.display({
+      id: 'product',
+      header: 'Product',
+      cell: (info) => <span className="text-gray-400">{info.row.original.product?.name || '—'}</span>,
+    }),
+    columnHelper.accessor('created_at', {
+      header: 'Time',
+      cell: (info) => <span className="text-gray-400 text-xs">{format(new Date(info.getValue()), 'yyyy-MM-dd HH:mm')}</span>,
+    }),
+  ], []);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-white tracking-tight">Customer Events</h1>
@@ -37,31 +71,7 @@ export default function CustomerEvents() {
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-gray-500 border-b border-white/10">
-              <tr>
-                <th className="text-left p-3">Event</th>
-                <th className="text-left p-3">Type</th>
-                <th className="text-left p-3">Customer</th>
-                <th className="text-left p-3">Product</th>
-                <th className="text-left p-3">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((e) => (
-                <tr key={e.id} className="border-b border-white/5">
-                  <td className="p-3 text-xl">{eventIcon(e.event_type)}</td>
-                  <td className="p-3 text-gray-300 font-mono text-xs">{e.event_type}</td>
-                  <td className="p-3 text-gray-300">{e.customer ? `${e.customer.first_name} ${e.customer.last_name}` : 'Anonymous'}</td>
-                  <td className="p-3 text-gray-400">{e.product?.name || '—'}</td>
-                  <td className="p-3 text-gray-400 text-xs">{format(new Date(e.created_at), 'yyyy-MM-dd HH:mm')}</td>
-                </tr>
-              ))}
-              {events.length === 0 && (
-                <tr><td colSpan={5} className="p-6 text-center text-gray-500">No events found</td></tr>
-              )}
-            </tbody>
-          </table>
+          <DataTable columns={columns} data={events} />
         )}
       </div>
     </div>

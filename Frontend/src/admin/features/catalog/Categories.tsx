@@ -7,8 +7,8 @@ import { DeleteCategoryModal } from './categories/DeleteCategoryModal';
 import { BulkCreatePanel } from './categories/BulkCreatePanel';
 import { AttributeManager } from './categories/AttributeManager';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { reorderCategories } from './api/categories';
 import { PermissionGuard } from '@/admin/components/guards/PermissionGuard';
 
 type FormMode =
@@ -26,7 +26,7 @@ export default function Categories() {
 
  const reorderMutation = useMutation({
  mutationFn: async (updates: { id: string; sort_order: number }[]) => {
- return api.put('/categories/reorder', { categories: updates });
+ return reorderCategories(updates);
  },
  onSuccess: () => {
  qc.invalidateQueries({ queryKey: ['categories', 'tree'] });

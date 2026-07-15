@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
 import { ExclamationTriangleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import type { CategoryNode } from './useCategoryTree';
+import { deleteCategory } from '../api/categories';
+import { Modal } from '@/admin/components/ui/Modal';
 
 interface DeleteCategoryModalProps {
  category: CategoryNode;
@@ -18,10 +19,7 @@ export function DeleteCategoryModal({ category, onClose }: DeleteCategoryModalPr
 
  const deleteMutation = useMutation({
  mutationFn: async () => {
- const url = cascade
- ? `/categories/${category.id}?cascade=true`
- : `/categories/${category.id}`;
- return api.delete(url);
+ return deleteCategory(category.id, cascade);
  },
  onMutate: async () => {
  await qc.cancelQueries({ queryKey: ['categories', 'tree'] });
@@ -57,25 +55,42 @@ export function DeleteCategoryModal({ category, onClose }: DeleteCategoryModalPr
  const canDelete = !hasChildren || cascade;
 
  return (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
- {/* Backdrop */}
- <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
- {/* Modal */}
- <div className="relative z-10 w-full max-w-md glass-card p-6 space-y-5 animate-in zoom-in-95 duration-150">
- {/* Icon + title */}
- <div className="flex items-start gap-4">
+ <Modal
+ onClose={onClose}
+ variant="confirm"
+ size="md"
+ icon={
  <div className="w-10 h-10 rounded-xl bg-red-400/10 border border-red-400/20 flex items-center justify-center flex-shrink-0">
  <TrashIcon className="w-5 h-5 text-red-400" />
  </div>
- <div>
- <h3 className="text-base font-bold text-white">Delete Category</h3>
- <p className="text-sm text-[var(--neu-text)] mt-1">
+ }
+ title="Delete Category"
+ description={
+ <>
  You are about to delete <span className="text-white font-semibold">"{category.name}"</span>.
- </p>
- </div>
- </div>
-
+ </>
+ }
+ footer={
+ <>
+ <button
+ type="button"
+ onClick={onClose}
+ disabled={deleteMutation.isPending}
+ className="btn-secondary text-sm px-5 py-2"
+ >
+ Cancel
+ </button>
+ <button
+ type="button"
+ onClick={() => deleteMutation.mutate()}
+ disabled={deleteMutation.isPending || !canDelete}
+ className="btn-danger text-sm px-5 py-2 disabled:opacity-40"
+ >
+ {deleteMutation.isPending ? 'Deleting…' : cascade ? 'Delete & Cascade' : 'Delete'}
+ </button>
+ </>
+ }
+ >
  {/* Meta info */}
  <div className="grid grid-cols-3 gap-3">
  {[
@@ -126,26 +141,6 @@ export function DeleteCategoryModal({ category, onClose }: DeleteCategoryModalPr
  </p>
  )}
 
- {/* Actions */}
- <div className="flex items-center justify-end gap-3 pt-1">
- <button
- type="button"
- onClick={onClose}
- disabled={deleteMutation.isPending}
- className="btn-secondary text-sm px-5 py-2"
- >
- Cancel
- </button>
- <button
- type="button"
- onClick={() => deleteMutation.mutate()}
- disabled={deleteMutation.isPending || !canDelete}
- className="btn-danger text-sm px-5 py-2 disabled:opacity-40"
- >
- {deleteMutation.isPending ? 'Deleting…' : cascade ? 'Delete & Cascade' : 'Delete'}
- </button>
- </div>
- </div>
- </div>
+ </Modal>
  );
 }

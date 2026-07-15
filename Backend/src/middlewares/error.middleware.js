@@ -69,15 +69,14 @@ const errorHandler = (err, req, res, next) => {
 
   const response = {
     success: false,
-    message: message,
-    code: errorCode,
+    error: {
+      code: errorCode,
+      message: message,
+      details: details
+    },
     timestamp: new Date().toISOString(),
     path: req.originalUrl || req.path
   };
-
-  if (details.length > 0) {
-    response.details = details;
-  }
 
   res.status(statusCode).json(response);
 };

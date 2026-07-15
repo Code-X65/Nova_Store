@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchRoles, createRole, updateRole, deleteRole } from './api/roles';
 import toast from 'react-hot-toast';
 
 export default function RoleManager() {
@@ -13,19 +13,16 @@ export default function RoleManager() {
 
  const { data: rolesData, isLoading } = useQuery({
  queryKey: ['roles'],
- queryFn: async () => {
- const { data } = await api.get('/roles');
- return data.data; // array
- }
+ queryFn: fetchRoles
  });
 
  const saveMutation = useMutation({
  mutationFn: async () => {
  const payload = { name: name.toUpperCase(), display_name: displayName, description, color_code: colorCode };
  if (editingId) {
- return api.patch(`/roles/${editingId}`, payload);
+ return updateRole(editingId, payload);
  } else {
- return api.post('/roles', payload);
+ return createRole(payload);
  }
  },
  onSuccess: () => {
@@ -38,7 +35,7 @@ export default function RoleManager() {
 
  const deleteMutation = useMutation({
  mutationFn: async (id: string) => {
- return api.delete(`/roles/${id}`);
+ return deleteRole(id);
  },
  onSuccess: () => {
  toast.success('Role deleted');

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { fetchRelatedProducts, fetchProductsList, addRelatedProduct, removeRelatedProduct } from '../api/products';
 import { PlusIcon, TrashIcon, MagnifyingGlassIcon, CubeIcon } from '@heroicons/react/24/outline';
 
 interface RelatedProductsManagerProps {
@@ -21,8 +21,7 @@ export function RelatedProductsManager({ productId, relatedIds = [], onChange }:
  const { data: relatedProducts = [], isLoading: isLoadingRelated } = useQuery({
  queryKey: ['related-products', productId],
  queryFn: async () => {
- const { data } = await api.get(`/products/${productId}/related`);
- return data.data.relatedProducts || [];
+ return fetchRelatedProducts(productId as string);
  },
  enabled: Boolean(productId),
  });
@@ -32,9 +31,7 @@ export function RelatedProductsManager({ productId, relatedIds = [], onChange }:
  queryKey: ['products-search', searchTerm],
  queryFn: async () => {
  if (!searchTerm || searchTerm.length < 2) return [];
- const { data } = await api.get('/products', {
- params: { search: searchTerm, limit: 10 }
- });
+ const data = await fetchProductsList({ search: searchTerm, limit: 10 });
  return data.data.products || [];
  },
  enabled: searchTerm.length >= 2,
@@ -60,7 +57,7 @@ export function RelatedProductsManager({ productId, relatedIds = [], onChange }:
 
  const addMutation = useMutation({
  mutationFn: async (relatedId: string) => {
- return api.post(`/products/${productId}/related`, { relatedId });
+ return addRelatedProduct(productId as string, relatedId);
  },
  onMutate: async (relatedId: string) => {
  await qc.cancelQueries({ queryKey: ['related-products', productId] });
@@ -106,7 +103,7 @@ export function RelatedProductsManager({ productId, relatedIds = [], onChange }:
 
  const removeMutation = useMutation({
  mutationFn: async (relatedId: string) => {
- return api.delete(`/products/${productId}/related/${relatedId}`);
+ return removeRelatedProduct(productId as string, relatedId);
  },
  onMutate: async (relatedId: string) => {
  await qc.cancelQueries({ queryKey: ['related-products', productId] });

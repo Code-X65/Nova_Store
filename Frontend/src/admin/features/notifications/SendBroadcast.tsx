@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { sendBroadcast } from './api/notifications';
 import toast from 'react-hot-toast';
 import { MegaphoneIcon } from '@heroicons/react/24/outline';
 
@@ -11,7 +11,7 @@ export default function SendBroadcast() {
 
  const broadcastMutation = useMutation({
  mutationFn: async () => {
- return api.post('/admin/notifications/broadcast', {
+ return sendBroadcast({
  title,
  message,
  target_type: targetType

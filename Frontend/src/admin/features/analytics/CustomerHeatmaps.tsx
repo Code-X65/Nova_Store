@@ -1,7 +1,11 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
 import { fetchHeatmapSummary, type HeatmapSummaryEvent } from './api/heatmaps';
 import { subDays, format } from 'date-fns';
+
+const columnHelper = createColumnHelper<HeatmapSummaryEvent>();
 
 export default function CustomerHeatmaps() {
   const to = useMemo(() => new Date().toISOString(), []);
@@ -29,6 +33,29 @@ export default function CustomerHeatmaps() {
     return map[type] || 'bg-gray-500/10 text-gray-400';
   };
 
+  const columns = useMemo(() => [
+    columnHelper.accessor('event_type', {
+      header: 'Event',
+      cell: (info) => <span className={`px-2 py-1 rounded text-xs ${eventColor(info.getValue())}`}>{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('product_name', {
+      header: 'Product',
+      cell: (info) => <span className="text-gray-300">{info.getValue() || '—'}</span>,
+    }),
+    columnHelper.accessor('category_name', {
+      header: 'Category',
+      cell: (info) => <span className="text-gray-400">{info.getValue() || '—'}</span>,
+    }),
+    columnHelper.accessor('customer', {
+      header: 'Customer',
+      cell: (info) => <span className="text-gray-300">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('created_at', {
+      header: 'Time',
+      cell: (info) => <span className="text-gray-400 text-xs">{format(new Date(info.getValue()), 'yyyy-MM-dd HH:mm')}</span>,
+    }),
+  ], []);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-white tracking-tight">Behavior Heatmaps</h1>
@@ -37,32 +64,7 @@ export default function CustomerHeatmaps() {
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-gray-500 border-b border-white/10">
-              <tr>
-                <th className="text-left p-3">Event</th>
-                <th className="text-left p-3">Type</th>
-                <th className="text-left p-3">Product</th>
-                <th className="text-left p-3">Category</th>
-                <th className="text-left p-3">Customer</th>
-                <th className="text-left p-3">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((e, i) => (
-                <tr key={i} className="border-b border-white/5">
-                  <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${eventColor(e.event_type)}`}>{e.event_type}</span></td>
-                  <td className="p-3 text-gray-300">{e.product_name || '—'}</td>
-                  <td className="p-3 text-gray-400">{e.category_name || '—'}</td>
-                  <td className="p-3 text-gray-300">{e.customer}</td>
-                  <td className="p-3 text-gray-400 text-xs">{format(new Date(e.created_at), 'yyyy-MM-dd HH:mm')}</td>
-                </tr>
-              ))}
-              {events.length === 0 && (
-                <tr><td colSpan={5} className="p-6 text-center text-gray-500">No events found</td></tr>
-              )}
-            </tbody>
-          </table>
+          <DataTable columns={columns} data={events} />
         )}
       </div>
     </div>

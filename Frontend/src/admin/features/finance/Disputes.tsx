@@ -4,6 +4,8 @@ import { toast } from 'react-hot-toast';
 import { useMyPermissions } from '@/admin/hooks/useMyPermissions';
 import { hasPermission } from '@/admin/lib/permissions';
 import { fetchDisputes, createDispute, escalateDispute, resolveDispute, type Dispute } from './api/disputes';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
 
 const statusColor = (s: string) => {
   if (s === 'resolved' || s === 'closed') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
@@ -11,6 +13,8 @@ const statusColor = (s: string) => {
   if (s === 'awaiting_evidence') return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
   return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
 };
+
+const columnHelper = createColumnHelper<Dispute>();
 
 export default function Disputes() {
   const qc = useQueryClient();
@@ -47,6 +51,55 @@ export default function Disputes() {
 
   const disputes: Dispute[] = data?.disputes || [];
 
+  const columns = React.useMemo(() => [
+    columnHelper.accessor((d) => d.order?.order_number || d.order_id.slice(0, 8), {
+      id: 'order',
+      header: 'Order',
+      cell: (info) => <span className="text-gray-300">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('subject', {
+      header: 'Subject',
+      cell: (info) => <span className="text-gray-300">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('priority', {
+      header: 'Priority',
+      cell: (info) => <span className="text-gray-400">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor('sla_due_at', {
+      header: 'SLA Due',
+      cell: (info) => {
+        const d = info.row.original;
+        return (
+          <span className={d.sla_due_at && new Date(d.sla_due_at) < new Date() ? 'text-red-400' : 'text-gray-400'}>
+            {d.sla_due_at ? new Date(d.sla_due_at).toLocaleString() : '—'}
+          </span>
+        );
+      },
+    }),
+    columnHelper.accessor('status', {
+      header: 'Status',
+      cell: (info) => (
+        <span className={`inline-flex px-2 py-0.5 rounded text-xs border ${statusColor(info.getValue())}`}>
+          {info.getValue().replace(/_/g, ' ')}
+        </span>
+      ),
+    }),
+    columnHelper.display({
+      id: 'actions',
+      header: '',
+      cell: (info) => {
+        const d = info.row.original;
+        if (!canResolve || ['resolved', 'closed', 'escalated'].includes(d.status)) return null;
+        return (
+          <div className="text-right">
+            <button onClick={() => escalateMut.mutate(d.id)} className="text-orange-400 hover:underline mr-2">Escalate</button>
+            <button onClick={() => setResolveId(d.id)} className="text-emerald-400 hover:underline">Resolve</button>
+          </div>
+        );
+      },
+    }),
+  ], [canResolve, escalateMut]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -67,39 +120,7 @@ export default function Disputes() {
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-gray-500 border-b border-white/10">
-              <tr>
-                <th className="text-left p-3">Order</th>
-                <th className="text-left p-3">Subject</th>
-                <th className="text-left p-3">Priority</th>
-                <th className="text-left p-3">SLA Due</th>
-                <th className="text-left p-3">Status</th>
-                <th className="text-right p-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {disputes.map((d) => (
-                <tr key={d.id} className="border-b border-white/5">
-                  <td className="p-3 text-gray-300">{d.order?.order_number || d.order_id.slice(0, 8)}</td>
-                  <td className="p-3 text-gray-300">{d.subject}</td>
-                  <td className="p-3 text-gray-400">{d.priority}</td>
-                  <td className={`p-3 ${d.sla_due_at && new Date(d.sla_due_at) < new Date() ? 'text-red-400' : 'text-gray-400'}`}>
-                    {d.sla_due_at ? new Date(d.sla_due_at).toLocaleString() : '—'}
-                  </td>
-                  <td className="p-3"><span className={`inline-flex px-2 py-0.5 rounded text-xs border ${statusColor(d.status)}`}>{d.status.replace(/_/g, ' ')}</span></td>
-                  <td className="p-3 text-right">
-                    {canResolve && !['resolved', 'closed', 'escalated'].includes(d.status) && (
-                      <>
-                        <button onClick={() => escalateMut.mutate(d.id)} className="text-orange-400 hover:underline mr-2">Escalate</button>
-                        <button onClick={() => setResolveId(d.id)} className="text-emerald-400 hover:underline">Resolve</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable columns={columns} data={disputes} />
         )}
       </div>
 

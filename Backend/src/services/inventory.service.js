@@ -1,7 +1,14 @@
 const ProductModel = require('../models/product.model');
 const InventoryTransactionModel = require('../models/inventory-transaction.model');
-const supabase = require('../config/supabase');
+const InventoryAlertService = require('./inventory-alert.service');
 const { SINGLE_STORE_ID } = require('../config/store');
+
+/** Fire a low-stock check without letting a failure block the stock operation that triggered it. */
+function checkStockAlert(productId) {
+  InventoryAlertService.checkProductStock(productId).catch((err) => {
+    console.error(`[Inventory] Low-stock check failed for product ${productId}:`, err.message);
+  });
+}
 
 class InventoryService {
   async addStock(productId, quantity, userId, notes, variantId = null, context = {}) {
@@ -17,7 +24,9 @@ class InventoryService {
       store_id: SINGLE_STORE_ID
     };
 
-    return await ProductModel.updateStock(productId, quantity, transactionData);
+    const result = await ProductModel.updateStock(productId, quantity, transactionData);
+    checkStockAlert(productId);
+    return result;
   }
 
   async reduceStock(productId, quantity, referenceId, type = 'sale', userId = null, notes = null, variantId = null, context = {}) {
@@ -34,7 +43,9 @@ class InventoryService {
       store_id: SINGLE_STORE_ID
     };
 
-    return await ProductModel.updateStock(productId, -Math.abs(quantity), transactionData);
+    const result = await ProductModel.updateStock(productId, -Math.abs(quantity), transactionData);
+    checkStockAlert(productId);
+    return result;
   }
 
   async adjustStock(productId, quantityChange, reasonCode, userId = null, notes = null, variantId = null, storeId = null, context = {}) {
@@ -51,17 +62,27 @@ class InventoryService {
       store_id: storeId || SINGLE_STORE_ID
     };
 
-    return await ProductModel.updateStock(productId, quantityChange, transactionData);
+    const result = await ProductModel.updateStock(productId, quantityChange, transactionData);
+    checkStockAlert(productId);
+    return result;
   }
 
   async bulkUpdateStock(updates, userId) {
-    const results = [];
+    const succeeded = [];
+    const failed = [];
     for (const update of updates) {
       const { productId, quantity, notes, variantId } = update;
-      const result = await this.addStock(productId, quantity, userId, notes, variantId);
-      results.push(result);
+      try {
+        const result = await this.addStock(productId, quantity, userId, notes, variantId);
+        succeeded.push({ productId, variantId, result });
+      } catch (err) {
+        // Previously a single bad item aborted the whole batch — every item
+        // already processed before it had already been written to the DB,
+        // but the caller got a bare error with no report of what succeeded.
+        failed.push({ productId, variantId, error: err.message });
+      }
     }
-    return results;
+    return { succeeded, failed, successCount: succeeded.length, failureCount: failed.length };
   }
 
   async getLowStockItems() {
@@ -80,80 +101,6 @@ class InventoryService {
     return await ProductModel.update(productId, { low_stock_threshold: threshold });
   }
 
-  async getAlerts(productId = null) {
-    let query = supabase.from('inventory_alerts').select('*');
-    if (productId) query = query.eq('product_id', productId);
-    else query = query.is('product_id', null);
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
-  }
-
-  async configureAlert(alertData) {
-    const { productId, threshold, notifyEmails, enabled } = alertData;
-    
-    // Check if alert already exists
-    let query = supabase.from('inventory_alerts').select('id');
-    if (productId) query = query.eq('product_id', productId);
-    else query = query.is('product_id', null);
-
-    const { data: existing, error: fetchError } = await query;
-    const existingAlert = existing && existing.length > 0 ? existing[0] : null;
-
-    if (existingAlert) {
-      // Update
-      const { data, error } = await supabase
-        .from('inventory_alerts')
-        .update({ 
-          threshold, 
-          notify_emails: notifyEmails, 
-          enabled, 
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', existingAlert.id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    } else {
-      // Insert
-      const { data, error } = await supabase
-        .from('inventory_alerts')
-        .insert([{ product_id: productId, threshold, notify_emails: notifyEmails, enabled }])
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    }
-  }
-
-  async deleteAlert(id) {
-    const { error } = await supabase
-      .from('inventory_alerts')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-    return true;
-  }
-
-  async updateAlert(id, alertData) {
-    const { threshold, notifyEmails, enabled } = alertData;
-    const { data, error } = await supabase
-      .from('inventory_alerts')
-      .update({ 
-        threshold, 
-        notify_emails: notifyEmails, 
-        enabled, 
-        updated_at: new Date().toISOString() 
-      })
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  }
 }
 
 module.exports = new InventoryService();

@@ -174,6 +174,15 @@ const HANDLED_EVENTS = [
   'staff.permission_changed',
   'staff.role_escalated',
   'staff.user_created',
+  'payment.reconciliation_required',
+  'refund.requested',
+  'refund.completed',
+  'refund.failed',
+  // These two already have seeded notification_routing_rules (see
+  // sql/072_missing_routing_and_payment_template.sql) but were never
+  // subscribed here, so the rule was silently never triggered.
+  'rider.approved',
+  'rider.rejected',
 ];
 
 let handlersRegistered = false;

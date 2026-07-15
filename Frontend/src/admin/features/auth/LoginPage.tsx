@@ -4,9 +4,9 @@ import { z } from 'zod';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { EyeIcon, EyeSlashIcon, LockClosedIcon, UserIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, LockClosedIcon, UserIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
-import { login } from '@/admin/lib/auth';
+import { login, type LoginCredentials } from '@/admin/lib/auth';
 
 const schema = z.object({
  email: z.string().email('Invalid email address'),
@@ -21,12 +21,20 @@ export default function LoginPage() {
  const from = (location.state as { from?: Location })?.from?.pathname ?? '/dashboard';
  const [showPw, setShowPw] = useState(false);
 
+ // Two-factor step: shown after the server responds with TWO_FACTOR_REQUIRED.
+ // We keep the verified email/password in state so the code can be re-submitted
+ // together with them (the backend re-validates the full credential set each time).
+ const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+ const [twoFactorMode, setTwoFactorMode] = useState<'totp' | 'recovery'>('totp');
+ const [twoFactorCode, setTwoFactorCode] = useState('');
+ const [pendingCredentials, setPendingCredentials] = useState<FormData | null>(null);
+
  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
  resolver: zodResolver(schema),
  });
 
  const { mutate, isPending } = useMutation({
- mutationFn: (data: FormData) => login(data),
+ mutationFn: (data: LoginCredentials) => login(data),
  onSuccess: (session) => {
  qc.setQueryData(['admin-session'], session);
  const channel = new BroadcastChannel('admin-session-channel');
@@ -36,11 +44,33 @@ export default function LoginPage() {
  },
  onError: (err: unknown) => {
  const data = (err as any)?.response?.data;
+ if (data?.code === 'TWO_FACTOR_REQUIRED') {
+ setTwoFactorRequired(true);
+ toast('Enter your two-factor authentication code to continue.', { icon: '🔐' });
+ return;
+ }
  const errorData = data?.error;
  const msg = typeof errorData === 'object' ? errorData?.message : (errorData || data?.message || 'Invalid email or password');
  toast.error(msg);
+ // If we were on the 2FA step, stay there so the user can just retry the code
+ // rather than being bounced back to re-enter their password.
  },
  });
+
+ const submitCredentials = (d: FormData) => {
+ setPendingCredentials(d);
+ mutate(d);
+ };
+
+ const submitTwoFactor = () => {
+ if (!pendingCredentials || !twoFactorCode.trim()) return;
+ mutate({
+ ...pendingCredentials,
+ ...(twoFactorMode === 'totp'
+ ? { twoFactorToken: twoFactorCode.trim() }
+ : { recoveryCode: twoFactorCode.trim() }),
+ });
+ };
 
  return (
  <div className="min-h-screen flex w-full bg-[#111315]">
@@ -81,12 +111,72 @@ export default function LoginPage() {
 
  <div className="text-center mb-8 relative z-10">
  <h2 className="text-2xl font-bold tracking-wider text-[#5ea399] uppercase mb-1">Admin Login</h2>
- <p className="text-gray-400 text-sm">Secure Admin Access Portal</p>
+ <p className="text-gray-400 text-sm">
+ {twoFactorRequired ? 'Enter your two-factor authentication code' : 'Secure Admin Access Portal'}
+ </p>
  </div>
 
+ {twoFactorRequired ? (
+ <div className="space-y-5 relative z-10">
+ <div className="flex justify-center mb-2">
+ <div className="w-12 h-12 rounded-full bg-[#20524c]/40 flex items-center justify-center">
+ <ShieldCheckIcon className="w-6 h-6 text-[#5ea399]" />
+ </div>
+ </div>
+
+ <div>
+ <label htmlFor="admin-2fa-code" className="block text-xs text-gray-400 mb-1 ml-1">
+ {twoFactorMode === 'totp' ? 'Authenticator Code' : 'Recovery Code'}
+ </label>
+ <input
+ id="admin-2fa-code"
+ type="text"
+ inputMode={twoFactorMode === 'totp' ? 'numeric' : 'text'}
+ autoComplete="one-time-code"
+ autoFocus
+ value={twoFactorCode}
+ onChange={(e) => setTwoFactorCode(e.target.value)}
+ onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitTwoFactor(); } }}
+ className="w-full bg-[#1b1d1f] border border-[#d4af37] text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-[#d4af37] transition-colors placeholder-gray-600 tracking-widest font-mono text-center text-lg"
+ placeholder={twoFactorMode === 'totp' ? '123456' : 'XXXXXXXXXXXXXXXX'}
+ />
+ </div>
+
+ <button
+ type="button"
+ onClick={submitTwoFactor}
+ disabled={isPending || !twoFactorCode.trim()}
+ className="w-full bg-[#20524c] hover:bg-[#28665f] text-white font-semibold rounded-lg py-3 flex items-center justify-center transition-all shadow-[0_4px_14px_0_rgba(32,82,76,0.39)] hover:shadow-[0_6px_20px_rgba(32,82,76,0.23)] hover:-translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+ >
+ {isPending ? (
+ <div className="w-5 h-5 border-2 border-t-white rounded-full animate-spin" />
+ ) : (
+ <span className="tracking-widest uppercase text-sm">Verify</span>
+ )}
+ </button>
+
+ <div className="flex items-center justify-between text-xs">
+ <button
+ type="button"
+ onClick={() => { setTwoFactorMode(m => m === 'totp' ? 'recovery' : 'totp'); setTwoFactorCode(''); }}
+ className="text-[#a3a3a3] hover:text-[#d4af37] transition-colors underline-offset-4 hover:underline"
+ >
+ {twoFactorMode === 'totp' ? 'Use a recovery code instead' : 'Use authenticator code instead'}
+ </button>
+ <button
+ type="button"
+ onClick={() => { setTwoFactorRequired(false); setTwoFactorCode(''); setPendingCredentials(null); }}
+ className="text-[#a3a3a3] hover:text-white transition-colors"
+ >
+ Back
+ </button>
+ </div>
+ </div>
+ ) : (
+ <>
  <form
  id="admin-login-form"
- onSubmit={handleSubmit((d) => mutate(d))}
+ onSubmit={handleSubmit(submitCredentials)}
  className="space-y-5 relative z-10"
  noValidate
  >
@@ -187,6 +277,8 @@ export default function LoginPage() {
  </button>
  </div>
  </div>
+ </>
+ )}
  </div>
 
  {/* Footer */}

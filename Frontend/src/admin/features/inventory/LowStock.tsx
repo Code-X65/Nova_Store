@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchLowStockProducts } from './api/inventory';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
@@ -18,11 +18,7 @@ interface LowStockProduct {
 export default function LowStock() {
  const { data: response, isLoading } = useQuery({
  queryKey: ['inventory', 'low-stock'],
- queryFn: async () => {
- const { data } = await api.get('/inventory/low-stock');
- // The controller returns { success: true, data: [...] }
- return data.data;
- },
+ queryFn: fetchLowStockProducts,
  });
 
  const products = response || [];

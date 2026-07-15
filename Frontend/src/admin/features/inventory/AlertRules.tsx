@@ -1,19 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchAlertRules, fetchWarehousesMinimal, saveAlertRule, deleteAlertRule, type AlertRule as Rule } from './api/alertRules';
+import { fetchProductsMinimal } from './api/inventory';
 import toast from 'react-hot-toast';
-
-interface Rule {
-  id?: string;
-  scope: 'product' | 'variant' | 'warehouse' | 'global';
-  product_id: string | null;
-  variant_id: string | null;
-  warehouse_id: string | null;
-  threshold: number;
-  channels: string[];
-  recipient_role: string | null;
-  is_active: boolean;
-}
 
 export default function AlertRulesPage() {
   const qc = useQueryClient();
@@ -26,35 +15,23 @@ export default function AlertRulesPage() {
 
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ['stock-alert-rules'],
-    queryFn: async () => {
-      const { data } = await api.get('/admin/stock-alerts');
-      return data.data.rules as Rule[];
-    },
+    queryFn: fetchAlertRules,
   });
 
   const { data: products = [] } = useQuery({
     queryKey: ['products-list-minimal'],
-    queryFn: async () => {
-      const { data } = await api.get('/products', { params: { limit: 500 } });
-      return data.data.products as { id: string; name: string; sku: string }[];
-    },
+    queryFn: async () => fetchProductsMinimal({ limit: 500 }),
   });
 
   const { data: warehouses = [] } = useQuery({
     queryKey: ['warehouses'],
-    queryFn: async () => {
-      const { data } = await api.get('/admin/warehouses');
-      return data.data.warehouses as { id: string; name: string; code: string }[];
-    },
+    queryFn: fetchWarehousesMinimal,
   });
 
   const productNameMap = useMemo(() => new Map((products as any[]).map((p) => [p.id, `${p.name} (${p.sku})`])), [products]);
 
   const saveMutation = useMutation({
-    mutationFn: async (body: any) => {
-      if (body.id) return api.put(`/admin/stock-alerts/${body.id}`, body);
-      return api.post('/admin/stock-alerts', body);
-    },
+    mutationFn: async (body: any) => saveAlertRule(body),
     onSuccess: () => {
       toast.success(editingId ? 'Rule updated' : 'Rule created');
       reset();
@@ -64,7 +41,7 @@ export default function AlertRulesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/admin/stock-alerts/${id}`),
+    mutationFn: (id: string) => deleteAlertRule(id),
     onSuccess: () => {
       toast.success('Rule deleted');
       qc.invalidateQueries({ queryKey: ['stock-alert-rules'] });

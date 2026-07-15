@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { verifyAuditChain, fetchAuditLogs, exportAuditLogs, type AuditVerifyResult } from './api/audit';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
@@ -60,16 +60,11 @@ export default function AuditLogs() {
     return p.toString();
   }, [page, severity, actionType, actor, q, dateFrom, dateTo]);
 
-  const [verifyResult, setVerifyResult] = useState<{
-    total: number; verified: boolean; verifiedCount: number; brokenCount: number;
-    broken: { id: string; created_at: string; linkOk: boolean; hashOk: boolean }[];
-    verifiedAt: string;
-  } | null>(null);
+  const [verifyResult, setVerifyResult] = useState<AuditVerifyResult | null>(null);
 
   const verifyMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<{ success: boolean; data: typeof verifyResult }>('/admin/audit/verify');
-      return data.data;
+      return verifyAuditChain();
     },
     onSuccess: (data) => {
       setVerifyResult(data);
@@ -81,18 +76,7 @@ export default function AuditLogs() {
 
   const { data: response, isLoading, refetch } = useQuery({
     queryKey: ['admin-audit', logType, filters],
-    queryFn: async () => {
-      if (logType === 'catalog') {
-        const { data } = await api.get(`/admin/audit/catalog?${filters}`);
-        return data.data;
-      }
-      let endpoint = '/admin/audit';
-      if (logType === 'auth') endpoint = '/admin/audit/auth';
-      if (logType === 'admin-auth') endpoint = '/admin/audit/admin-auth';
-      if (logType === 'activity') endpoint = `/admin/audit?${filters}`;
-      const { data } = await api.get(endpoint);
-      return data.data;
-    },
+    queryFn: async () => fetchAuditLogs(logType, filters),
     refetchInterval: autoRefresh ? 15000 : false,
   });
 
@@ -264,8 +248,7 @@ export default function AuditLogs() {
             <button onClick={() => {
               const p = new URLSearchParams(filters);
               p.set('format', 'csv');
-              const endpoint = logType === 'catalog' ? '/admin/audit/catalog/export' : '/admin/audit/export';
-              api.get(`${endpoint}?${p.toString()}`, { responseType: 'blob' }).then(({ data }) => {
+              exportAuditLogs(logType, p.toString()).then((data) => {
                 const url = URL.createObjectURL(new Blob([data]));
                 const a = document.createElement('a');
                 a.href = url;
@@ -277,8 +260,7 @@ export default function AuditLogs() {
             <button onClick={() => {
               const p = new URLSearchParams(filters);
               p.set('format', 'pdf');
-              const endpoint = logType === 'catalog' ? '/admin/audit/catalog/export' : '/admin/audit/export';
-              api.get(`${endpoint}?${p.toString()}`, { responseType: 'blob' }).then(({ data }) => {
+              exportAuditLogs(logType, p.toString()).then((data) => {
                 const url = URL.createObjectURL(new Blob([data]));
                 const a = document.createElement('a');
                 a.href = url;

@@ -7,7 +7,7 @@ const catalogAuditController = require('../../controllers/admin/catalog-audit.co
 const router = express.Router();
 
 router.use(requireAdmin);
-router.use(auditRedaction);
+router.use(auditRedaction());
 router.use(hasPermission('audit:read'));
 
 /**

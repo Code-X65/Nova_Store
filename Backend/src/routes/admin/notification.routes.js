@@ -159,6 +159,7 @@ router.get('/health', adminNotificationController.getQueueHealth);
  */
 router.get('/routing-rules', adminNotificationController.getRoutingRules);
 router.patch('/routing-rules/:id', adminNotificationController.updateRoutingRule);
+router.get('/templates', adminNotificationController.getTemplates);
 router.post('/templates', validateRequest(templateSchema), adminNotificationController.createTemplate);
 
 /**

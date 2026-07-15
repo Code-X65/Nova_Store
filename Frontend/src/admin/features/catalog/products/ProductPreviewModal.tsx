@@ -1,6 +1,5 @@
-import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
 import { XMarkIcon, CubeIcon } from '@heroicons/react/24/outline';
+import { Modal } from '@/admin/components/ui/Modal';
 
 interface ProductPreviewModalProps {
  isOpen: boolean;
@@ -12,36 +11,17 @@ export function ProductPreviewModal({ isOpen, onClose, product }: ProductPreview
  if (!product) return null;
 
  return (
- <Transition appear show={isOpen} as={Fragment}>
- <Dialog as="div" className="relative z-50" onClose={onClose}>
- <Transition.Child
- as={Fragment}
- enter="ease-out duration-300"
- enterFrom="opacity-0"
- enterTo="opacity-100"
- leave="ease-in duration-200"
- leaveFrom="opacity-100"
- leaveTo="opacity-0"
+ <Modal
+ isOpen={isOpen}
+ onClose={onClose}
+ variant="panel"
+ size="xl"
+ showCloseButton={false}
+ bodyClassName="text-left"
+ animated
  >
- <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
- </Transition.Child>
-
- <div className="fixed inset-0 overflow-y-auto">
- <div className="flex min-h-full items-center justify-center p-4 text-center">
- <Transition.Child
- as={Fragment}
- enter="ease-out duration-300"
- enterFrom="opacity-0 scale-95"
- enterTo="opacity-100 scale-100"
- leave="ease-in duration-200"
- leaveFrom="opacity-100 scale-100"
- leaveTo="opacity-0 scale-95"
- >
- <Dialog.Panel className="w-full max-w-3xl transform overflow-hidden rounded-2xl bg-[var(--neu-bg)] border border-[var(--panel-border)] p-6 text-left align-middle shadow-xl transition-all">
  <div className="flex items-center justify-between mb-6">
- <Dialog.Title as="h3" className="text-xl font-bold text-white">
- Product Preview
- </Dialog.Title>
+ <h3 className="text-xl font-bold text-white">Product Preview</h3>
  <button
  onClick={onClose}
  className="p-2 text-[var(--neu-text)] hover:text-white transition-colors rounded-lg hover:bg-white/10"
@@ -150,11 +130,6 @@ export function ProductPreviewModal({ isOpen, onClose, product }: ProductPreview
  </div>
  </div>
  </div>
- </Dialog.Panel>
- </Transition.Child>
- </div>
- </div>
- </Dialog>
- </Transition>
+ </Modal>
  );
 }

@@ -21,7 +21,6 @@ const Dashboard     = lazy(() => import('@/admin/features/dashboard/DashboardPag
 const OrdersList    = lazy(() => import('@/admin/features/orders/OrdersList'));
 const OrderDetail   = lazy(() => import('@/admin/features/orders/OrderDetail'));
 const DispatchQueue = lazy(() => import('@/admin/features/orders/DispatchQueue'));
-const Returns       = lazy(() => import('@/admin/features/orders/Returns'));
 
 // Inventory
 const StockLevels   = lazy(() => import('@/admin/features/inventory/StockLevels'));
@@ -29,7 +28,6 @@ const StockAdjust   = lazy(() => import('@/admin/features/inventory/StockAdjust'
 const LowStock      = lazy(() => import('@/admin/features/inventory/LowStock'));
 const Transactions  = lazy(() => import('@/admin/features/inventory/Transactions'));
 const Thresholds    = lazy(() => import('@/admin/features/inventory/Thresholds'));
-const AlertsPage    = lazy(() => import('@/admin/features/inventory/Alerts'));
 const Warehouses    = lazy(() => import('@/admin/features/inventory/Warehouses'));
 const AlertRules    = lazy(() => import('@/admin/features/inventory/AlertRules'));
 const CatalogHistory = lazy(() => import('@/admin/features/catalog/TransactionHistory'));
@@ -107,6 +105,25 @@ const CustomerEvents  = lazy(() => import('@/admin/features/crm/CustomerEvents')
 const Forecasting     = lazy(() => import('@/admin/features/analytics/Forecasting'));
 const CustomerHeatmaps = lazy(() => import('@/admin/features/analytics/CustomerHeatmaps'));
 
+// Campaigns / Flash Sales
+const CampaignsList   = lazy(() => import('@/admin/features/campaigns/CampaignsList'));
+const CampaignForm    = lazy(() => import('@/admin/features/campaigns/CampaignForm'));
+
+// Abandoned Cart Recovery
+const AbandonedCarts  = lazy(() => import('@/admin/features/marketing/AbandonedCarts'));
+
+// Product Q&A
+const QAModeration    = lazy(() => import('@/admin/features/qa/QAModeration'));
+
+// CMS / Content Management
+const Banners         = lazy(() => import('@/admin/features/cms/Banners'));
+const Pages           = lazy(() => import('@/admin/features/cms/Pages'));
+const BlogPosts       = lazy(() => import('@/admin/features/cms/BlogPosts'));
+
+// POS / Offline Sales
+const POSTerminal     = lazy(() => import('@/admin/features/pos/POSTerminal'));
+const SalesHistory    = lazy(() => import('@/admin/features/pos/SalesHistory'));
+
 // Fallback pages
 const NotFoundPage    = lazy(() => import('@/admin/features/errors/NotFoundPage'));
 const ForbiddenPage   = lazy(() => import('@/admin/features/errors/ForbiddenPage'));
@@ -154,11 +171,7 @@ export function AppRoutes() {
                 <DispatchQueue />
               </RequirePermission>
             } />
-            <Route path="returns" element={
-              <RequirePermission permission="order:write">
-                <Returns />
-              </RequirePermission>
-            } />
+            <Route path="returns" element={<Navigate to="/logistics/returns" replace />} />
           </Route>
 
           {/* Inventory */}
@@ -193,11 +206,7 @@ export function AppRoutes() {
                 <Thresholds />
               </RequirePermission>
             } />
-            <Route path="alerts" element={
-              <RequirePermission anyOf={['inventory:alert', 'inventory:write']}>
-                <AlertsPage />
-              </RequirePermission>
-            } />
+            <Route path="alerts" element={<Navigate to="/inventory/alert-rules" replace />} />
             <Route path="warehouses" element={
               <RequirePermission permission="inventory:read">
                 <Warehouses />
@@ -408,18 +417,16 @@ export function AppRoutes() {
                 <NotificationsInbox />
               </RequirePermission>
             } />
-            <Route path="admin" element={<Navigate to="/notifications" replace />}>
-              <Route index element={
-                <RequirePermission permission="notifications:write">
-                  <SendBroadcast />
-                </RequirePermission>
-              } />
-              <Route path="templates" element={
-                <RequirePermission permission="notifications:write">
-                  <Templates />
-                </RequirePermission>
-              } />
-            </Route>
+            <Route path="admin" element={
+              <RequirePermission permission="notifications:write">
+                <SendBroadcast />
+              </RequirePermission>
+            } />
+            <Route path="admin/templates" element={
+              <RequirePermission permission="notifications:write">
+                <Templates />
+              </RequirePermission>
+            } />
           </Route>
 
           {/* Billing & Finance (Phase 4 §5.2 / §5.3) */}
@@ -476,6 +483,72 @@ export function AppRoutes() {
             <Route path="events" element={
               <RequirePermission permission="customer_event:read">
                 <CustomerEvents />
+              </RequirePermission>
+            } />
+          </Route>
+
+          {/* Campaigns / Flash Sales */}
+          <Route path="campaigns">
+            <Route index element={
+              <RequirePermission permission="marketing:read">
+                <CampaignsList />
+              </RequirePermission>
+            } />
+            <Route path="new" element={
+              <RequirePermission permission="marketing:write">
+                <CampaignForm />
+              </RequirePermission>
+            } />
+            <Route path=":id" element={
+              <RequirePermission permission="marketing:write">
+                <CampaignForm />
+              </RequirePermission>
+            } />
+          </Route>
+
+          {/* Abandoned Cart Recovery */}
+          <Route path="marketing/abandoned-carts" element={
+            <RequirePermission permission="marketing:read">
+              <AbandonedCarts />
+            </RequirePermission>
+          } />
+
+          {/* Product Q&A */}
+          <Route path="qa" element={
+            <RequirePermission permission="qa:read">
+              <QAModeration />
+            </RequirePermission>
+          } />
+
+          {/* CMS / Content Management */}
+          <Route path="cms">
+            <Route path="banners" element={
+              <RequirePermission permission="cms:read">
+                <Banners />
+              </RequirePermission>
+            } />
+            <Route path="pages" element={
+              <RequirePermission permission="cms:read">
+                <Pages />
+              </RequirePermission>
+            } />
+            <Route path="blog" element={
+              <RequirePermission permission="cms:read">
+                <BlogPosts />
+              </RequirePermission>
+            } />
+          </Route>
+
+          {/* POS / Offline Sales */}
+          <Route path="pos">
+            <Route index element={
+              <RequirePermission permission="pos:create">
+                <POSTerminal />
+              </RequirePermission>
+            } />
+            <Route path="history" element={
+              <RequirePermission permission="pos:read">
+                <SalesHistory />
               </RequirePermission>
             } />
           </Route>

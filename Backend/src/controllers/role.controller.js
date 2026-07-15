@@ -1,5 +1,24 @@
 const roleModel = require('../models/role.model');
+const permissionModel = require('../models/permission.model');
 const AuditService = require('../services/audit.service');
+
+/**
+ * A non-STORE_OWNER actor (permissions !== ['*']) may only grant permissions
+ * they already hold themselves — prevents self-escalation via role/permission
+ * management even when 'role:manage' is held (e.g. by MANAGER).
+ * Returns an array of permission keys that exceed the actor's own set (empty = OK).
+ */
+async function findExcessPermissions(actorPermissions, permissionIds) {
+  if (!permissionIds || permissionIds.length === 0) return [];
+  if (actorPermissions.includes('*')) return [];
+
+  const allPermissions = await permissionModel.findAll();
+  const idToKey = new Map(allPermissions.map(p => [p.id, p.key]));
+
+  return permissionIds
+    .map(id => idToKey.get(id) || id)
+    .filter(key => !actorPermissions.includes(key));
+}
 
 class RoleController {
   async getAllRoles(req, res, next) {
@@ -27,13 +46,23 @@ class RoleController {
 
   async createRole(req, res, next) {
     try {
-      const { name, display_name, description, permissionIds } = req.body;
-      const role = await roleModel.create({ name, display_name, description });
-      
+      const { name, display_name, description, color_code, permissionIds } = req.body;
+
+      const actorPermissions = (req.admin || req.user)?.permissions || [];
+      const excess = await findExcessPermissions(actorPermissions, permissionIds);
+      if (excess.length > 0) {
+        return res.status(403).json({
+          success: false,
+          error: `Forbidden: cannot grant permissions you do not hold yourself: ${excess.join(', ')}`
+        });
+      }
+
+      const role = await roleModel.create({ name, display_name, description, color_code });
+
       if (permissionIds && permissionIds.length > 0) {
         await roleModel.assignPermissions(role.id, permissionIds);
       }
-      
+
       AuditService.log(req, 'role.created', 'role', role.id, null, { name, display_name, permissionIds });
       res.status(201).json({ success: true, data: { role } });
     } catch (error) {
@@ -79,6 +108,16 @@ class RoleController {
     try {
       const { id } = req.params;
       const { permissionIds } = req.body;
+
+      const actorPermissions = (req.admin || req.user)?.permissions || [];
+      const excess = await findExcessPermissions(actorPermissions, permissionIds);
+      if (excess.length > 0) {
+        return res.status(403).json({
+          success: false,
+          error: `Forbidden: cannot grant permissions you do not hold yourself: ${excess.join(', ')}`
+        });
+      }
+
       await roleModel.assignPermissions(id, permissionIds);
       AuditService.log(req, 'role.permissions.assigned', 'role', id, null, { permissionIds });
       res.status(200).json({ success: true, message: 'Permissions assigned' });

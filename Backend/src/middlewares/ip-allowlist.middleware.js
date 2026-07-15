@@ -71,29 +71,42 @@ async function loadActiveAllowlist() {
   return cache.entries;
 }
 
+/**
+ * Core allowlist check, shared by the middleware (post-auth requests) and by
+ * adminLogin (the login endpoint itself, which previously bypassed this
+ * check entirely since it runs before requireAdmin sets req.admin — the
+ * middleware alone can never gate login, since role-scoped rules require
+ * already knowing the account's roles).
+ *
+ * @param {string[]} roles - the account's roles
+ * @param {string} clientIp - already-normalized request IP
+ * @returns {Promise<boolean>} true if allowed (or fail-open with 0 entries)
+ */
+async function isIpAllowed(roles, clientIp) {
+  const entries = await loadActiveAllowlist();
+  if (entries.length === 0) return true;
+
+  return entries.some(entry => {
+    const scope = entry.role_scope || [];
+    const hasRole = roles.some(r => scope.includes(r));
+    if (!hasRole) return false;
+    return isIpInCidr(clientIp, entry.ip_cidr);
+  });
+}
+
 const ipAllowlist = async (req, res, next) => {
   try {
     const actor = req.admin;
     if (!actor) return next();
 
-    const entries = await loadActiveAllowlist();
-    if (entries.length === 0) return next();
-
     const clientIp = normalizeIp(req.ip || req.connection?.remoteAddress || '');
+    const allowed = await isIpAllowed(actor.roles, clientIp);
 
-    const matchingEntries = entries.filter(entry => {
-      const scope = entry.role_scope || [];
-      const hasRole = actor.roles.some(r => scope.includes(r));
-      if (!hasRole) return false;
-      return isIpInCidr(clientIp, entry.ip_cidr);
-    });
-
-    if (matchingEntries.length > 0) {
+    if (allowed) {
       return next();
     }
 
-    await AuditService.logRaw({
-      action: 'security.ip_denied',
+    await AuditService.logRaw('security.ip_denied', 'user', actor.id, {
       userId: actor.id,
       ip: clientIp,
       severity: 'critical',
@@ -111,3 +124,5 @@ const ipAllowlist = async (req, res, next) => {
 };
 
 module.exports = ipAllowlist;
+module.exports.isIpAllowed = isIpAllowed;
+module.exports.normalizeIp = normalizeIp;

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchProducts, archiveProduct } from './api/products';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -41,8 +41,7 @@ export default function ProductsList() {
  params.set('page', page.toString());
  params.set('limit', limit.toString());
 
- const { data } = await api.get(`/products?${params.toString()}`);
- return data.data; // { products, pagination }
+ return fetchProducts(params);
  },
  staleTime: 10_000,
  });
@@ -52,7 +51,7 @@ export default function ProductsList() {
 
  // Mutations
  const deleteMutation = useMutation({
- mutationFn: async (id: string) => api.delete(`/products/${id}`),
+ mutationFn: async (id: string) => archiveProduct(id),
  onMutate: async (id: string) => {
  const queryKey = ['products', { ...filters, page, limit }];
  await qc.cancelQueries({ queryKey });

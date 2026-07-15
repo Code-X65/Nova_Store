@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchSessions, revokeSession, revokeAllSessions } from './api/sessions';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { TrashIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline';
@@ -13,14 +13,11 @@ export default function SessionsPage() {
 
   const { data: response, isLoading } = useQuery({
     queryKey: ['admin-sessions'],
-    queryFn: async () => {
-      const { data } = await api.get('/admin/sessions');
-      return data.data;
-    }
+    queryFn: fetchSessions
   });
 
   const revokeMutation = useMutation({
-    mutationFn: async (sessionId: string) => api.delete(`/admin/sessions/${sessionId}`),
+    mutationFn: async (sessionId: string) => revokeSession(sessionId),
     onSuccess: () => {
       toast.success('Session revoked');
       qc.invalidateQueries({ queryKey: ['admin-sessions'] });
@@ -30,7 +27,7 @@ export default function SessionsPage() {
   });
 
   const revokeAllMutation = useMutation({
-    mutationFn: async () => api.delete('/admin/sessions'),
+    mutationFn: async () => revokeAllSessions(),
     onSuccess: () => {
       toast.success('All other sessions revoked');
       qc.invalidateQueries({ queryKey: ['admin-sessions'] });

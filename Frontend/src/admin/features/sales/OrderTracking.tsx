@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchOrderTracking } from './api/sales';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
@@ -10,16 +10,7 @@ export default function OrderTracking() {
 
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-sales-order-tracking', page],
- queryFn: async () => {
- // Use the generic orders list since it's the same controller method
- const { data } = await api.get('/admin/sales/order-tracking', {
- params: { page, limit: 20 }
- }).catch(err => {
- // Fallback if sales/order-tracking isn't perfectly mapped, though it should be
- return api.get('/orders/admin/list', { params: { page, limit: 20 } });
- });
- return data.data; // { orders }
- }
+ queryFn: async () => fetchOrderTracking({ page, limit: 20 })
  });
 
  const orders = response?.orders || [];

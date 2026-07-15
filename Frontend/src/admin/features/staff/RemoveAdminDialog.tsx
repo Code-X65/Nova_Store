@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useRemoveAdmin } from '@/admin/hooks/useAdminAccessConsole';
+import { Modal } from '@/admin/components/ui/Modal';
 
 interface Props {
  isOpen: boolean;
@@ -18,8 +19,6 @@ export function RemoveAdminDialog({ isOpen, onClose, targetId, targetName }: Pro
  const [reason, setReason] = useState('');
  const removeAdmin = useRemoveAdmin();
 
- if (!isOpen) return null;
-
  const handleRemove = async () => {
  if (!targetId) return;
  const toastId = toast.loading('Removing administrator…');
@@ -33,19 +32,23 @@ export function RemoveAdminDialog({ isOpen, onClose, targetId, targetName }: Pro
  };
 
  return (
- <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
- <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose} />
- <div className="relative w-full max-w-md bg-zinc-950/90 border border-danger/30 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-2xl">
- <div className="px-6 py-5 flex items-center justify-between border-b">
- <h2 className="text-lg font-bold text-white flex items-center gap-2 text-danger">
+ <Modal
+ isOpen={isOpen}
+ onClose={onClose}
+ variant="panel"
+ size="md"
+ wrapperClassName="fixed inset-0 z-[60] flex items-center justify-center p-4"
+ backdropClassName="bg-black/75 backdrop-blur-md"
+ panelClassName="bg-zinc-950/90 border border-danger/30 backdrop-blur-2xl"
+ headerClassName=""
+ bodyClassName="space-y-4"
+ titleClassName="text-lg font-bold text-white flex items-center gap-2 text-danger"
+ title={
+ <>
  <ExclamationTriangleIcon className="w-5 h-5" /> Permanently Remove
- </h2>
- <button onClick={onClose} className="p-2 text-white/40 hover:text-white rounded-lg">
- <XMarkIcon className="w-5 h-5" />
- </button>
- </div>
-
- <div className="p-6 space-y-4">
+ </>
+ }
+ >
  <p className="text-sm text-white/70">
  This will <span className="font-bold text-danger">permanently purge</span>{' '}
  <span className="font-semibold text-white">{targetName}</span>'s administrator profile,
@@ -79,8 +82,6 @@ export function RemoveAdminDialog({ isOpen, onClose, targetId, targetName }: Pro
  {removeAdmin.isPending ? 'Removing…' : 'Remove Permanently'}
  </button>
  </div>
- </div>
- </div>
- </div>
+ </Modal>
  );
 }

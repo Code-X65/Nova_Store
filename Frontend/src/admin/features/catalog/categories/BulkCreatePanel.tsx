@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { bulkCreateCategories } from '../api/categories';
 import {
  ChevronDownIcon,
  ChevronRightIcon,
@@ -86,7 +86,7 @@ export function BulkCreatePanel({ onSuccess }: BulkCreatePanelProps) {
  const { parsed, error } = raw.trim() ? parseInput(raw) : { parsed: null, error: '' };
 
  const bulkMutation = useMutation({
- mutationFn: () => api.post('/categories/bulk', parsed),
+ mutationFn: () => bulkCreateCategories(parsed),
  onSuccess: () => {
  toast.success(`${parsed ? countAll(parsed) : 0} categories created`);
  qc.invalidateQueries({ queryKey: ['categories', 'tree'] });

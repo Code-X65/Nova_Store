@@ -136,10 +136,17 @@ class ReturnsService {
     const updated = await ReturnsModel.update(returnId, update);
     if (req) await AuditService.log(req, `returns.${action}`, 'return', returnId, null, { toStatus });
 
-    // Keep the order's legacy return_status in sync for backward-compat UI
-    if (action === 'complete') {
-      await OrderModel.update(rma.order_id, { return_status: 'refund_completed' }).catch(() => {});
-    }
+    // Keep the order's legacy return_status in sync at every step — not just
+    // on 'complete' — since any UI still reading order.return_status
+    // (customer-facing order detail, older admin screens) would otherwise
+    // show a stale/blank status through the entire RMA lifecycle and only
+    // correct itself at the very end. The RMA vocabulary mirrors the legacy
+    // one field-for-field except for the terminal state.
+    const legacyReturnStatus = action === 'complete' ? 'refund_completed' : toStatus;
+    await OrderModel.update(rma.order_id, { return_status: legacyReturnStatus }).catch((syncErr) => {
+      logger.warn(`[Returns] Failed to sync order ${rma.order_id} return_status to '${legacyReturnStatus}': ${syncErr.message}`);
+    });
+
     return updated;
   }
 

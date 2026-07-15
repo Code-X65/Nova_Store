@@ -20,18 +20,20 @@ jest.mock('../../src/models/store.model', () => ({
 }));
 jest.mock('../../src/middlewares/require-admin.middleware', () => {
   return (req, res, next) => {
+    const roles = ['ADMIN', 'STORE_OWNER'];
     req.admin = {
       id: 'admin-uuid-999',
       email: 'admin@example.com',
       role: 'ADMIN',
-      roles: ['ADMIN'],
+      roles,
       is_active: true,
       store_id: 'store-abc',
       permissions: [
         'category:create', 'category:write',
         'product:create', 'product:write',
         'audit:read'
-      ]
+      ],
+      hasRole: (...roleNames) => roleNames.some(r => roles.includes(r))
     };
     req.user = { id: 'admin-uuid-999', role: 'ADMIN', store_id: 'store-abc', permissions: req.admin.permissions };
     next();

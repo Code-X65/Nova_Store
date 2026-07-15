@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { fetchProductsList, fetchVariantOptions, saveVariantOptions } from './api/products';
 
 interface ProductLite { id: string; name: string; sku: string; }
 interface OptionDef { name: string; values: string[]; }
@@ -14,7 +14,7 @@ export default function VariantManagerPage() {
   const { data: products = [] } = useQuery({
     queryKey: ['products-list-minimal'],
     queryFn: async () => {
-      const { data } = await api.get('/products', { params: { limit: 500 } });
+      const data = await fetchProductsList({ limit: 500 });
       return (data.data.products as ProductLite[]) || [];
     },
   });
@@ -23,8 +23,7 @@ export default function VariantManagerPage() {
     queryKey: ['variant-options', productId],
     enabled: !!productId,
     queryFn: async () => {
-      const { data } = await api.get(`/admin/products/${productId}/variant-options`);
-      return data.data as { options: OptionDef[]; variants: any[] };
+      return fetchVariantOptions(productId) as Promise<{ options: OptionDef[]; variants: any[] }>;
     },
   });
 
@@ -39,8 +38,7 @@ export default function VariantManagerPage() {
       const cleaned = options
         .map((o) => ({ name: o.name.trim(), values: o.values.map((v) => v.trim()).filter(Boolean) }))
         .filter((o) => o.name && o.values.length > 0);
-      const { data } = await api.post(`/admin/products/${productId}/variant-options`, { options: cleaned });
-      return data.data;
+      return saveVariantOptions(productId, cleaned);
     },
     onSuccess: () => {
       toast.success('Variant matrix rebuilt');

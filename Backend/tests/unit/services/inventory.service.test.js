@@ -101,13 +101,15 @@ describe('InventoryService', () => {
       const results = await InventoryService.bulkUpdateStock(updates, 'u1');
 
       expect(ProductModel.updateStock).toHaveBeenCalledTimes(2);
-      expect(results).toEqual([
-        { id: 'p1', stock_quantity: 60 },
-        { id: 'p2', stock_quantity: 40 }
+      expect(results.successCount).toBe(2);
+      expect(results.failureCount).toBe(0);
+      expect(results.succeeded).toEqual([
+        { productId: 'p1', variantId: 'v1', result: { id: 'p1', stock_quantity: 60 } },
+        { productId: 'p2', variantId: null, result: { id: 'p2', stock_quantity: 40 } }
       ]);
     });
 
-    it('should continue on individual failure', async () => {
+    it('should continue past an individual failure and report it, not abort the batch', async () => {
       ProductModel.updateStock
         .mockResolvedValueOnce({ id: 'p1', stock_quantity: 60 })
         .mockRejectedValueOnce(new Error('DB error'))
@@ -119,7 +121,12 @@ describe('InventoryService', () => {
         { productId: 'p3', quantity: 5 }
       ];
 
-      await expect(InventoryService.bulkUpdateStock(updates, 'u1')).rejects.toThrow('DB error');
+      const results = await InventoryService.bulkUpdateStock(updates, 'u1');
+
+      expect(ProductModel.updateStock).toHaveBeenCalledTimes(3);
+      expect(results.successCount).toBe(2);
+      expect(results.failureCount).toBe(1);
+      expect(results.failed).toEqual([{ productId: 'p2', variantId: undefined, error: 'DB error' }]);
     });
   });
 
@@ -179,130 +186,4 @@ describe('InventoryService', () => {
     });
   });
 
-  describe('getAlerts', () => {
-    it('should return global alerts when no productId', async () => {
-      const supabase = require('../../../src/config/supabase');
-      supabase.from = jest.fn(() => ({
-        select: jest.fn().mockReturnThis(),
-        is: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        then: (resolve) => resolve({ data: [{ id: 'a1', threshold: 5 }], error: null })
-      }));
-
-      const result = await InventoryService.getAlerts(null);
-      expect(result).toEqual([{ id: 'a1', threshold: 5 }]);
-    });
-
-    it('should filter by productId', async () => {
-      const supabase = require('../../../src/config/supabase');
-      let capturedQuery = {};
-      supabase.from = jest.fn(() => ({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn((field, val) => { capturedQuery = { ...capturedQuery, [field]: val }; return jest.fn().mockReturnThis(); }),
-        is: jest.fn().mockReturnThis(),
-        then: (resolve) => resolve({ data: [], error: null })
-      }));
-
-      await InventoryService.getAlerts('p1');
-      expect(capturedQuery).toHaveProperty('product_id', 'p1');
-    });
-
-    it('should throw on error', async () => {
-      const supabase = require('../../../src/config/supabase');
-      supabase.from = jest.fn(() => ({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        is: jest.fn().mockReturnThis(),
-        then: (resolve, reject) => reject(new Error('DB error'))
-      }));
-
-      await expect(InventoryService.getAlerts(null)).rejects.toThrow('DB error');
-    });
-  });
-
-  describe('deleteAlert', () => {
-    it('should delete alert by id', async () => {
-      const supabase = require('../../../src/config/supabase');
-      supabase.from = jest.fn(() => ({
-        delete: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue({ error: null })
-      }));
-
-      const result = await InventoryService.deleteAlert('a1');
-      expect(result).toBe(true);
-    });
-
-    it('should throw on delete error', async () => {
-      const supabase = require('../../../src/config/supabase');
-      supabase.from = jest.fn(() => ({
-        delete: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue({ error: new Error('DB error') })
-      }));
-
-      await expect(InventoryService.deleteAlert('a1')).rejects.toThrow('DB error');
-    });
-  });
-
-  describe('configureAlert', () => {
-    it('should update existing alert', async () => {
-      const supabase = require('../../../src/config/supabase');
-      let callCount = 0;
-      supabase.from = jest.fn(() => ({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        is: jest.fn().mockReturnThis(),
-        then: (resolve) => {
-          callCount++;
-          if (callCount === 1) {
-            resolve({ data: [{ id: 'a1' }], error: null });
-          } else {
-            resolve({ data: { id: 'a1', threshold: 10 }, error: null });
-          }
-        },
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockReturnThis()
-      }));
-
-      const result = await InventoryService.configureAlert({
-        productId: null,
-        threshold: 10,
-        notifyEmails: ['a@b.com'],
-        enabled: true
-      });
-
-      expect(result).toEqual({ id: 'a1', threshold: 10 });
-    });
-
-    it('should insert new alert when none exists', async () => {
-      const supabase = require('../../../src/config/supabase');
-      let callCount = 0;
-      supabase.from = jest.fn(() => ({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        is: jest.fn().mockReturnThis(),
-        then: (resolve) => {
-          callCount++;
-          if (callCount === 1) {
-            resolve({ data: [], error: null });
-          } else {
-            resolve({ data: { id: 'a2', threshold: 5 }, error: null });
-          }
-        },
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockReturnThis()
-      }));
-
-      const result = await InventoryService.configureAlert({
-        productId: 'p1',
-        threshold: 5,
-        notifyEmails: [],
-        enabled: false
-      });
-
-      expect(result).toEqual({ id: 'a2', threshold: 5 });
-    });
-  });
 });

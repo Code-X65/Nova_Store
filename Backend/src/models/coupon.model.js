@@ -19,6 +19,36 @@ class CouponModel {
     return data;
   }
 
+  /**
+   * Atomically claim a usage slot (global + per-customer) for an order at
+   * order-creation time. Returns true if claimed, false if a limit was hit.
+   */
+  async claimUsage(couponId, userId, orderId) {
+    const { data, error } = await supabase.rpc('claim_coupon_usage', {
+      p_coupon_id: couponId,
+      p_user_id: userId,
+      p_order_id: orderId
+    });
+    if (error) throw error;
+    return data === true;
+  }
+
+  /** Release a claimed-but-never-paid usage (order cancelled or payment failed). */
+  async releaseUsage(couponId, orderId) {
+    const { error } = await supabase.rpc('release_coupon_usage', { p_coupon_id: couponId, p_order_id: orderId });
+    if (error) throw error;
+  }
+
+  /** Confirm a claimed usage on payment success. */
+  async confirmUsage(couponId, orderId, userId) {
+    const { error } = await supabase.rpc('confirm_coupon_usage', {
+      p_coupon_id: couponId,
+      p_order_id: orderId,
+      p_user_id: userId
+    });
+    if (error) throw error;
+  }
+
   async checkUserUsage(userId, couponId) {
     const { data, error } = await supabase
       .from('user_coupons')
@@ -31,10 +61,10 @@ class CouponModel {
     return data;
   }
 
-  async logUserUsage(userId, couponId) {
+  async logUserUsage(userId, couponId, orderId = null) {
     const { data, error } = await supabase
       .from('user_coupons')
-      .insert([{ user_id: userId, coupon_id: couponId, used_at: new Date().toISOString() }])
+      .insert([{ user_id: userId, coupon_id: couponId, order_id: orderId, used_at: new Date().toISOString() }])
       .select()
       .single();
 
@@ -123,6 +153,17 @@ class CouponModel {
 
   async deactivate(id) {
     return await this.update(id, { is_active: false });
+  }
+
+  async findById(id) {
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
   }
 
   async getUsageAnalytics(id) {

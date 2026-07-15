@@ -9,7 +9,7 @@ const router = express.Router();
 // All routes require authentication + audit permission + role-aware redaction
 router.use(requireAdmin);
 router.use(hasPermission('audit:read'));
-router.use(auditRedaction);
+router.use(auditRedaction());
 
 /**
  * @swagger

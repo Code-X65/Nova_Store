@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
-import { XMarkIcon, ArrowUpTrayIcon, DocumentTextIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { bulkImportProducts } from '../api/products';
+import { ArrowUpTrayIcon, DocumentTextIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import * as XLSX from 'xlsx';
+import { Modal } from '@/admin/components/ui/Modal';
 
 interface BulkProductImportModalProps {
  isOpen: boolean;
@@ -16,8 +17,7 @@ export function BulkProductImportModal({ isOpen, onClose }: BulkProductImportMod
 
  const importMutation = useMutation({
  mutationFn: async (data: any[]) => {
- const response = await api.post('/products/bulk', data);
- return response.data;
+ return bulkImportProducts(data);
  },
  onSuccess: (data) => {
  toast.success(`Successfully imported ${data.data?.length || 0} products.`);
@@ -100,34 +100,38 @@ export function BulkProductImportModal({ isOpen, onClose }: BulkProductImportMod
  XLSX.writeFile(wb, 'product_import_template.xlsx');
  };
 
- if (!isOpen) return null;
-
  return (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
- <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
- <div className="relative w-full max-w-2xl bg-[var(--neu-bg)] border border-[var(--panel-border)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
- 
- {/* Header */}
- <div className="px-6 py-4 flex items-center justify-between border-b border-[var(--panel-border)] bg-[var(--neu-bg)]">
- <div>
- <h2 className="text-lg font-bold text-white">Bulk Import Products</h2>
- <p className="text-sm text-[var(--neu-text)] mt-0.5">Upload an Excel (.xlsx), CSV, or JSON file.</p>
- </div>
- <div className="flex items-center gap-3">
- <button 
+ <Modal
+ isOpen={isOpen}
+ onClose={onClose}
+ variant="panel"
+ size="lg"
+ wrapperClassName="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+ title="Bulk Import Products"
+ description="Upload an Excel (.xlsx), CSV, or JSON file."
+ headerExtra={
+ <button
  onClick={downloadTemplate}
  className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold bg-[var(--neu-accent)]/10 text-[var(--neu-accent)] hover:bg-[var(--neu-accent)]/20 rounded-lg transition-colors border border-[var(--neu-accent)]/20"
  >
  <ArrowDownTrayIcon className="w-4 h-4" /> Template
  </button>
- <button onClick={onClose} className="p-2 text-[var(--neu-text)] hover:text-white hover:bg-white/10 rounded-lg transition-colors">
- <XMarkIcon className="w-5 h-5" />
+ }
+ footer={
+ <>
+ <button onClick={onClose} className="btn-secondary">
+ Cancel
  </button>
- </div>
- </div>
-
- {/* Body */}
- <div className="p-6 overflow-y-auto flex-1">
+ <button
+ onClick={handleImport}
+ disabled={!jsonInput.trim() || importMutation.isPending}
+ className="btn-primary"
+ >
+ {importMutation.isPending ? 'Importing...' : 'Run Import'}
+ </button>
+ </>
+ }
+ >
  <div className="mb-4">
  <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-[var(--panel-border)] rounded-xl hover:border-[var(--neu-accent)] hover:bg-[var(--neu-accent)]/5 transition-colors cursor-pointer group">
  <div className="flex flex-col items-center gap-2 text-[var(--neu-text)] group-hover:text-white">
@@ -159,23 +163,6 @@ export function BulkProductImportModal({ isOpen, onClose }: BulkProductImportMod
  spellCheck={false}
  />
  </div>
- </div>
-
- {/* Footer */}
- <div className="px-6 py-4 border-t border-[var(--panel-border)] bg-[var(--neu-bg)] flex justify-end gap-3">
- <button onClick={onClose} className="btn-secondary">
- Cancel
- </button>
- <button 
- onClick={handleImport}
- disabled={!jsonInput.trim() || importMutation.isPending}
- className="btn-primary"
- >
- {importMutation.isPending ? 'Importing...' : 'Run Import'}
- </button>
- </div>
-
- </div>
- </div>
+ </Modal>
  );
 }

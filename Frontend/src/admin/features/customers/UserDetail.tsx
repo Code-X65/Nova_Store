@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchUser, fetchUserOrders } from './api/customers';
 import { useParams, Link } from 'react-router-dom';
 import { format } from 'date-fns';
 
@@ -8,19 +8,12 @@ export default function UserDetail() {
 
  const { data: user, isLoading } = useQuery({
  queryKey: ['admin-user', id],
- queryFn: async () => {
- // Might not exist directly, but assuming standard REST pattern
- const { data } = await api.get(`/admin/users/${id}`).catch(() => ({ data: { data: null } }));
- return data.data;
- }
+ queryFn: async () => fetchUser(id!)
  });
 
  const { data: ordersData, isLoading: ordersLoading } = useQuery({
  queryKey: ['admin-user-orders', id],
- queryFn: async () => {
- const { data } = await api.get('/orders/admin/list', { params: { userId: id } });
- return data.data;
- }
+ queryFn: async () => fetchUserOrders(id!)
  });
 
  if (isLoading) return <div className="p-8 text-muted-foreground">Loading user details...</div>;

@@ -9,7 +9,7 @@ const { SINGLE_STORE_ID } = require('../../config/store');
  */
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, twoFactorToken, recoveryCode } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password are required.' });
@@ -17,7 +17,7 @@ const login = async (req, res, next) => {
 
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
-    const admin = await adminAuthService.login(email, password, ip, userAgent);
+    const admin = await adminAuthService.login(email, password, ip, userAgent, twoFactorToken, recoveryCode);
 
     // Regenerate session to prevent session-fixation attacks
     req.session.regenerate((err) => {
@@ -59,6 +59,12 @@ const login = async (req, res, next) => {
     }
     if (error.message === 'Account locked') {
       return res.status(403).json({ success: false, error: 'Admin account is locked due to multiple failed login attempts. Try again later.' });
+    }
+    if (error.code === 'TWO_FACTOR_REQUIRED') {
+      return res.status(401).json({ success: false, error: 'Two-factor authentication code required.', code: 'TWO_FACTOR_REQUIRED' });
+    }
+    if (error.message === 'Invalid two-factor authentication code') {
+      return res.status(401).json({ success: false, error: 'Invalid two-factor authentication code.' });
     }
     if (error.message === 'Invalid credentials') {
       return res.status(401).json({ success: false, error: 'Invalid credentials.' });

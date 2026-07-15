@@ -25,6 +25,7 @@ const { connectRedis, redisClient } = require('./config/redis');
 const CronJob = require('cron').CronJob;
 const runCleanup = require('./jobs/cleanup.job.js');
 const runReservationCleanup = require('./jobs/reservation-cleanup.job.js');
+const runAbandonedCartCheck = require('./jobs/abandoned-cart.job.js');
 
 const { startWorker: startNotifyWorker } = require('./services/notification-queue.service');
 const { startImportWorker, shutdownImportWorker } = require('./services/bulk-import.worker');
@@ -45,6 +46,9 @@ new CronJob('0 2 * * *', runCleanup, null, true, 'UTC');
 
 // 3. Stock reservation expiry cleanup: every 10 minutes
 new CronJob('*/10 * * * *', runReservationCleanup, null, true, 'UTC');
+
+// 3b. Abandoned cart reminder emails: every 30 minutes
+new CronJob('*/30 * * * *', runAbandonedCartCheck, null, true, 'UTC');
 
 
 // Real-time SSE subscriber (Redis Pub/Sub fan-out). Best-effort; SSE falls

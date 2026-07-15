@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchDashboardAnalytics, fetchUsersAnalytics, fetchBestSellers, fetchRecentOrders } from './api/dashboard';
 import { ChartContainer, CustomTooltip } from '@/shared/ui/ChartContainer';
 import { DocumentTextIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
 import { ArrowUpIcon, ArrowDownIcon, CalendarIcon } from '@heroicons/react/20/solid';
@@ -9,6 +9,74 @@ import { subDays, startOfYear, format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { useAdminSession } from '@/admin/hooks/useAdminSession';
 import clsx from 'clsx';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
+
+const topProductsColumnHelper = createColumnHelper<any>();
+
+const topProductsColumns = [
+ topProductsColumnHelper.display({
+ id: 'product',
+ header: 'Product',
+ cell: (info) => {
+ const product = info.row.original;
+ const idx = info.row.index;
+ return (
+ <div className="flex items-center gap-4 pr-4">
+ <span className="text-xs font-medium text-gray-500 w-4">{idx + 1}</span>
+ <div className="w-10 h-10 rounded bg-[#1a1a1a] flex-shrink-0 overflow-hidden">
+ {product.primary_image_url || product.thumbnail_url ? (
+ <img src={product.primary_image_url || product.thumbnail_url} alt="" className="w-full h-full object-cover" />
+ ) : (
+ <div className="w-full h-full flex items-center justify-center">
+ <span className="w-6 h-6 border-2 rounded-full"></span>
+ </div>
+ )}
+ </div>
+ <span className="text-sm font-medium text-white truncate max-w-[200px]">{product.name || product.product_name}</span>
+ </div>
+ );
+ },
+ }),
+ topProductsColumnHelper.display({
+ id: 'category',
+ header: 'Category',
+ cell: (info) => <span className="text-sm text-gray-400">{info.row.original.category?.name || 'Uncategorized'}</span>,
+ }),
+ topProductsColumnHelper.display({
+ id: 'sales',
+ header: 'Sales',
+ cell: (info) => <span className="text-sm text-white font-medium">{info.row.original.quantity_sold?.toLocaleString() || 0}</span>,
+ }),
+ topProductsColumnHelper.display({
+ id: 'revenue',
+ header: 'Revenue',
+ cell: (info) => <span className="text-sm text-white font-medium">₦{Number(info.row.original.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>,
+ }),
+ topProductsColumnHelper.display({
+ id: 'stock',
+ header: 'Stock',
+ cell: (info) => <span className="text-sm text-gray-400">{info.row.original.stock_quantity || 0} in stock</span>,
+ }),
+ topProductsColumnHelper.display({
+ id: 'status',
+ header: 'Status',
+ cell: () => (
+ <span className="inline-flex items-center text-xs font-medium text-nova-500 bg-nova-500/10 border border-nova-500/20 px-2.5 py-0.5 rounded-full">
+ Active
+ </span>
+ ),
+ }),
+ topProductsColumnHelper.display({
+ id: 'actions',
+ header: '',
+ cell: () => (
+ <button className="text-gray-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100">
+ <EllipsisHorizontalIcon className="w-5 h-5" />
+ </button>
+ ),
+ }),
+];
 
 export default function AdminDashboard() {
  const { session } = useAdminSession();
@@ -40,40 +108,22 @@ export default function AdminDashboard() {
 
  const { data: dashResponse, isLoading: dashLoading } = useQuery({
  queryKey: ['analytics', 'dashboard', from, to, groupBy],
- queryFn: async () => {
- const { data } = await api.get('/admin/analytics/dashboard', {
- params: { from, to, period: groupBy }
- });
- return data.data;
- }
+ queryFn: async () => fetchDashboardAnalytics({ from, to, period: groupBy })
  });
 
  const { data: usersResponse } = useQuery({
  queryKey: ['analytics', 'users', from, to, groupBy],
- queryFn: async () => {
- const { data } = await api.get('/admin/analytics/users', {
- params: { from, to, groupBy }
- });
- return data.data;
- }
+ queryFn: async () => fetchUsersAnalytics({ from, to, groupBy })
  });
 
  const { data: bestSellersResponse } = useQuery({
  queryKey: ['analytics', 'best-sellers', from, to],
- queryFn: async () => {
- const { data } = await api.get('/admin/analytics/best-sellers', {
- params: { from, to, limit: 5 }
- });
- return data.data;
- }
+ queryFn: async () => fetchBestSellers({ from, to, limit: 5 })
  });
 
  const { data: recentOrdersResponse } = useQuery({
  queryKey: ['orders', 'recent'],
- queryFn: async () => {
- const { data } = await api.get('/orders/admin/list', { params: { limit: 4 } });
- return data;
- }
+ queryFn: async () => fetchRecentOrders({ limit: 4 })
  });
 
  const metrics = dashResponse?.metrics || { totalSales: 0, totalOrders: 0, totalUsers: 0 };
@@ -421,59 +471,7 @@ export default function AdminDashboard() {
  </Link>
  </div>
  
- <div className="overflow-x-auto">
- <table className="w-full text-left border-collapse min-w-[800px]">
- <thead>
- <tr className="">
- <th className="pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider font-sans">Product</th>
- <th className="pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider font-sans">Category</th>
- <th className="pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider font-sans">Sales</th>
- <th className="pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider font-sans">Revenue</th>
- <th className="pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider font-sans">Stock</th>
- <th className="pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider font-sans">Status</th>
- <th className="pb-3 w-8"></th>
- </tr>
- </thead>
- <tbody>
- {topProducts.map((product: any, idx: number) => (
- <tr key={product.id || idx} className="/50 hover:bg-[#111111] transition-colors group">
- <td className="py-4 flex items-center gap-4 pr-4">
- <span className="text-xs font-medium text-gray-500 w-4">{idx + 1}</span>
- <div className="w-10 h-10 rounded bg-[#1a1a1a] flex-shrink-0 overflow-hidden">
- {product.primary_image_url || product.thumbnail_url ? (
- <img src={product.primary_image_url || product.thumbnail_url} alt="" className="w-full h-full object-cover" />
- ) : (
- <div className="w-full h-full flex items-center justify-center">
- <span className="w-6 h-6 border-2 rounded-full"></span>
- </div>
- )}
- </div>
- <span className="text-sm font-medium text-white truncate max-w-[200px]">{product.name || product.product_name}</span>
- </td>
- <td className="py-4 text-sm text-gray-400">{product.category?.name || 'Uncategorized'}</td>
- <td className="py-4 text-sm text-white font-medium">{product.quantity_sold?.toLocaleString() || 0}</td>
-  <td className="py-4 text-sm text-white font-medium">₦{Number(product.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
- <td className="py-4 text-sm text-gray-400">{product.stock_quantity || 0} in stock</td>
- <td className="py-4">
- <span className="inline-flex items-center text-xs font-medium text-nova-500 bg-nova-500/10 border border-nova-500/20 px-2.5 py-0.5 rounded-full">
- Active
- </span>
- </td>
- <td className="py-4">
- <button className="text-gray-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100">
- <EllipsisHorizontalIcon className="w-5 h-5" />
- </button>
- </td>
- </tr>
- ))}
- {topProducts.length === 0 && !isLoading && (
- <tr>
- <td colSpan={7} className="py-8 text-center text-gray-500 text-sm">No products found for this period.</td>
- </tr>
- )}
- </tbody>
- </table>
- </div>
+ <DataTable columns={topProductsColumns} data={topProducts} disablePagination />
  </div>
  </div>
  );

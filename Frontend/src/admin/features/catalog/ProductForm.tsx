@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CategorySelect } from './categories/CategorySelect';
@@ -8,6 +7,9 @@ import { GalleryManager } from './products/GalleryManager';
 import { RelatedProductsManager } from './products/RelatedProductsManager';
 import { VariantManager } from './products/VariantManager';
 import { SearchableSelect } from '@/admin/components/ui/SearchableSelect';
+import { fetchProductById, createProduct, updateProduct, addProductVariant, addRelatedProduct } from './api/products';
+import { fetchBrands } from './api/brands';
+import { fetchCategoryAttributes } from './api/attributes';
 
 const INITIAL_FORM_DATA = {
  name: '',
@@ -48,8 +50,7 @@ export default function ProductForm() {
  const { data: productData, isLoading: productLoading } = useQuery({
  queryKey: ['product', id],
  queryFn: async () => {
- const { data } = await api.get(`/products/${id}`);
- return data.data.product;
+ return fetchProductById(id as string);
  },
  enabled: isEditing,
  });
@@ -57,16 +58,14 @@ export default function ProductForm() {
  const { data: brandsData } = useQuery({
  queryKey: ['brands', { activeOnly: true }],
  queryFn: async () => {
- const { data } = await api.get('/brands?activeOnly=true');
- return Array.isArray(data.data) ? data.data : (data.data?.brands || []);
+ return fetchBrands({ activeOnly: true });
  }
  });
 
  const { data: attributesData, isLoading: attributesLoading } = useQuery({
  queryKey: ['attributes', formData.category_id],
  queryFn: async () => {
- const { data } = await api.get(`/categories/${formData.category_id}/attributes`);
- return data.data.attributes || [];
+ return fetchCategoryAttributes(formData.category_id);
  },
  enabled: Boolean(formData.category_id),
  });
@@ -142,9 +141,9 @@ export default function ProductForm() {
       delete payload.related_product_ids;
 
       if (isEditing) {
-        return api.patch(`/products/${id}`, payload);
+        return updateProduct(id as string, payload);
       } else {
-        return api.post('/products', payload);
+        return createProduct(payload);
       }
     },
     onSuccess: async (response) => {
@@ -156,7 +155,7 @@ export default function ProductForm() {
         const validVariants = (formData.variants || []).filter((v: any) => v.name && v.sku);
         const variantPromises = validVariants.map((v: any) => {
           const parsedOptions = typeof v.option_values === 'string' ? JSON.parse(v.option_values) : v.option_values;
-          return api.post(`/products/${createdId}/variants`, {
+          return addProductVariant(createdId, {
             sku: v.sku,
             name: v.name,
             option_values: parsedOptions,
@@ -168,7 +167,7 @@ export default function ProductForm() {
         });
 
         const relatedPromises = (formData.related_product_ids || []).map((relatedId: string) =>
-          api.post(`/products/${createdId}/related`, { relatedId })
+          addRelatedProduct(createdId, relatedId)
         );
 
         const promises = [...variantPromises, ...relatedPromises];

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { startImportJob, fetchImportJob } from './api/products';
 
 const ENTITY_TYPES = [
   { value: 'product', label: 'Products', columns: 'sku, name, price, sale_price, cost_price, stock_quantity, category, description, status' },
@@ -20,13 +20,7 @@ export default function BulkImportPage() {
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      const fd = new FormData();
-      fd.append('file', file as File);
-      fd.append('entityType', entityType);
-      const { data } = await api.post('/admin/import', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return data.data as { jobId: string; status: string };
+      return startImportJob(entityType, file as File);
     },
     onSuccess: (d) => {
       setJobId(d.jobId);
@@ -40,15 +34,15 @@ export default function BulkImportPage() {
     let active = true;
     const poll = async () => {
       try {
-        const { data } = await api.get(`/admin/import/${jobId}`);
+        const jobData = await fetchImportJob(jobId);
         if (!active) return;
-        setJob(data.data.job);
-        const s = data.data.job.status;
+        setJob(jobData.job);
+        const s = jobData.job.status;
         if (s === 'completed' || s === 'failed' || s === 'partial') {
           if (pollRef.current) window.clearInterval(pollRef.current);
           qc.invalidateQueries({ queryKey: ['products-list-minimal'] });
           qc.invalidateQueries({ queryKey: ['inventory', 'levels'] });
-          toast.success(`Import ${s} (${data.data.job.processed_rows}/${data.data.job.total_rows} rows)`);
+          toast.success(`Import ${s} (${jobData.job.processed_rows}/${jobData.job.total_rows} rows)`);
         }
       } catch {
         /* ignore transient */

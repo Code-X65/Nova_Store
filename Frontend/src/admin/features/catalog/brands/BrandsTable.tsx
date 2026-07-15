@@ -1,5 +1,8 @@
+import { useMemo } from 'react';
 import { PencilIcon, TrashIcon, PhotoIcon, StarIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
 
 export interface Brand {
  id: string;
@@ -39,7 +42,111 @@ function SkeletonRow() {
  );
 }
 
+const columnHelper = createColumnHelper<Brand>();
+
 export function BrandsTable({ brands, isLoading, onEdit, onDelete }: BrandsTableProps) {
+ const columns = useMemo(() => [
+ columnHelper.display({
+ id: 'logo',
+ header: 'Logo',
+ cell: (info) => {
+ const brand = info.row.original;
+ return (
+ <div className="w-10 h-10 bg-transparent flex items-center justify-center overflow-hidden">
+ {brand.logo_url || brand.thumbnail_url ? (
+ <img
+ src={brand.logo_url || brand.thumbnail_url || ''}
+ alt={brand.name}
+ className="w-full h-full object-cover"
+ onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+ />
+ ) : (
+ <PhotoIcon className="w-5 h-5 text-[var(--neu-text)] opacity-40" />
+ )}
+ </div>
+ );
+ },
+ }),
+ columnHelper.display({
+ id: 'name',
+ header: 'Name',
+ cell: (info) => {
+ const brand = info.row.original;
+ return (
+ <>
+ <p className="font-bold text-white text-sm">{brand.name}</p>
+ <p className="text-[10px] font-mono text-[var(--neu-text)] mt-0.5 truncate max-w-[200px]">
+ /{brand.slug}
+ </p>
+ </>
+ );
+ },
+ }),
+ columnHelper.accessor('product_count', {
+ header: 'Products',
+ cell: (info) => {
+ const brand = info.row.original;
+ return brand.product_count > 0 ? (
+ <Link
+ to={`/catalog/products?brand_id=${brand.id}`}
+ className="badge-muted hover:text-blue-400 hover:border-blue-400/50 cursor-pointer transition-colors"
+ title="View Products"
+ >
+ {brand.product_count}
+ </Link>
+ ) : (
+ <span className="badge-muted">{brand.product_count}</span>
+ );
+ },
+ }),
+ columnHelper.display({
+ id: 'status',
+ header: 'Status',
+ cell: (info) => {
+ const brand = info.row.original;
+ return (
+ <div className="flex items-center gap-1.5">
+ {brand.is_active ? (
+ <span className="badge-success">Active</span>
+ ) : (
+ <span className="badge-muted">Inactive</span>
+ )}
+ {brand.is_featured && (
+ <span className="badge-nova flex items-center gap-1">
+ <StarIcon className="w-3 h-3" /> Featured
+ </span>
+ )}
+ </div>
+ );
+ },
+ }),
+ columnHelper.display({
+ id: 'actions',
+ header: '',
+ cell: (info) => {
+ const brand = info.row.original;
+ return (
+ <div className="flex items-center justify-end gap-1">
+ <button
+ onClick={() => onEdit(brand)}
+ className="p-2 text-[var(--neu-text)] hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+ title="Edit Brand"
+ >
+ <PencilIcon className="w-4 h-4" />
+ </button>
+ <button
+ onClick={() => onDelete(brand)}
+ className="p-2 text-[var(--neu-text)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+ title="Archive Brand"
+ >
+ <TrashIcon className="w-4 h-4" />
+ </button>
+ </div>
+ );
+ },
+ }),
+ ], [onEdit, onDelete]);
+
  if (isLoading) {
  return (
  <div className="table-wrapper overflow-x-auto">
@@ -74,98 +181,6 @@ export function BrandsTable({ brands, isLoading, onEdit, onDelete }: BrandsTable
  }
 
  return (
- <div className="table-wrapper overflow-x-auto">
- <table className="table min-w-[700px]">
- <thead>
- <tr>
- <th className="w-16">Logo</th>
- <th>Name</th>
- <th>Products</th>
- <th>Status</th>
- <th className="text-right">Actions</th>
- </tr>
- </thead>
- <tbody>
- {brands.map(brand => (
- <tr key={brand.id} className={!brand.is_active ? 'opacity-70' : ''}>
- {/* Logo */}
- <td className="w-16">
- <div className="w-10 h-10 bg-transparent flex items-center justify-center overflow-hidden">
- {brand.logo_url || brand.thumbnail_url ? (
- <img
- src={brand.logo_url || brand.thumbnail_url || ''}
- alt={brand.name}
- className="w-full h-full object-cover"
- onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
- />
- ) : (
- <PhotoIcon className="w-5 h-5 text-[var(--neu-text)] opacity-40" />
- )}
- </div>
- </td>
-
- {/* Name & Slug */}
- <td>
- <p className="font-bold text-white text-sm">{brand.name}</p>
- <p className="text-[10px] font-mono text-[var(--neu-text)] mt-0.5 truncate max-w-[200px]">
- /{brand.slug}
- </p>
- </td>
-
- {/* Products */}
- <td>
- {brand.product_count > 0 ? (
- <Link 
- to={`/catalog/products?brand_id=${brand.id}`} 
- className="badge-muted hover:text-blue-400 hover:border-blue-400/50 cursor-pointer transition-colors"
- title="View Products"
- >
- {brand.product_count}
- </Link>
- ) : (
- <span className="badge-muted">{brand.product_count}</span>
- )}
- </td>
-
- {/* Status */}
- <td>
- <div className="flex items-center gap-1.5">
- {brand.is_active ? (
- <span className="badge-success">Active</span>
- ) : (
- <span className="badge-muted">Inactive</span>
- )}
- {brand.is_featured && (
- <span className="badge-nova flex items-center gap-1">
- <StarIcon className="w-3 h-3" /> Featured
- </span>
- )}
- </div>
- </td>
-
- {/* Actions */}
- <td className="text-right">
- <div className="flex items-center justify-end gap-1">
- <button
- onClick={() => onEdit(brand)}
- className="p-2 text-[var(--neu-text)] hover:text-white hover:bg-white/10 rounded-lg transition-colors"
- title="Edit Brand"
- >
- <PencilIcon className="w-4 h-4" />
- </button>
- <button
- onClick={() => onDelete(brand)}
- className="p-2 text-[var(--neu-text)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
- title="Archive Brand"
- >
- <TrashIcon className="w-4 h-4" />
- </button>
- </div>
- </td>
- </tr>
- ))}
- </tbody>
- </table>
- </div>
+ <DataTable columns={columns} data={brands} rowClassName={(brand) => (brand.is_active ? '' : 'opacity-70')} />
  );
 }

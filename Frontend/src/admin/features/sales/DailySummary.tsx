@@ -1,15 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchDailySummary } from './api/sales';
 import { StatCard } from '@/shared/ui/StatCard';
 import { ShoppingBagIcon, CurrencyDollarIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 
 export default function DailySummary() {
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-sales-daily-summary'],
- queryFn: async () => {
- const { data } = await api.get('/admin/sales/daily-summary');
- return data.data; // { today: {}, yesterday: {} }
- }
+ queryFn: fetchDailySummary
  });
 
  const today = response?.today || { revenue: 0, orders: 0, aov: 0 };

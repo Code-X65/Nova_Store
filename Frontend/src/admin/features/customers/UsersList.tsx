@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchUsers } from './api/customers';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
@@ -12,12 +12,7 @@ export default function UsersList() {
 
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-users', page, search],
- queryFn: async () => {
- const { data } = await api.get('/admin/users', {
- params: { page, limit: 20, search }
- });
- return data.data;
- }
+ queryFn: async () => fetchUsers({ page, limit: 20, search })
  });
 
  const users = Array.isArray(response) ? response : response?.users || [];

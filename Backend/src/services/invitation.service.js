@@ -41,7 +41,7 @@ class InvitationService {
       throw err;
     }
 
-    const { roles: inviterRoles } = await userModel.getUserRolesAndPermissions(invitedBy);
+    const { roles: inviterRoles, permissions: inviterPermissions } = await userModel.getUserRolesAndPermissions(invitedBy);
     const isStoreOwner = inviterRoles.includes('STORE_OWNER');
     const isManager = inviterRoles.includes('MANAGER');
 
@@ -49,6 +49,19 @@ class InvitationService {
       const err = new Error('Only Store Owners and Managers can send invitations.');
       err.statusCode = 403;
       throw err;
+    }
+
+    // Extra ad-hoc `permissions` attached to the invite must not exceed what the
+    // inviter holds themselves — otherwise a MANAGER could hand out permissions
+    // (e.g. 'role:manage', 'settings:write') beyond their own ceiling.
+    if (!isStoreOwner && permissions && permissions.length > 0) {
+      const effectivePermissions = inviterPermissions || [];
+      const excess = permissions.filter(p => !effectivePermissions.includes(p));
+      if (excess.length > 0) {
+        const err = new Error(`Cannot grant permissions you do not hold yourself: ${excess.join(', ')}`);
+        err.statusCode = 403;
+        throw err;
+      }
     }
 
     // 2. Email must not already be registered

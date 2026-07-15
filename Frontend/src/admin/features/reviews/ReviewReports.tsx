@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchReviewReports, resolveReviewReport, dismissReviewReport } from './api/reviews';
 import toast from 'react-hot-toast';
 
 export default function ReviewReports() {
@@ -10,19 +10,11 @@ export default function ReviewReports() {
 
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-review-reports', page, status],
- queryFn: async () => {
- // Endpoint likely /admin/review-reports or /admin/reviews/reports
- const { data } = await api.get('/admin/review-reports', {
- params: { page, limit: 20, status }
- }).catch(() => ({ data: { data: { reports: [] } } }));
- return data.data; // { reports }
- }
+ queryFn: async () => fetchReviewReports({ page, limit: 20, status })
  });
 
  const resolveMutation = useMutation({
- mutationFn: async ({ id, action_taken }: { id: string, action_taken: string }) => {
- return api.patch(`/admin/review-reports/${id}`, { status: 'resolved', action_taken });
- },
+ mutationFn: async ({ id, action_taken }: { id: string, action_taken: string }) => resolveReviewReport(id, action_taken),
  onSuccess: () => {
  toast.success('Report resolved');
  qc.invalidateQueries({ queryKey: ['admin-review-reports'] });
@@ -31,9 +23,7 @@ export default function ReviewReports() {
  });
 
  const dismissMutation = useMutation({
- mutationFn: async (id: string) => {
- return api.patch(`/admin/review-reports/${id}`, { status: 'dismissed' });
- },
+ mutationFn: async (id: string) => dismissReviewReport(id),
  onSuccess: () => {
  toast.success('Report dismissed');
  qc.invalidateQueries({ queryKey: ['admin-review-reports'] });

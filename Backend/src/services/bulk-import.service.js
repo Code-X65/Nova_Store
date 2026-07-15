@@ -7,6 +7,7 @@ const { SINGLE_STORE_ID } = require('../config/store');
 const slugify = require('../utils/slug-generator');
 const CatalogVariantService = require('./catalog-variant.service');
 const WarehouseService = require('./warehouse.service');
+const { computeDiscountPercentage } = require('./product.service');
 const logger = require('../utils/logger');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
@@ -88,6 +89,9 @@ async function writeProducts(rows, userId, rejectRows) {
       const { data: exists } = await supabaseAdmin.from('products').select('id').eq('slug', slug).maybeSingle();
       if (exists) slug = `${baseSlug}-${Math.floor(Math.random() * 1e4)}`;
 
+      const price = Number(row.price);
+      const salePrice = row.sale_price != null && row.sale_price !== '' ? Number(row.sale_price) : null;
+
       const { error } = await supabaseAdmin
         .from('products')
         .insert({
@@ -96,8 +100,9 @@ async function writeProducts(rows, userId, rejectRows) {
           slug,
           description: row.description || null,
           category: row.category || null,
-          price: Number(row.price),
-          sale_price: row.sale_price != null && row.sale_price !== '' ? Number(row.sale_price) : null,
+          price,
+          sale_price: salePrice,
+          discount_percentage: computeDiscountPercentage(price, salePrice),
           cost_price: row.cost_price != null && row.cost_price !== '' ? Number(row.cost_price) : null,
           stock_quantity: row.stock_quantity != null && row.stock_quantity !== '' ? Number(row.stock_quantity) : 0,
           status: row.status || 'published',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchRoles } from './api/roles';
+import { fetchInvitations, sendInvitation, revokeInvitation, resendInvitation } from './api/invitations';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { TrashIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
@@ -12,25 +13,17 @@ export default function Invitations() {
 
  const { data: rolesData } = useQuery({
  queryKey: ['roles'],
- queryFn: async () => {
- const { data } = await api.get('/roles'); // assuming /api/v1/roles is public/admin accessible
- return data.data;
- }
+ queryFn: fetchRoles // assuming /api/v1/roles is public/admin accessible
  });
 
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-invitations'],
- queryFn: async () => {
- const { data } = await api.get('/admin/invitations', {
- params: { status: 'pending' }
- });
- return data.data; // { invitations }
- }
+ queryFn: async () => fetchInvitations({ status: 'pending' })
  });
 
  const inviteMutation = useMutation({
  mutationFn: async () => {
- return api.post('/admin/invitations', { email, role_id: roleId });
+ return sendInvitation(email, roleId);
  },
  onSuccess: () => {
  toast.success('Invitation sent!');
@@ -47,7 +40,7 @@ export default function Invitations() {
 
  const revokeMutation = useMutation({
  mutationFn: async (id: string) => {
- return api.delete(`/admin/invitations/${id}`);
+ return revokeInvitation(id);
  },
  onSuccess: () => {
  toast.success('Invitation revoked');
@@ -62,7 +55,7 @@ export default function Invitations() {
 
  const resendMutation = useMutation({
  mutationFn: async (id: string) => {
- return api.post(`/admin/invitations/${id}/resend`);
+ return resendInvitation(id);
  },
  onSuccess: () => {
  toast.success('Invitation resent!');

@@ -4,6 +4,13 @@ import type { AdminSession } from '@/shared/api';
 export interface LoginCredentials {
   email: string;
   password: string;
+  twoFactorToken?: string;
+  recoveryCode?: string;
+}
+
+export interface TwoFactorRequiredError {
+  code: 'TWO_FACTOR_REQUIRED';
+  message: string;
 }
 
 /**

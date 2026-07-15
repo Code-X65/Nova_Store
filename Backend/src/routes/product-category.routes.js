@@ -376,7 +376,7 @@ router.post('/bulk', hasPermission('category:create'), validate(categoryValidato
  *       200:
  *         description: Categories reordered successfully
  */
-router.put('/reorder', hasPermission('category:write'), categoryController.reorderCategories);
+router.put('/reorder', hasPermission('category:write'), validate(categoryValidator.reorderCategories), categoryController.reorderCategories);
 
 /**
  * @swagger

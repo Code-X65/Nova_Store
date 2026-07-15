@@ -32,8 +32,14 @@ exports.createCoupon = async (req, res, next) => {
 
 exports.getCouponById = async (req, res, next) => {
   try {
-    const analytics = await CouponService.getCouponById(req.params.id);
-    res.status(200).json({ success: true, data: analytics });
+    const coupon = await CouponService.getCouponById(req.params.id);
+    if (!coupon) {
+      return res.status(404).json({ success: false, error: 'Coupon not found' });
+    }
+    // Flat coupon record — the edit form reads fields directly off `data.data`
+    // (e.g. `data.data.code`), not nested under a `coupon` key. Keep this
+    // distinct from getUsageAnalytics below, which intentionally nests.
+    res.status(200).json({ success: true, data: coupon });
   } catch (error) {
     next(error);
   }
@@ -71,7 +77,7 @@ exports.deactivateCoupon = async (req, res, next) => {
 
 exports.getUsageAnalytics = async (req, res, next) => {
   try {
-    const analytics = await CouponService.getCouponById(req.params.id);
+    const analytics = await CouponService.getCouponUsageAnalytics(req.params.id);
     res.status(200).json({ success: true, data: analytics });
   } catch (error) {
     next(error);

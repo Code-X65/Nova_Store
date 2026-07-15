@@ -1,6 +1,7 @@
 const CartService = require('./cart.service');
 const CouponModel = require('../models/coupon.model');
 const CouponService = require('./coupon.service');
+const CampaignService = require('./campaign.service');
 const OrderModel = require('../models/order.model');
 const ProductModel = require('../models/product.model');
 const shippingService = require('./shipping.service');
@@ -35,6 +36,7 @@ class CheckoutService {
 
       let availableQty = 0;
       let name = product.name;
+      const canBackorder = !!product.allow_backorder;
 
       if (item.variantId) {
         const variant = (product.variants || []).find(v => v.id === item.variantId);
@@ -56,7 +58,7 @@ class CheckoutService {
         }
       }
 
-      if (availableQty < item.quantity) {
+      if (!canBackorder && availableQty < item.quantity) {
         issues.push(`Insufficient available stock for ${name}. Available: ${availableQty}`);
       }
 
@@ -124,14 +126,36 @@ class CheckoutService {
     }
 
     // 2. Handle Coupon
-    let discountAmount = 0;
     let couponId = null;
+    let couponItemDiscounts = {};
     if (couponCode) {
       const customerEmail = address?.email || checkoutData.email;
-      const couponResult = await CouponService.validateAndApplyCoupon(userId, cartId, couponCode, validation.subtotal, customerEmail);
-      discountAmount = couponResult.discount;
+      const couponResult = await CouponService.validateAndApplyCoupon(userId, sessionId, couponCode, validation.subtotal, customerEmail);
       couponId = couponResult.coupon.id;
+      couponItemDiscounts = couponResult.itemDiscounts || {};
     }
+
+    // 2b. Handle active marketing campaigns. A campaign can independently
+    // discount any item regardless of whether a coupon was applied — but on
+    // any single item where BOTH a campaign and the coupon apply, only the
+    // larger of the two discounts is used (never stacked), per item.
+    let discountAmount = 0;
+    for (const item of validation.cart.items) {
+      const campaign = await CampaignService.getActiveDiscountForProduct(
+        item.productId,
+        item.product?.category_id || null,
+        item.product?.brand_id || null
+      );
+      let campaignDiscount = 0;
+      if (campaign) {
+        campaignDiscount = campaign.discountType === 'percentage'
+          ? (item.total * campaign.discountValue) / 100
+          : Math.min(campaign.discountValue, item.total);
+      }
+      const couponDiscount = couponItemDiscounts[item.id] || 0;
+      discountAmount += Math.max(campaignDiscount, couponDiscount);
+    }
+    discountAmount = parseFloat(discountAmount.toFixed(2));
 
     // 3. Calculate Final Totals
     const shippingCost = await this.getShippingCost(shippingOption, validation.subtotal);
@@ -178,13 +202,23 @@ class CheckoutService {
     const reservationErrors = [];
     for (const item of validation.cart.items) {
       try {
-        await InventoryReservationService.reserveStock(item.productId, item.quantity, item.variantId || null);
+        await InventoryReservationService.reserveStock(item.productId, item.quantity, item.variantId || null, checkoutSessionId);
       } catch (err) {
         reservationErrors.push(`${item.product.name}: ${err.message}`);
       }
     }
     if (reservationErrors.length > 0) {
       throw new Error(`Stock reservation failed: ${reservationErrors.join(', ')}`);
+    }
+
+    // 6b. Atomically claim the coupon's usage slot now that the order exists —
+    // this is what actually closes the race where two concurrent checkouts
+    // could both pass validateAndApplyCoupon before either had recorded usage.
+    if (couponId) {
+      const claimed = await CouponService.claimCouponUsage(userId, couponId, createdOrder.id);
+      if (!claimed) {
+        throw new Error('This coupon has just reached its usage limit. Please remove it and try again.');
+      }
     }
 
     // 7. Trigger notifications
@@ -242,10 +276,14 @@ class CheckoutService {
         if (rate && rate.min_order_amount && cartTotal >= rate.min_order_amount && rate.rate == 0) {
             return 0; // Free shipping
         }
-        return rate ? parseFloat(rate.rate) : 0;
+        if (rate) return parseFloat(rate.rate);
+        // Rate id not found — fall through to the standard default below
+        // rather than silently charging nothing.
       } catch (err) {
-        return 0;
+        // DB lookup failure — fall through to the standard default below
+        // instead of silently granting free shipping.
       }
+      return Number(process.env.SHIPPING_COST_STANDARD || 1500);
     }
 
     // Fallback to legacy hardcoded options

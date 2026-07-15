@@ -3,7 +3,8 @@ import toast from 'react-hot-toast';
 import { fetchPendingRiders, approveRider, rejectRider, listGuarantors, type Rider } from './api/riders';
 import GuarantorCard from './GuarantorCard';
 import { useState } from 'react';
-import { XMarkIcon, CheckIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { Modal } from '@/admin/components/ui/Modal';
 
 interface PendingRidersModalProps {
   onClose: () => void;
@@ -16,7 +17,7 @@ export default function PendingRidersModal({ onClose }: PendingRidersModalProps)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['pending-riders'],
-    queryFn: () => fetchPendingRiders(),
+    queryFn: () => fetchPendingRiders({}),
   });
 
   const approveMutation = useMutation({
@@ -44,20 +45,21 @@ export default function PendingRidersModal({ onClose }: PendingRidersModalProps)
   const riders: Rider[] = data?.data || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-3xl max-h-[80vh] overflow-hidden glass-card flex flex-col animate-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--panel-border)]">
-          <div>
-            <h3 className="text-base font-bold text-white">Pending Rider Approvals</h3>
-            <p className="text-xs text-[var(--neu-text)] mt-0.5">{riders.length} rider{riders.length !== 1 ? 's' : ''} awaiting review</p>
-          </div>
-          <button onClick={onClose} className="text-[var(--neu-text)] hover:text-white transition-colors">
-            <XMarkIcon className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-auto p-6 space-y-4">
+    <Modal
+      onClose={onClose}
+      variant="panel"
+      size="lg"
+      panelClassName="glass-card"
+      shadowClassName=""
+      maxHeightClassName="max-h-[80vh]"
+      animated
+      headerPaddingClassName="px-6 py-5"
+      headerClassName="border-[var(--panel-border)]"
+      titleClassName="text-base font-bold text-white"
+      title="Pending Rider Approvals"
+      description={`${riders.length} rider${riders.length !== 1 ? 's' : ''} awaiting review`}
+      bodyClassName="space-y-4"
+    >
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center py-12">
               <div className="w-8 h-8 rounded-full border-2 border-nova-500 border-t-transparent animate-spin" />
@@ -81,7 +83,6 @@ export default function PendingRidersModal({ onClose }: PendingRidersModalProps)
               />
             ))
           )}
-        </div>
 
         {rejectingId && (
           <div className="px-6 py-4 border-t border-[var(--panel-border)] space-y-2">
@@ -107,8 +108,7 @@ export default function PendingRidersModal({ onClose }: PendingRidersModalProps)
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
 

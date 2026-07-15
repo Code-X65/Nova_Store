@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { addProductVariant, updateProductVariant, deleteProductVariant } from '../api/products';
 import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { ImageUploadInput } from '@/admin/components/ui/ImageUploadInput';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
+
+const columnHelper = createColumnHelper<any>();
 
 interface VariantManagerProps {
  productId?: string;
@@ -66,10 +70,10 @@ export function VariantManager({ productId, variants, onChange }: VariantManager
  } else {
  // Edit Mode (API directly)
  if (editingVariant && editingVariant.id) {
- const { data } = await api.put(`/products/${productId}/variants/${editingVariant.id}`, payload);
+ const data = await updateProductVariant(productId, editingVariant.id, payload);
  return { isLocal: false, isEdit: true, variant: data.data?.variant || payload };
  } else {
- const { data } = await api.post(`/products/${productId}/variants`, payload);
+ const data = await addProductVariant(productId, payload);
  return { isLocal: false, isEdit: false, variant: data.data?.variant || payload };
  }
  }
@@ -133,7 +137,7 @@ export function VariantManager({ productId, variants, onChange }: VariantManager
  const deleteMutation = useMutation({
  mutationFn: async (variantId: string) => {
  if (!productId) return variantId;
- await api.delete(`/products/${productId}/variants/${variantId}`);
+ await deleteProductVariant(productId, variantId);
  return variantId;
  },
  onMutate: async (variantId: string) => {
@@ -158,6 +162,66 @@ export function VariantManager({ productId, variants, onChange }: VariantManager
  }
  }
  });
+
+ const columns = useMemo(() => [
+ columnHelper.accessor('name', {
+ header: 'Variant',
+ cell: (info) => {
+ const v = info.row.original;
+ return (
+ <div className="font-medium text-white flex items-center gap-3">
+ {v.image_url ? (
+ <img src={v.image_url} alt="" className="w-8 h-8 rounded-md object-cover shadow-[var(--neu-inner-sm)]" />
+ ) : (
+ <div className="w-8 h-8 rounded-md bg-[var(--panel-bg)] shadow-[var(--neu-inner-sm)] flex items-center justify-center" />
+ )}
+ {v.name}
+ </div>
+ );
+ },
+ }),
+ columnHelper.accessor('sku', {
+ header: 'SKU',
+ cell: (info) => <span className="text-[var(--neu-text)]">{info.getValue()}</span>,
+ }),
+ columnHelper.accessor('stock_quantity', {
+ header: 'Stock',
+ cell: (info) => <span className="text-[var(--neu-text)]">{info.getValue()}</span>,
+ }),
+ columnHelper.accessor('price_modifier', {
+ header: 'Price Mod',
+ cell: (info) => {
+ const val = info.getValue();
+ return (
+ <span className="text-green-400">
+ {val ? (Number(val) > 0 ? `+${val}` : val) : '—'}
+ </span>
+ );
+ },
+ }),
+ columnHelper.display({
+ id: 'actions',
+ header: '',
+ cell: (info) => {
+ const v = info.row.original;
+ return (
+ <div className="text-right space-x-2">
+ <button type="button" onClick={(e) => { e.stopPropagation(); openEdit(v); }} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors">
+ <PencilIcon className="w-4 h-4" />
+ </button>
+ <button type="button" onClick={(e) => {
+ e.stopPropagation();
+ if (confirm('Delete this variant?')) deleteMutation.mutate(v.id);
+ }}
+ className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+ >
+ <TrashIcon className="w-4 h-4" />
+ </button>
+ </div>
+ );
+ },
+ }),
+ ], [deleteMutation]);
 
  const handleSubmit = (e: React.FormEvent) => {
  e.preventDefault();
@@ -187,49 +251,8 @@ export function VariantManager({ productId, variants, onChange }: VariantManager
  </div>
 
  {variants.length > 0 ? (
- <div className="overflow-x-auto rounded-xl shadow-[var(--neu-inner)] bg-[var(--neu-bg)]">
- <table className="w-full text-left text-sm">
- <thead className="bg-[var(--panel-bg)] text-[var(--neu-text)] uppercase text-xs tracking-wider">
- <tr>
- <th className="px-4 py-3">Variant</th>
- <th className="px-4 py-3">SKU</th>
- <th className="px-4 py-3">Stock</th>
- <th className="px-4 py-3">Price Mod</th>
- <th className="px-4 py-3 text-right">Actions</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-[var(--panel-border)]">
- {variants.map((v, i) => (
- <tr key={v.id || i} className="hover:bg-[var(--panel-bg)]/50 transition-colors">
- <td className="px-4 py-3 font-medium text-white flex items-center gap-3">
- {v.image_url ? (
- <img src={v.image_url} alt="" className="w-8 h-8 rounded-md object-cover shadow-[var(--neu-inner-sm)]" />
- ) : (
- <div className="w-8 h-8 rounded-md bg-[var(--panel-bg)] shadow-[var(--neu-inner-sm)] flex items-center justify-center" />
- )}
- {v.name}
- </td>
- <td className="px-4 py-3 text-[var(--neu-text)]">{v.sku}</td>
- <td className="px-4 py-3 text-[var(--neu-text)]">{v.stock_quantity}</td>
- <td className="px-4 py-3 text-[var(--neu-text)] text-green-400">
- {v.price_modifier ? (Number(v.price_modifier) > 0 ? `+${v.price_modifier}` : v.price_modifier) : '—'}
- </td>
- <td className="px-4 py-3 text-right space-x-2">
- <button type="button" onClick={() => openEdit(v)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors">
- <PencilIcon className="w-4 h-4" />
- </button>
- <button type="button" onClick={() => {
- if (confirm('Delete this variant?')) deleteMutation.mutate(v.id);
- }} 
- className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
- >
- <TrashIcon className="w-4 h-4" />
- </button>
- </td>
- </tr>
- ))}
- </tbody>
- </table>
+ <div className="overflow-hidden rounded-xl shadow-[var(--neu-inner)] bg-[var(--neu-bg)]">
+ <DataTable columns={columns} data={variants} disablePagination />
  </div>
  ) : (
  <div className="text-center py-10 shadow-[var(--neu-inner)] rounded-xl text-[var(--neu-text)] text-sm">

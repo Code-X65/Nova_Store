@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { createCategoryAttribute, updateCategoryAttribute } from '../api/attributes';
 import { XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 export interface AttributeTemplate {
@@ -105,9 +105,9 @@ export function AttributeForm({ categoryId, editing, onClose }: AttributeFormPro
  allowed_values: form.attribute_type === 'enum' ? form.allowed_values : null,
  };
  if (isEditing && editing) {
- return api.put(`/attributes/${editing.id}`, payload);
+ return updateCategoryAttribute(editing.id, payload);
  }
- return api.post(`/categories/${categoryId}/attributes`, payload);
+ return createCategoryAttribute(categoryId, payload);
  },
  onSuccess: () => {
  toast.success(isEditing ? 'Attribute updated' : 'Attribute created');

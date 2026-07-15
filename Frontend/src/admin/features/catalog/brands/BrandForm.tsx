@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { createBrand, updateBrand } from '../api/brands';
 import { XMarkIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { ImageUploadInput } from '@/admin/components/ui/ImageUploadInput';
 import type { Brand } from './BrandsTable';
@@ -108,9 +108,9 @@ export function BrandForm({ mode, onClose }: BrandFormProps) {
  : undefined,
  };
  if (isEditing && editId) {
- return api.patch(`/brands/${editId}`, payload);
+ return updateBrand(editId, payload);
  }
- return api.post('/brands', payload);
+ return createBrand(payload);
  },
  onMutate: async () => {
  await qc.cancelQueries({ queryKey: ['brands'] });

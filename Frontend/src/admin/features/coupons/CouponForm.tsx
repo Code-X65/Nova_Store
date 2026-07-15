@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchCoupon, createCoupon, updateCoupon } from './api/coupons';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -24,10 +24,7 @@ export default function CouponForm() {
 
  const { data: couponData, isLoading } = useQuery({
  queryKey: ['admin-coupon', id],
- queryFn: async () => {
- const { data } = await api.get(`/admin/coupons/${id}`);
- return data.data;
- },
+ queryFn: async () => fetchCoupon(id!),
  enabled: isEditing,
  });
 
@@ -63,9 +60,9 @@ export default function CouponForm() {
  };
  
  if (isEditing) {
- return api.patch(`/admin/coupons/${id}`, payload);
+ return updateCoupon(id!, payload);
  } else {
- return api.post('/admin/coupons', payload);
+ return createCoupon(payload);
  }
  },
  onSuccess: () => {
@@ -212,7 +209,7 @@ export default function CouponForm() {
  </button>
  <button
  type="submit"
- disabled={saveMutation.isPending}
+ disabled={saveMutation.isPending || !formData.code.trim() || formData.discount_value <= 0}
  className="btn-primary"
  >
  {isEditing ? 'Save Changes' : 'Create Coupon'}

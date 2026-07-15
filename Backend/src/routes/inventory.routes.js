@@ -226,46 +226,6 @@ router.post('/bulk-update', requireInventoryStaff, validate(bulkUpdateSchema), i
 
 /**
  * @swagger
- * /inventory/alerts:
- *   get:
- *     summary: Retrieve current alert configurations (Admin only)
- *     tags: [Inventory]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: productId
- *         schema: { type: string, format: uuid }
- *     responses:
- *       200:
- *         description: Alert configurations
- *   post:
- *     summary: Configure low stock alert recipients/settings (Admin only)
- *     tags: [Inventory]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               productId: { type: string, format: uuid, description: "Optional - for product-specific alerts" }
- *               threshold: { type: integer, example: 5 }
- *               notifyEmails: { type: array, items: { type: string }, example: ["admin@store.com"] }
- *               enabled: { type: boolean, default: true }
- *     responses:
- *       200:
- *         description: Alert configured successfully
- */
-router.get('/alerts', hasPermission('inventory:read'), inventoryController.getAlerts);
-router.post('/alerts', requireInventoryStaff, inventoryController.configureAlerts);
-router.put('/alerts/:id', requireInventoryStaff, inventoryController.updateAlert);
-router.delete('/alerts/:id', requireInventoryStaff, inventoryController.deleteAlert);
-
-/**
- * @swagger
  * /inventory/{id}:
  *   get:
  *     summary: Get detailed inventory info for a product (Admin only)

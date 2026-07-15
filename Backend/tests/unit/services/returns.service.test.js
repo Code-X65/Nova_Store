@@ -27,6 +27,7 @@ function rma(status) {
 beforeEach(() => {
   jest.clearAllMocks();
   OrderModel.findById.mockResolvedValue(order);
+  OrderModel.update.mockResolvedValue(order);
   AuditService.log.mockResolvedValue(undefined);
   // _isAllowed: allow any transition in tests
   supabase.from.mockReturnValue({

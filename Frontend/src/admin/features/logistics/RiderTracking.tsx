@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useMyPermissions } from '@/admin/hooks/useMyPermissions';
 import { hasPermission } from '@/admin/lib/permissions';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
 import { pingLocation, fetchLatestLocation, fetchOrderRoute, type LocationPing } from './api/riderTracking';
+
+const columnHelper = createColumnHelper<LocationPing>();
 
 export default function RiderTracking() {
   const qc = useQueryClient();
@@ -35,6 +39,22 @@ export default function RiderTracking() {
 
   const loc: LocationPing | null = latest.data || null;
   const pings: LocationPing[] = route.data || [];
+
+  const routeColumns = useMemo(() => [
+    columnHelper.display({
+      id: 'location',
+      header: 'Location',
+      cell: (info) => <span className="text-gray-300">{info.row.original.lat}, {info.row.original.lng}</span>,
+    }),
+    columnHelper.accessor('heading', {
+      header: 'Heading',
+      cell: (info) => <span className="text-gray-400">{info.getValue() != null ? `${info.getValue()}°` : '—'}</span>,
+    }),
+    columnHelper.accessor('captured_at', {
+      header: 'Time',
+      cell: (info) => <span className="text-gray-500">{new Date(info.getValue()).toLocaleTimeString()}</span>,
+    }),
+  ], []);
 
   return (
     <div className="space-y-6">
@@ -69,17 +89,7 @@ export default function RiderTracking() {
 
       <div className="bg-black rounded-xl overflow-hidden">
         <h2 className="p-4 font-semibold text-white">Order Route ({pings.length} pings)</h2>
-        <table className="w-full text-sm">
-          <tbody>
-            {pings.map((p) => (
-              <tr key={p.id} className="border-t border-white/5">
-                <td className="p-3 text-gray-300">{p.lat}, {p.lng}</td>
-                <td className="p-3 text-gray-400">{p.heading != null ? `${p.heading}°` : '—'}</td>
-                <td className="p-3 text-gray-500">{new Date(p.captured_at).toLocaleTimeString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable columns={routeColumns} data={pings} />
       </div>
     </div>
   );

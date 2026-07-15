@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchStockLevels } from './api/inventory';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
@@ -32,12 +32,7 @@ export default function StockLevels() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', 'stock-levels', search, page],
-    queryFn: async () => {
-      const { data } = await api.get('/products', {
-        params: { search, limit: 20, page }
-      });
-      return data.data as PaginatedProducts;
-    },
+    queryFn: async () => (await fetchStockLevels({ search, limit: 20, page })) as PaginatedProducts,
   });
 
   const products = data?.products || [];

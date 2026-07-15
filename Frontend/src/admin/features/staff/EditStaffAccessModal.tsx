@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchRoles } from './api/roles';
+import { fetchStaffAccess, updateStaffRoles } from './api/staff';
 import toast from 'react-hot-toast';
-import { XMarkIcon, ShieldCheckIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { Modal } from '@/admin/components/ui/Modal';
 
 interface EditStaffAccessModalProps {
  isOpen: boolean;
@@ -17,20 +19,14 @@ export function EditStaffAccessModal({ isOpen, onClose, staffId, staffName }: Ed
  // Fetch available roles
  const { data: rolesData } = useQuery({
  queryKey: ['roles'],
- queryFn: async () => {
- const { data } = await api.get('/roles');
- return data.data || [];
- },
+ queryFn: async () => (await fetchRoles()) || [],
  enabled: isOpen
  });
 
  // Fetch current staff permissions and roles
  const { data: currentAccess, isLoading: isLoadingAccess } = useQuery({
  queryKey: ['admin-permissions', staffId],
- queryFn: async () => {
- const { data } = await api.get(`/admin/${staffId}/permissions`);
- return data.data; 
- },
+ queryFn: async () => fetchStaffAccess(staffId!),
  enabled: isOpen && !!staffId
  });
 
@@ -41,9 +37,7 @@ export function EditStaffAccessModal({ isOpen, onClose, staffId, staffName }: Ed
  }, [currentAccess]);
 
  const updateRolesMutation = useMutation({
- mutationFn: async (roleIds: string[]) => {
- return api.patch(`/admin/${staffId}/roles`, { roleIds });
- }
+ mutationFn: async (roleIds: string[]) => updateStaffRoles(staffId!, roleIds)
  });
 
  const handleSave = async () => {
@@ -67,8 +61,6 @@ export function EditStaffAccessModal({ isOpen, onClose, staffId, staffName }: Ed
  );
  };
 
- if (!isOpen) return null;
-
  const roles = (Array.isArray(rolesData) ? rolesData : (rolesData?.roles || [])).filter((r: any) => r.name !== 'STORE_OWNER');
 
  const hasChanges = () => {
@@ -81,26 +73,43 @@ export function EditStaffAccessModal({ isOpen, onClose, staffId, staffName }: Ed
  const isSaveDisabled = isLoadingAccess || updateRolesMutation.isPending || !hasChanges();
 
  return (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
- <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose} />
- <div className="relative w-full max-w-3xl bg-zinc-950/90 border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] backdrop-blur-2xl">
- 
- {/* Header */}
- <div className="px-6 py-5 flex items-center justify-between border-b bg-white/[0.02]">
- <div>
- <h2 className="text-xl font-bold text-white flex items-center gap-2.5">
+ <Modal
+ isOpen={isOpen}
+ onClose={onClose}
+ variant="panel"
+ size="xl"
+ wrapperClassName="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+ backdropClassName="bg-black/75 backdrop-blur-md"
+ panelClassName="bg-zinc-950/90 border backdrop-blur-2xl"
+ headerClassName="bg-white/[0.02]"
+ footerClassName="bg-white/[0.02]"
+ bodyClassName="space-y-6"
+ titleClassName="text-xl font-bold text-white flex items-center gap-2.5"
+ title={
+ <>
  <ShieldCheckIcon className="w-6 h-6 text-nova-500" />
  Edit Access: {staffName}
- </h2>
- <p className="text-xs text-white/50 mt-1">Manage primary roles and granular permission overrides.</p>
- </div>
- <button onClick={onClose} className="p-2 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
- <XMarkIcon className="w-5 h-5" />
+ </>
+ }
+ description="Manage this administrator's assigned roles."
+ footer={
+ <>
+ <button
+ onClick={onClose}
+ className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 border rounded-xl transition-all"
+ >
+ Cancel
  </button>
- </div>
-
- {/* Body */}
- <div className="p-6 overflow-y-auto flex-1 space-y-6">
+ <button
+ onClick={handleSave}
+ disabled={isSaveDisabled}
+ className="px-5 py-2 text-sm font-semibold text-white bg-nova-600 hover:bg-nova-500 rounded-xl transition-all duration-300 disabled:bg-white/10 disabled:text-white/30 shadow-lg shadow-nova-600/10 hover:shadow-nova-500/20 hover:-translate-y-0.5"
+ >
+ {updateRolesMutation.isPending ? 'Saving...' : 'Save Changes'}
+ </button>
+ </>
+ }
+ >
  {isLoadingAccess ? (
  <div className="flex justify-center items-center py-20 text-white/50">
  <div className="animate-pulse">Loading access details...</div>
@@ -149,26 +158,6 @@ export function EditStaffAccessModal({ isOpen, onClose, staffId, staffName }: Ed
 
  </>
  )}
- </div>
-
- {/* Footer */}
- <div className="px-6 py-4 border-t bg-white/[0.02] flex justify-end gap-3">
- <button 
- onClick={onClose} 
- className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 border rounded-xl transition-all"
- >
- Cancel
- </button>
- <button 
- onClick={handleSave}
- disabled={isSaveDisabled}
- className="px-5 py-2 text-sm font-semibold text-white bg-nova-600 hover:bg-nova-500 rounded-xl transition-all duration-300 disabled:bg-white/10 disabled:text-white/30 shadow-lg shadow-nova-600/10 hover:shadow-nova-500/20 hover:-translate-y-0.5"
- >
- {updateRolesMutation.isPending ? 'Saving...' : 'Save Changes'}
- </button>
- </div>
-
- </div>
- </div>
+ </Modal>
  );
 }

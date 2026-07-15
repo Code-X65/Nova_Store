@@ -55,6 +55,23 @@ class OrderStateMachine {
   }
 
   /**
+   * Validate-only variant of transition() — throws if fromStatus -> toStatus
+   * isn't a legal transition, otherwise returns quietly. Used by callers that
+   * need to perform their own rich update (extra columns, notifications,
+   * dispatch records) but still want the transition legality check to come
+   * from this single shared source of truth rather than a hand-rolled list.
+   */
+  async assertAllowed(fromStatus, toStatus) {
+    if (fromStatus === toStatus) return;
+    const rule = await this.getRule(fromStatus, toStatus);
+    if (!rule) {
+      const err = new Error(`Invalid order transition: ${fromStatus} → ${toStatus}`);
+      err.statusCode = 422;
+      throw err;
+    }
+  }
+
+  /**
    * Perform a validated transition. Persists the new status, writes a
    * history row, and returns the updated order.
    */

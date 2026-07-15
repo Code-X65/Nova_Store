@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchReviews, moderateReview, deleteReview } from './api/reviews';
 import toast from 'react-hot-toast';
 import { StarIcon } from '@heroicons/react/20/solid';
 
@@ -11,18 +11,11 @@ export default function ReviewsModeration() {
 
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-reviews', page, status],
- queryFn: async () => {
- const { data } = await api.get('/admin/reviews', {
- params: { page, limit: 20, status }
- });
- return data.data; // { reviews }
- }
+ queryFn: async () => fetchReviews({ page, limit: 20, status })
  });
 
  const moderateMutation = useMutation({
- mutationFn: async ({ id, newStatus }: { id: string, newStatus: string }) => {
- return api.patch(`/admin/reviews/${id}`, { status: newStatus });
- },
+ mutationFn: async ({ id, newStatus }: { id: string, newStatus: string }) => moderateReview(id, newStatus),
  onSuccess: () => {
  toast.success('Review moderated');
  qc.invalidateQueries({ queryKey: ['admin-reviews'] });
@@ -31,9 +24,7 @@ export default function ReviewsModeration() {
  });
 
  const deleteMutation = useMutation({
- mutationFn: async (id: string) => {
- return api.delete(`/admin/reviews/${id}`);
- },
+ mutationFn: async (id: string) => deleteReview(id),
  onSuccess: () => {
  toast.success('Review deleted');
  qc.invalidateQueries({ queryKey: ['admin-reviews'] });

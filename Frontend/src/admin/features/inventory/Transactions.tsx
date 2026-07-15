@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchTransactions } from './api/inventory';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
@@ -34,12 +34,7 @@ export default function Transactions() {
 
   const { data: response, isLoading } = useQuery({
     queryKey: ['inventory', 'transactions', page, typeFilter],
-    queryFn: async () => {
-    const { data } = await api.get('/inventory/transactions', {
-    params: { page, limit: 20, type: typeFilter || undefined },
-    });
-    return data.data as PaginatedTransactions;
-    },
+    queryFn: async () => (await fetchTransactions({ page, limit: 20, type: typeFilter || undefined })) as PaginatedTransactions,
   });
 
   const transactions = response?.transactions || [];

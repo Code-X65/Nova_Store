@@ -634,10 +634,10 @@ describe('Scenario 4 — Cross-department read access', () => {
       expect(res.status).not.toBe(403);
     });
 
-    it('ORDER_STAFF can view inventory alerts (inventory:read)', async () => {
+    it('ORDER_STAFF can view stock alert rules (inventory:read)', async () => {
       const { agent } = await loginAs('ORDER_STAFF');
 
-      const res = await agent.get('/api/v1/inventory/alerts');
+      const res = await agent.get('/api/v1/admin/stock-alerts');
       expect(res.status).not.toBe(403);
     });
   });
@@ -667,11 +667,11 @@ describe('Scenario 4 — Cross-department read access', () => {
       expect(res.body.success).toBe(false);
     });
 
-    it('ORDER_STAFF receives 403 when configuring alerts (requireInventoryStaff)', async () => {
+    it('ORDER_STAFF receives 403 when creating a stock alert rule (inventory:write)', async () => {
       const { agent, csrfToken } = await loginAs('ORDER_STAFF');
 
       const res = await agent
-        .post('/api/v1/inventory/alerts')
+        .post('/api/v1/admin/stock-alerts')
         .set('x-csrf-token', csrfToken)
         .send({ threshold: 5 });
 

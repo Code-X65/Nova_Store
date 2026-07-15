@@ -1,14 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchMyPermissions } from './api/staff';
 import { ShieldCheckIcon, ClockIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 
 export default function MyPermissions() {
  const { data: myPerms, isLoading } = useQuery({
  queryKey: ['my-permissions'],
- queryFn: async () => {
- const { data } = await api.get('/admin/my-permissions');
- return data.data; // { roles, permissions, rolePermissions, overrides }
- },
+ queryFn: fetchMyPermissions,
  refetchOnWindowFocus: true,
  staleTime: 60 * 1000,
  });

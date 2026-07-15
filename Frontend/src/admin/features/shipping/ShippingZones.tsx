@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchShippingZones, createShippingZone, updateShippingZone, deleteShippingZone } from './api/shipping';
 import toast from 'react-hot-toast';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
@@ -16,19 +16,16 @@ export default function ShippingZones() {
 
  const { data: zonesData, isLoading } = useQuery({
  queryKey: ['admin-shipping-zones'],
- queryFn: async () => {
- const { data } = await api.get('/admin/shipping/zones');
- return data.data; // array
- }
+ queryFn: fetchShippingZones
  });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload: any = { name, countries, rate_strategy: buildRateStrategy() };
       if (editingId) {
-        return api.put(`/admin/shipping/zones/${editingId}`, payload);
+        return updateShippingZone(editingId, payload);
       } else {
-        return api.post('/admin/shipping/zones', payload);
+        return createShippingZone(payload);
       }
     },
  onSuccess: () => {
@@ -41,7 +38,7 @@ export default function ShippingZones() {
 
  const deleteMutation = useMutation({
  mutationFn: async (id: string) => {
- return api.delete(`/admin/shipping/zones/${id}`);
+ return deleteShippingZone(id);
  },
  onSuccess: () => {
  toast.success('Zone deleted');

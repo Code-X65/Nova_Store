@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchBrands } from './api/brands';
 import { PlusIcon } from '@heroicons/react/24/outline';
 
 import { BrandsTable, type Brand } from './brands/BrandsTable';
@@ -23,12 +23,7 @@ export default function Brands() {
  const { data: brands = [], isLoading } = useQuery<Brand[]>({
  queryKey: ['brands', { activeOnly, featuredOnly }],
  queryFn: async () => {
- const params = new URLSearchParams();
- if (activeOnly) params.set('activeOnly', 'true');
- if (featuredOnly) params.set('featuredOnly', 'true');
- 
- const { data } = await api.get(`/brands?${params.toString()}`);
- return Array.isArray(data.data) ? data.data : (data.data?.brands || []);
+ return fetchBrands({ activeOnly, featuredOnly });
  },
  });
 

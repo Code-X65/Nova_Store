@@ -1,15 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchMigrationsStatus } from './api/migrations';
 import { CircleStackIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 
 export default function MigrationsPage() {
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-migrations'],
- queryFn: async () => {
- const { data } = await api.get('/admin/migrations/status');
- return data.data; // { applied_migrations: [], pending_migrations: [] }
- }
+ queryFn: fetchMigrationsStatus
  });
 
  const applied = response?.applied_migrations || [];

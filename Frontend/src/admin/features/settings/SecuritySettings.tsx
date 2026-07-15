@@ -1,22 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetch2faStatus, enable2fa, verify2fa, disable2fa, redeem2faRecoveryCode, type TwoFactorSetup } from './api/security';
 import toast from 'react-hot-toast';
 import { ShieldCheckIcon, KeyIcon, QrCodeIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-
-interface TwoFactorStatus {
-  enabled: boolean;
-  last_verified_at?: string | null;
-  recovery_codes_remaining?: number;
-  backup_codes_used?: number;
-}
-
-interface TwoFactorSetup {
-  totp_secret: string;
-  otpauth_url: string;
-  qr_code_url: string;
-  recovery_codes: string[];
-}
 
 export default function SecuritySettings() {
   const qc = useQueryClient();
@@ -27,17 +13,11 @@ export default function SecuritySettings() {
 
   const { data: statusResp, isLoading } = useQuery({
     queryKey: ['2fa-status'],
-    queryFn: async () => {
-      const { data } = await api.get<{ success: boolean; data: TwoFactorStatus }>('/admin/security/2fa/status');
-      return data.data;
-    },
+    queryFn: fetch2faStatus,
   });
 
   const enableMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post<{ success: boolean; data: TwoFactorSetup }>('/admin/security/2fa/enable');
-      return data.data;
-    },
+    mutationFn: async () => enable2fa(),
     onSuccess: (data) => {
       setSetup(data);
       setToken('');
@@ -48,7 +28,7 @@ export default function SecuritySettings() {
 
   const verifyMutation = useMutation({
     mutationFn: async () => {
-      await api.post('/admin/security/2fa/verify', { token });
+      await verify2fa(token);
     },
     onSuccess: () => {
       toast.success('Two-factor authentication enabled');
@@ -61,7 +41,7 @@ export default function SecuritySettings() {
 
   const disableMutation = useMutation({
     mutationFn: async () => {
-      await api.post('/admin/security/2fa/disable', { password });
+      await disable2fa(password);
     },
     onSuccess: () => {
       toast.success('Two-factor authentication disabled');
@@ -72,10 +52,7 @@ export default function SecuritySettings() {
   });
 
   const recoveryMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post<{ success: boolean; data: { remaining: number } }>('/admin/security/2fa/recovery', { code: recoveryCode });
-      return data.data;
-    },
+    mutationFn: async () => redeem2faRecoveryCode(recoveryCode),
     onSuccess: (d) => {
       toast.success(`Recovery code accepted. ${d.remaining} remaining.`);
       setRecoveryCode('');

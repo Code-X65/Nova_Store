@@ -39,8 +39,9 @@ class CheckoutController {
   async applyCoupon(req, res, next) {
     try {
       const userId = req.user ? req.user.id : null;
-      const { cartId, code } = req.body;
-      const result = await CouponService.validateAndApplyCoupon(userId, cartId, code);
+      const sessionId = req.headers['x-session-id'];
+      const { code } = req.body;
+      const result = await CouponService.validateAndApplyCoupon(userId, sessionId, code);
       AuditService.log(req, 'coupon.applied', 'coupon', result.coupon.id, null, { code });
       res.status(200).json({ success: true, data: result });
     } catch (error) {

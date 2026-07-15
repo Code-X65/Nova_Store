@@ -2,6 +2,27 @@ const express = require('express');
 const router = express.Router();
 const seoService = require('../../services/seo.service');
 
+/**
+ * @swagger
+ * tags:
+ *   - name: SEO
+ *     description: Public SEO endpoints (robots.txt, sitemap.xml)
+ */
+
+/**
+ * @swagger
+ * /robots.txt:
+ *   get:
+ *     summary: Get the robots.txt file
+ *     tags: [SEO]
+ *     responses:
+ *       200:
+ *         description: robots.txt contents
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ */
 router.get('/robots.txt', async (req, res) => {
   try {
     const robots = await seoService.getRobotsTxt();
@@ -12,6 +33,22 @@ router.get('/robots.txt', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /sitemap.xml:
+ *   get:
+ *     summary: Get the sitemap.xml file
+ *     tags: [SEO]
+ *     responses:
+ *       200:
+ *         description: sitemap.xml contents
+ *         content:
+ *           application/xml:
+ *             schema:
+ *               type: string
+ *       404:
+ *         description: No sitemap available
+ */
 router.get('/sitemap.xml', async (req, res) => {
   try {
     const protocol = req.protocol;

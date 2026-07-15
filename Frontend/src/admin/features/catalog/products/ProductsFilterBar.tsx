@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchBrands } from '../api/brands';
+import { fetchPriceRange } from '../api/products';
 import { CategorySelect } from '../categories/CategorySelect';
 import { MagnifyingGlassIcon, FunnelIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useState, useEffect } from 'react';
@@ -33,16 +34,14 @@ export function ProductsFilterBar({ filters, onChange }: ProductsFilterBarProps)
  const { data: brandsData } = useQuery({
  queryKey: ['brands', { activeOnly: true }],
  queryFn: async () => {
- const { data } = await api.get('/brands?activeOnly=true');
- return Array.isArray(data.data) ? data.data : (data.data?.brands || []);
+ return fetchBrands({ activeOnly: true });
  }
  });
 
  const { data: priceRange } = useQuery({
  queryKey: ['products-price-range'],
  queryFn: async () => {
- const { data } = await api.get('/products/price-range');
- return data.data; // { min, max }
+ return fetchPriceRange();
  }
  });
 

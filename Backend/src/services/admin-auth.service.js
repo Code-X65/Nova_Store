@@ -8,6 +8,8 @@ function resolveFailureReason(errorMessage) {
   const msg = errorMessage.toLowerCase();
   if (msg.includes('deactivated'))    return 'account_deactivated';
   if (msg.includes('locked'))         return 'account_locked';
+  if (msg.includes('two-factor'))     return 'two_factor_failed';
+  if (msg.includes('ip address'))     return 'ip_denied';
   if (msg.includes('invalid') || msg.includes('password')) return 'bad_credentials';
   if (msg.includes('invitation'))     return 'no_password_set';
   return 'unknown';
@@ -24,13 +26,15 @@ class AdminAuthService {
    * @param {string} password   Plain-text password from the request body
    * @param {string} ip         Request IP for audit logging
    * @param {string} userAgent  Request User-Agent for audit logging
+   * @param {string} [twoFactorToken] TOTP code, required if 2FA is enabled on the account
+   * @param {string} [recoveryCode]   Alternative to twoFactorToken — a 2FA recovery code
    * @returns {Promise<{ id: string, email: string, role: string }>}
    */
-  async login(email, password, ip, userAgent) {
+  async login(email, password, ip, userAgent, twoFactorToken = null, recoveryCode = null) {
     const normalizedEmail = email.toLowerCase().trim();
 
     try {
-      const { user } = await authService.adminLogin(normalizedEmail, password, ip);
+      const { user } = await authService.adminLogin(normalizedEmail, password, ip, twoFactorToken, recoveryCode);
 
       // Successful login — awaited so the record is guaranteed before we return
       try {
@@ -77,6 +81,16 @@ class AdminAuthService {
       }
       if (error.message.includes('locked')) {
         throw new Error('Account locked');
+      }
+      // 2FA errors must stay distinguishable from generic bad-credentials so the
+      // frontend can prompt for a code instead of just saying "invalid login".
+      if (error.code === 'TWO_FACTOR_REQUIRED') {
+        const twoFaError = new Error('Two-factor authentication code required');
+        twoFaError.code = 'TWO_FACTOR_REQUIRED';
+        throw twoFaError;
+      }
+      if (error.message.includes('two-factor')) {
+        throw new Error('Invalid two-factor authentication code');
       }
       if (error.message.includes('Invalid') || error.statusCode === 401) {
         throw new Error('Invalid credentials');

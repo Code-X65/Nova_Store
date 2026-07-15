@@ -64,6 +64,7 @@ class CartService {
       });
     }
 
+    await CartModel.touch(cart.id);
     return await this.getOrCreateCart(userId, sessionId);
   }
 
@@ -92,10 +93,12 @@ class CartService {
       }
     }
 
-    return await CartItemModel.update(cartItemId, {
+    const updated = await CartItemModel.update(cartItemId, {
       quantity,
       unit_price: unitPrice
     });
+    await CartModel.touch(cartItem.cart_id);
+    return updated;
   }
 
   async removeItem(cartItemId) {

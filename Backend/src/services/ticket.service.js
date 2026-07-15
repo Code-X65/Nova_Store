@@ -20,6 +20,9 @@ class TicketService {
     const ticketNumber = `TKT-${Date.now().toString(36).toUpperCase()}`;
     const data = await TicketModel.create({ ...ticket, ticket_number: ticketNumber });
     if (req) await AuditService.log(req, 'ticket.created', 'ticket', data.id, null, data, { actionType: 'CREATE' });
+    if (data.assigned_to) {
+      this.notifyTicketAssigned(data, { id: data.assigned_to });
+    }
     return data;
   }
 
@@ -27,6 +30,9 @@ class TicketService {
     const existing = await TicketModel.findById(id);
     const data = await TicketModel.update(id, updates);
     if (req) await AuditService.log(req, 'ticket.updated', 'ticket', id, existing, data, { actionType: 'UPDATE' });
+    if (updates.assigned_to && updates.assigned_to !== existing?.assigned_to) {
+      this.notifyTicketAssigned(data, { id: updates.assigned_to });
+    }
     return data;
   }
 

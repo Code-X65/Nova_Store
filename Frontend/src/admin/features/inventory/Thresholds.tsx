@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchStockLevels, updateThreshold } from './api/inventory';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import toast from 'react-hot-toast';
@@ -32,21 +32,14 @@ export default function Thresholds() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', 'thresholds', search, page],
-    queryFn: async () => {
-      const { data } = await api.get('/products', {
-        params: { search, limit: 20, page }
-      });
-      return data.data as PaginatedProducts;
-    },
+    queryFn: async () => (await fetchStockLevels({ search, limit: 20, page })) as PaginatedProducts,
   });
 
   const products = data?.products || [];
   const pagination = data?.pagination;
 
   const updateThresholdMutation = useMutation({
-    mutationFn: async ({ id, threshold }: { id: string; threshold: number }) => {
-    return api.put(`/inventory/${id}/threshold`, { lowStockThreshold: threshold });
-    },
+    mutationFn: async ({ id, threshold }: { id: string; threshold: number }) => updateThreshold(id, threshold),
     onSuccess: () => {
     toast.success('Threshold updated');
     setEditingId(null);

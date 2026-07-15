@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchShippingZones, fetchShippingRates, createShippingRate, updateShippingRate, deleteShippingRate } from './api/shipping';
 import toast from 'react-hot-toast';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
@@ -18,18 +18,12 @@ export default function ShippingRates() {
 
  const { data: zonesData } = useQuery({
  queryKey: ['admin-shipping-zones'],
- queryFn: async () => {
- const { data } = await api.get('/admin/shipping/zones');
- return data.data; // array
- }
+ queryFn: fetchShippingZones
  });
 
  const { data: ratesData, isLoading } = useQuery({
  queryKey: ['admin-shipping-rates'],
- queryFn: async () => {
- const { data } = await api.get('/admin/shipping/rates');
- return data.data; // array
- }
+ queryFn: fetchShippingRates
  });
 
  const saveMutation = useMutation({
@@ -39,9 +33,9 @@ export default function ShippingRates() {
  max_order_value: formData.max_order_value === '' ? null : formData.max_order_value
  };
  if (editingId) {
- return api.put(`/admin/shipping/rates/${editingId}`, payload);
+ return updateShippingRate(editingId, payload);
  } else {
- return api.post('/admin/shipping/rates', payload);
+ return createShippingRate(payload);
  }
  },
  onSuccess: () => {
@@ -54,7 +48,7 @@ export default function ShippingRates() {
 
  const deleteMutation = useMutation({
  mutationFn: async (id: string) => {
- return api.delete(`/admin/shipping/rates/${id}`);
+ return deleteShippingRate(id);
  },
  onSuccess: () => {
  toast.success('Rate deleted');

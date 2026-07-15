@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchLocalizationSettings, fetchSeoSettings, uploadStoreImage, updateStoreImageField, updateStoreProfile, updateStoreOperations, updateSettingsGroup } from './api/store';
 import toast from 'react-hot-toast';
 import { CogIcon, PhotoIcon, GlobeAltIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useAdminStore } from '@/admin/hooks/useAdminStore';
@@ -50,19 +50,14 @@ export default function StoreSettings() {
 
   useEffect(() => {
     if (activeTab === 'localization') {
-      api.get('/admin/settings/localization').then(r => setLocalizationForm(r.data.data)).catch(() => {});
+      fetchLocalizationSettings().then(setLocalizationForm).catch(() => {});
     } else if (activeTab === 'seo') {
-      api.get('/admin/settings/seo').then(r => setSeoForm(r.data.data)).catch(() => {});
+      fetchSeoSettings().then(setSeoForm).catch(() => {});
     }
   }, [activeTab]);
 
   const uploadImageMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const payload = new FormData();
-      payload.append('file', file);
-      const res = await api.post('/admin/upload', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
-      return res.data.data.url;
-    }
+    mutationFn: async (file: File) => uploadStoreImage(file)
   });
 
   const handleImageUpload = async (key: string, file: File) => {
@@ -70,7 +65,7 @@ export default function StoreSettings() {
     try {
       const url = await uploadImageMutation.mutateAsync(file);
       setProfileForm(prev => ({ ...prev, [key]: url }));
-      await api.put('/admin/store', { [key]: url });
+      await updateStoreImageField(key, url);
       qc.invalidateQueries({ queryKey: ['admin-store-profile'] });
       toast.success('Image uploaded', { id: toastId });
     } catch (error: any) {
@@ -79,18 +74,18 @@ export default function StoreSettings() {
   };
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (updates: Record<string, string>) => api.put('/admin/store', updates),
+    mutationFn: async (updates: Record<string, string>) => updateStoreProfile(updates),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-store-profile'] }); toast.success('Profile updated'); }
   });
 
   const updateOpsMutation = useMutation({
-    mutationFn: async (updates: { key: string, value: string }[]) => api.patch('/admin/store/settings', { settings: updates }),
+    mutationFn: async (updates: { key: string, value: string }[]) => updateStoreOperations(updates),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-store-profile'] }); toast.success('Operations updated'); }
   });
 
   const updateGroupMutation = useMutation({
     mutationFn: async ({ group, data }: { group: string; data: Record<string, any> }) =>
-      api.put(`/admin/settings/${group}`, data),
+      updateSettingsGroup(group, data),
     onSuccess: (_v, vars) => {
       qc.invalidateQueries({ queryKey: ['admin-settings', vars.group] });
       toast.success(`${vars.group === 'localization' ? 'Localization' : 'SEO'} settings saved`);

@@ -16,6 +16,8 @@ export interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void;
   pageSize?: number;
   disablePagination?: boolean;
+  /** Extra classes appended to a row's <tr>, e.g. to dim/highlight based on row data. */
+  rowClassName?: (row: TData) => string;
 }
 
 export function DataTable<TData, TValue>({
@@ -24,6 +26,7 @@ export function DataTable<TData, TValue>({
   onRowClick,
   pageSize = 10,
   disablePagination = false,
+  rowClassName,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -90,7 +93,7 @@ export function DataTable<TData, TValue>({
                   onClick={() => onRowClick?.(row.original)}
                   className={`group border-b border-[#1a1a1a] transition-colors last:border-0 ${
                     onRowClick ? 'cursor-pointer hover:bg-[#111111]' : 'hover:bg-[#111111]'
-                  }`}
+                  } ${rowClassName?.(row.original) ?? ''}`}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-4 whitespace-nowrap text-sm text-white">

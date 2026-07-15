@@ -6,7 +6,7 @@ import {
   CogIcon, ShieldCheckIcon, BellIcon, DocumentTextIcon, Squares2X2Icon,
   SparklesIcon, CurrencyDollarIcon, DocumentIcon, ExclamationTriangleIcon,
   AdjustmentsHorizontalIcon, BellAlertIcon, UserPlusIcon, KeyIcon, GlobeAltIcon,
-  MapIcon, ArrowUturnLeftIcon, BanknotesIcon
+  MapIcon, ArrowUturnLeftIcon, BanknotesIcon, PhotoIcon
 } from '@heroicons/react/24/outline';
 import { useMyPermissions } from '@/admin/hooks/useMyPermissions';
 import { useAdminStore } from '@/admin/hooks/useAdminStore';
@@ -32,7 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Bulk Import',  to: '/catalog/import',     icon: DocumentIcon,     anyOf: ['product:create', 'product:write', 'inventory:write'], group: 'MAIN MENU' },
   { label: 'Orders',       to: '/orders',             icon: ShoppingBagIcon,  perm: 'order:read', group: 'MAIN MENU' },
   { label: 'Customers',    to: '/customers',          icon: UsersIcon,        anyOf: ['user:read', 'role:manage'], group: 'MAIN MENU' },
-  { label: 'Analytics',    to: '/sales',              icon: ChartBarIcon,     perm: 'sales:read', group: 'MAIN MENU' },
+  { label: 'Sales',        to: '/sales',              icon: ChartBarIcon,     perm: 'sales:read', group: 'MAIN MENU' },
   { label: 'Marketing',    to: '/coupons',            icon: TicketIcon,       perm: 'coupon:read', group: 'MAIN MENU' },
   
   { label: 'Inventory',    to: '/inventory',          icon: ArchiveBoxIcon,   perm: 'inventory:read', group: 'MANAGEMENT' },
@@ -40,12 +40,12 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Transactions', to: '/inventory/transactions', icon: DocumentTextIcon, perm: 'inventory:read', group: 'MANAGEMENT' },
   { label: 'Catalog History', to: '/inventory/transactions/catalog', icon: DocumentTextIcon, anyOf: ['product:read', 'category:read', 'brand:read', 'inventory:read'], group: 'MANAGEMENT' },
   { label: 'Thresholds',   to: '/inventory/thresholds', icon: AdjustmentsHorizontalIcon, anyOf: ['inventory:alert', 'inventory:write'], group: 'MANAGEMENT' },
-  { label: 'Alerts',       to: '/inventory/alerts',   icon: BellAlertIcon,    anyOf: ['inventory:alert', 'inventory:write'], group: 'MANAGEMENT' },
   { label: 'Warehouses',   to: '/inventory/warehouses', icon: ArchiveBoxIcon, perm: 'inventory:read', group: 'MANAGEMENT' },
   { label: 'Alert Rules',  to: '/inventory/alert-rules', icon: BellAlertIcon, anyOf: ['inventory:alert', 'inventory:write'], group: 'MANAGEMENT' },
   { label: 'Shipping',     to: '/shipping',           icon: TruckIcon,        perm: 'shipping:read', group: 'MANAGEMENT' },
   { label: 'Reviews',      to: '/reviews',            icon: StarIcon,         perm: 'review:read', group: 'MANAGEMENT' },
   { label: 'Team & Roles', to: '/staff',              icon: UserGroupIcon,    perm: 'staff:read', group: 'MANAGEMENT' },
+  { label: 'Roles',        to: '/staff/roles',        icon: KeyIcon,          anyOf: ['staff:write', 'role:manage'], group: 'MANAGEMENT' },
   { label: 'Riders',       to: '/riders',             icon: UserPlusIcon,     anyOf: ['rider:read', 'rider:write', '*'], group: 'MANAGEMENT' },
   { label: 'Rider Tracking',to: '/logistics/rider-tracking', icon: MapIcon,   perm: 'logistics:read', group: 'MANAGEMENT' },
   { label: 'Fulfillment',  to: '/logistics/fulfillment', icon: TruckIcon,     perm: 'fulfillment:read', group: 'MANAGEMENT' },
@@ -58,7 +58,22 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'IP Allowlist', to: '/staff/ip-allowlist',  icon: GlobeAltIcon,  perm: 'rbac:read', group: 'MANAGEMENT' },
   { label: 'Audit',        to: '/audit',              icon: ShieldCheckIcon,  perm: 'audit:read', group: 'MANAGEMENT' },
   { label: 'Notifications',to: '/notifications',    icon: BellIcon,         perm: 'notifications:read', group: 'MANAGEMENT' },
+  { label: 'Send Broadcast', to: '/notifications/admin', icon: BellAlertIcon, perm: 'notifications:write', group: 'MANAGEMENT' },
+  { label: 'Notification Templates', to: '/notifications/admin/templates', icon: DocumentTextIcon, perm: 'notifications:write', group: 'MANAGEMENT' },
   { label: 'Sessions',     to: '/profile/sessions',   icon: DocumentTextIcon, group: 'MANAGEMENT' },
+  { label: 'Segments',     to: '/crm/segments',       icon: UserGroupIcon,    perm: 'segment:read', group: 'MANAGEMENT' },
+  { label: 'Support Tickets', to: '/crm/tickets',     icon: TicketIcon,       perm: 'ticket:read', group: 'MANAGEMENT' },
+  { label: 'Customer Events', to: '/crm/events',      icon: DocumentTextIcon, perm: 'customer_event:read', group: 'MANAGEMENT' },
+  { label: 'Campaigns',    to: '/campaigns',          icon: SparklesIcon,     perm: 'marketing:read', group: 'MANAGEMENT' },
+  { label: 'Abandoned Carts', to: '/marketing/abandoned-carts', icon: ExclamationTriangleIcon, perm: 'marketing:read', group: 'MANAGEMENT' },
+  { label: 'Product Q&A',  to: '/qa',                  icon: DocumentTextIcon, perm: 'qa:read', group: 'MANAGEMENT' },
+  { label: 'Banners',      to: '/cms/banners',         icon: PhotoIcon,        perm: 'cms:read', group: 'MANAGEMENT' },
+  { label: 'Pages',        to: '/cms/pages',           icon: DocumentIcon,     perm: 'cms:read', group: 'MANAGEMENT' },
+  { label: 'Blog Posts',   to: '/cms/blog',            icon: DocumentTextIcon, perm: 'cms:read', group: 'MANAGEMENT' },
+  { label: 'POS Terminal', to: '/pos',                 icon: ShoppingBagIcon,  perm: 'pos:create', group: 'MANAGEMENT' },
+  { label: 'POS Sales History', to: '/pos/history',    icon: DocumentTextIcon, perm: 'pos:read', group: 'MANAGEMENT' },
+  { label: 'Forecasting',  to: '/analytics/forecasting', icon: ChartBarIcon,  perm: 'analytics:read', group: 'MANAGEMENT' },
+  { label: 'Customer Heatmaps', to: '/analytics/heatmaps', icon: MapIcon,     perm: 'analytics:read', group: 'MANAGEMENT' },
 ];
 
 interface SidebarProps {

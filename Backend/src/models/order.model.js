@@ -125,6 +125,7 @@ class OrderModel {
     if (filters.store_id) query = query.eq('store_id', filters.store_id);
     if (filters.status) query = query.eq('status', filters.status);
     if (filters.userId) query = query.eq('user_id', filters.userId);
+    if (filters.channel) query = query.eq('channel', filters.channel);
     if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);
     if (filters.dateTo) query = query.lte('created_at', filters.dateTo);
 
@@ -133,8 +134,8 @@ class OrderModel {
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return { 
-      orders: data, 
+    return {
+      orders: data,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

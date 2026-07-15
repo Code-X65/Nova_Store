@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchInventoryStats } from './api/dashboard';
 import { StatCard } from '@/shared/ui/StatCard';
 import { ExclamationTriangleIcon, ArchiveBoxXMarkIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
@@ -7,12 +7,7 @@ import { Link } from 'react-router-dom';
 export default function InventoryDashboard() {
  const { data: statsData, isLoading } = useQuery({
  queryKey: ['analytics', 'inventory-stats'],
- queryFn: async () => {
- const { data } = await api.get('/admin/dashboard/inventory-stats', {
- params: { limit: 20 }
- });
- return data.data; // { lowStockProducts, outOfStockProducts }
- }
+ queryFn: async () => fetchInventoryStats({ limit: 20 })
  });
 
  const lowStock = statsData?.lowStockProducts || [];

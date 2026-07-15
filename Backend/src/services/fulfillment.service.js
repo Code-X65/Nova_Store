@@ -3,6 +3,8 @@ const path = require('path');
 const crypto = require('crypto');
 const FulfillmentModel = require('../models/fulfillment.model');
 const OrderModel = require('../models/order.model');
+const OrderService = require('./order.service');
+const OrderStateMachine = require('./order-state-machine.service');
 const logger = require('../utils/logger');
 const { SINGLE_STORE_ID } = require('../config/store');
 
@@ -111,7 +113,45 @@ class FulfillmentService {
     if (mapping.tracking_number) patch.tracking_number = mapping.tracking_number;
     if (mapping.label_url) patch.label_url = mapping.label_url;
 
-    return await FulfillmentModel.updateShipment(found.id, patch, mapping.raw || parsedBody);
+    const updated = await FulfillmentModel.updateShipment(found.id, patch, mapping.raw || parsedBody);
+
+    // Sync the parent order so a 3PL "delivered" webhook actually marks the
+    // order delivered — previously this only ever updated
+    // fulfillment_shipments.status, leaving the order's customer-facing
+    // status (and the return-window clock, which depends on delivered_at)
+    // permanently out of sync with the real shipment. Never let a sync
+    // failure fail the webhook itself — the shipment status above is already
+    // durably recorded regardless.
+    if (found.order_id) {
+      try {
+        if (mapping.status === 'delivered') {
+          // Reuses the real milestone method (not a bare status write) so
+          // return_window_expires_at, notifications, and the order.delivered
+          // event all fire the same way a manually-dispatched delivery would.
+          await OrderService.markDelivered(found.order_id, {
+            note: `Delivered per ${provider.name} tracking update`
+          }, null);
+        } else if (mapping.status === 'out_for_delivery') {
+          // markOutForDelivery also enforces a manual-dispatch-specific
+          // delivery_status precondition that 3PL-sourced orders never
+          // populate, so transition status directly here instead.
+          const order = await OrderModel.findById(found.order_id);
+          if (order && await OrderStateMachine.isAllowed(order.status, 'out_for_delivery')) {
+            await OrderStateMachine.transition(found.order_id, 'out_for_delivery', {
+              note: `Out for delivery per ${provider.name} tracking update`
+            });
+          }
+        }
+        // 'cancelled' is intentionally not auto-applied to the order — a
+        // shipment-level carrier cancellation has refund/inventory
+        // implications that warrant human review via the normal cancel flow,
+        // rather than being silently triggered by a webhook.
+      } catch (syncErr) {
+        logger.warn(`[Fulfillment] Could not sync order ${found.order_id} to '${mapping.status}' from webhook: ${syncErr.message}`);
+      }
+    }
+
+    return updated;
   }
 
   async _findByExternalId(providerId, externalId) {

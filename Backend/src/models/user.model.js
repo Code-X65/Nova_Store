@@ -176,7 +176,8 @@ class UserModel {
 
     return await this.update(user.id, {
       failed_login_attempts: failedAttempts,
-      lock_until: lockUntil
+      lock_until: lockUntil,
+      is_locked: failedAttempts >= 5
     });
   }
 

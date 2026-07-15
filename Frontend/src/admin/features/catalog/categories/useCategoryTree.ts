@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchCategoryTree as fetchCategoryTreeApi } from '../api/categories';
 
 export interface CategoryNode {
  id: string;
@@ -78,8 +78,7 @@ export function useCategoryTree() {
  return useQuery<CategoryNode[]>({
  queryKey: ['categories', 'tree'],
  queryFn: async () => {
- const { data } = await api.get('/categories?type=tree');
- return data.data.categories ?? [];
+ return fetchCategoryTreeApi();
  },
  staleTime: 30_000,
  });

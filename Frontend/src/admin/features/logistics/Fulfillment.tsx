@@ -7,6 +7,50 @@ import {
   fetchProviders, createProvider, createShipment, fetchShipments,
   type FulfillmentProvider, type FulfillmentShipment,
 } from './api/fulfillment';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
+
+const providerColumnHelper = createColumnHelper<FulfillmentProvider>();
+const shipmentColumnHelper = createColumnHelper<FulfillmentShipment>();
+
+const providerColumns = [
+  providerColumnHelper.accessor('name', {
+    header: 'Name',
+    cell: (info) => <span className="text-gray-200">{info.getValue()}</span>,
+  }),
+  providerColumnHelper.accessor('code', {
+    header: 'Code',
+    cell: (info) => <span className="text-gray-400">{info.getValue()}</span>,
+  }),
+  providerColumnHelper.accessor('adapter', {
+    header: 'Adapter',
+    cell: (info) => <span className="text-gray-400">{info.getValue()}</span>,
+  }),
+  providerColumnHelper.accessor('is_enabled', {
+    header: 'Status',
+    cell: (info) => (
+      <div className="text-right">
+        {info.getValue() ? <span className="text-emerald-400">enabled</span> : <span className="text-gray-500">disabled</span>}
+      </div>
+    ),
+  }),
+];
+
+const shipmentColumns = [
+  shipmentColumnHelper.display({
+    id: 'provider',
+    header: 'Provider',
+    cell: (info) => <span className="text-gray-200">{info.row.original.provider?.name || info.row.original.provider_id.slice(0, 8)}</span>,
+  }),
+  shipmentColumnHelper.accessor('tracking_number', {
+    header: 'Tracking #',
+    cell: (info) => <span className="text-gray-400">{info.getValue() || '—'}</span>,
+  }),
+  shipmentColumnHelper.accessor('status', {
+    header: 'Status',
+    cell: (info) => <span className="text-gray-400">{info.getValue()}</span>,
+  }),
+];
 
 export default function Fulfillment() {
   const qc = useQueryClient();
@@ -71,35 +115,14 @@ export default function Fulfillment() {
         <div className="bg-black rounded-xl overflow-hidden">
           <h2 className="p-4 font-semibold text-white">Providers</h2>
           {lp ? <div className="p-4 text-gray-400">Loading…</div> : (
-            <table className="w-full text-sm">
-              <tbody>
-                {provs.map((p) => (
-                  <tr key={p.id} className="border-t border-white/5">
-                    <td className="p-3 text-gray-200">{p.name}</td>
-                    <td className="p-3 text-gray-400">{p.code}</td>
-                    <td className="p-3 text-gray-400">{p.adapter}</td>
-                    <td className="p-3 text-right">{p.is_enabled ? <span className="text-emerald-400">enabled</span> : <span className="text-gray-500">disabled</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable columns={providerColumns} data={provs} disablePagination />
           )}
         </div>
 
         <div className="bg-black rounded-xl overflow-hidden">
           <h2 className="p-4 font-semibold text-white">Shipments</h2>
           {ls ? <div className="p-4 text-gray-400">Loading…</div> : (
-            <table className="w-full text-sm">
-              <tbody>
-                {ships.map((s) => (
-                  <tr key={s.id} className="border-t border-white/5">
-                    <td className="p-3 text-gray-200">{s.provider?.name || s.provider_id.slice(0, 8)}</td>
-                    <td className="p-3 text-gray-400">{s.tracking_number || '—'}</td>
-                    <td className="p-3 text-gray-400">{s.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable columns={shipmentColumns} data={ships} disablePagination />
           )}
         </div>
       </div>

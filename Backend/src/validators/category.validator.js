@@ -56,6 +56,22 @@ const updateCategory = {
     meta_title: Joi.string().max(60).optional().allow(null, ''),
     meta_description: Joi.string().max(160).optional().allow(null, ''),
     meta_keywords: Joi.array().items(Joi.string()).optional()
+  }).min(1).messages({
+    'object.min': 'At least one field must be provided to update'
+  })
+};
+
+const reorderCategories = {
+  body: Joi.object().keys({
+    categories: Joi.array().items(
+      Joi.object().keys({
+        id: Joi.string().uuid().required(),
+        sort_order: Joi.number().integer().min(0).required()
+      })
+    ).min(1).required().messages({
+      'any.required': 'categories array is required',
+      'array.min': 'categories array must contain at least one item'
+    })
   })
 };
 
@@ -76,5 +92,6 @@ const bulkCreateCategory = {
 module.exports = {
   createCategory,
   updateCategory,
+  reorderCategories,
   bulkCreateCategory
 };

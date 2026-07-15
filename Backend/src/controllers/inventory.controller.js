@@ -261,51 +261,24 @@ class InventoryController {
       }
 
       const results = await InventoryService.bulkUpdateStock(updates, userId);
-      AuditService.log(req, 'inventory.bulk_updated', 'inventory', null, null, { count: updates.length, productIds: updates.map(u => u.productId) });
-      res.status(200).json({ success: true, data: results, message: 'Bulk stock update completed' });
+      AuditService.log(req, 'inventory.bulk_updated', 'inventory', null, null, {
+        count: updates.length,
+        successCount: results.successCount,
+        failureCount: results.failureCount,
+        productIds: updates.map(u => u.productId)
+      });
+      res.status(200).json({
+        success: true,
+        data: results,
+        message: results.failureCount > 0
+          ? `Bulk stock update completed with ${results.failureCount} failure(s) out of ${updates.length}`
+          : 'Bulk stock update completed'
+      });
     } catch (error) {
       next(error);
     }
   }
 
-  async getAlerts(req, res, next) {
-    try {
-      const { productId } = req.query;
-      const alerts = await InventoryService.getAlerts(productId);
-      res.status(200).json({ success: true, data: alerts });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async configureAlerts(req, res, next) {
-    try {
-      const result = await InventoryService.configureAlert(req.body);
-      res.status(200).json({ success: true, data: result, message: 'Alert configuration updated' });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async deleteAlert(req, res, next) {
-    try {
-      const { id } = req.params;
-      await InventoryService.deleteAlert(id);
-      res.status(200).json({ success: true, message: 'Alert deleted successfully' });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async updateAlert(req, res, next) {
-    try {
-      const { id } = req.params;
-      const result = await InventoryService.updateAlert(id, req.body);
-      res.status(200).json({ success: true, data: result, message: 'Alert updated successfully' });
-    } catch (error) {
-      next(error);
-    }
-  }
 }
 
 module.exports = new InventoryController();

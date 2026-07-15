@@ -186,18 +186,21 @@ class AdminManagementController {
 
   /**
    * PATCH /api/v1/admin/admins/:id/permissions
-   * Body: { permissions: string[] }   — extra permission slugs added to the admin
    *
-   * @deprecated Legacy endpoint backed by users.extra_permissions. Granular
-   * permissions are now managed through the permission_overrides system
-   * (POST /admin/access/:id/overrides), which is ABAC-aware, time-bound and
-   * audited. This endpoint remains only for backward compatibility; new UI
-   * flows route through the override manager instead.
+   * @deprecated An ABAC-aware, time-bound `permission_overrides` system
+   * (migration 060) was designed as this endpoint's replacement but was
+   * reverted before shipping (migration 061 drops the table) — there is no
+   * `/admin/access/:id/overrides` endpoint and none is planned. Extra
+   * permissions for an admin are granted once, at invite time, via the
+   * `permissions` array on POST /admin/invitations (see invitation.service.js
+   * createInvitation) — there is currently no supported way to adjust an
+   * existing admin's extra permissions after onboarding. Their base role can
+   * still be changed via PATCH /admin/admins/:id/roles.
    */
   async updateAdminPermissions(req, res, next) {
     return res.status(410).json({
       success: false,
-      error: 'Legacy permissions endpoint is permanently removed. Use /api/v1/admin/access/:id/overrides instead.'
+      error: 'This endpoint has been removed. To grant extra permissions, invite a new admin with the desired permissions set, or update their role via PATCH /admin/admins/:id/roles.'
     });
   }
 

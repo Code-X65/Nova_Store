@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchCoupons, deleteCoupon, deactivateCoupon, activateCoupon } from './api/coupons';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
@@ -14,17 +14,12 @@ export default function CouponsList() {
 
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-coupons', page],
- queryFn: async () => {
- const { data } = await api.get('/admin/coupons', {
- params: { page, limit: 20 }
- });
- return data.data; // { coupons }
- }
+ queryFn: async () => fetchCoupons({ page, limit: 20 })
  });
 
  const deleteMutation = useMutation({
  mutationFn: async (id: string) => {
- return api.delete(`/admin/coupons/${id}`);
+ return deleteCoupon(id);
  },
  onSuccess: () => {
  toast.success('Coupon deleted');
@@ -36,9 +31,9 @@ export default function CouponsList() {
  const toggleStatusMutation = useMutation({
  mutationFn: async ({ id, deactivate }: { id: string, deactivate: boolean }) => {
  if (deactivate) {
- return api.post(`/admin/coupons/${id}/deactivate`);
+ return deactivateCoupon(id);
  } else {
- return api.patch(`/admin/coupons/${id}`, { is_active: true });
+ return activateCoupon(id);
  }
  },
  onSuccess: () => {

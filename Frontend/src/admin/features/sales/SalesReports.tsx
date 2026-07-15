@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchRevenueAnalytics, fetchRevenueSummary, exportRevenueCsv } from './api/sales';
 import { StatCard } from '@/shared/ui/StatCard';
 import { ChartContainer, CustomTooltip } from '@/shared/ui/ChartContainer';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -36,31 +36,18 @@ export default function SalesReports() {
 
  const { data: revenueResponse, isLoading: revLoading } = useQuery({
  queryKey: ['admin-analytics-revenue', from, to, groupBy],
- queryFn: async () => {
- const { data } = await api.get('/admin/analytics/revenue', {
- params: { from, to, groupBy }
- });
- return data.data; // { data: [{period, revenue, orders...}], totals: {} }
- }
+ queryFn: async () => fetchRevenueAnalytics({ from, to, groupBy })
  });
 
  const { data: summaryResponse, isLoading: sumLoading } = useQuery({
  queryKey: ['admin-analytics-revenue-summary', from, to],
- queryFn: async () => {
- const { data } = await api.get('/admin/analytics/revenue/summary', {
- params: { from, to }
- });
- return data.data; // { totalRevenue, totalOrders, averageOrderValue }
- }
+ queryFn: async () => fetchRevenueSummary({ from, to })
  });
 
  const handleExportCSV = async () => {
  try {
- const response = await api.get('/admin/analytics/export/revenue', {
- params: { from, to },
- responseType: 'blob'
- });
- const url = window.URL.createObjectURL(new Blob([response.data]));
+ const blob = await exportRevenueCsv({ from, to });
+ const url = window.URL.createObjectURL(new Blob([blob]));
  const link = document.createElement('a');
  link.href = url;
  link.setAttribute('download', `revenue-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);

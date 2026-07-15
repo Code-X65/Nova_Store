@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchProductsMinimal, fetchProductDetail, adjustStock } from './api/inventory';
 import toast from 'react-hot-toast';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
@@ -42,18 +42,12 @@ export default function StockAdjust() {
 
   const { data: productsData, isLoading: productsLoading } = useQuery({
   queryKey: ['products-list-minimal'],
-  queryFn: async () => {
-  const { data } = await api.get('/products', { params: { limit: 500 } });
-  return data.data.products || [];
-  }
+  queryFn: async () => (await fetchProductsMinimal({ limit: 500 })) || []
   });
 
   const { data: selectedProduct } = useQuery({
   queryKey: ['product-detail', selectedProductId],
-  queryFn: async () => {
-  const { data } = await api.get(`/inventory/${selectedProductId}`);
-  return data.data;
-  },
+  queryFn: async () => fetchProductDetail(selectedProductId),
   enabled: !!selectedProductId,
   });
 
@@ -70,7 +64,7 @@ export default function StockAdjust() {
     notes: data.notes
   };
 
-  return api.post('/inventory/adjust', payload);
+  return adjustStock(payload);
   },
   onSuccess: () => {
   toast.success('Stock adjusted successfully');

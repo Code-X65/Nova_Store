@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchOrderStats, fetchDispatchQueuePreview, fetchRecentOrdersPreview } from './api/dashboard';
 import { StatCard } from '@/shared/ui/StatCard';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
@@ -11,31 +11,18 @@ import clsx from 'clsx';
 export default function OrderDashboard() {
  const { data: statsData, isLoading: statsLoading } = useQuery({
  queryKey: ['analytics', 'order-stats'],
- queryFn: async () => {
  // getOrdersReport returns { summary: { totalOrders, totalAmount, statusBreakdown }, trend: [...] }
- const { data } = await api.get('/admin/dashboard/order-stats', {
- params: { period: 'month' }
- });
- return data.data;
- }
+ queryFn: async () => fetchOrderStats({ period: 'month' })
  });
 
  const { data: dispatchData, isLoading: dispatchLoading } = useQuery({
  queryKey: ['orders', 'dispatch-queue-preview'],
- queryFn: async () => {
- const { data } = await api.get('/orders/admin/dispatch-queue');
- return data.data; // { orders }
- }
+ queryFn: async () => fetchDispatchQueuePreview()
  });
 
  const { data: recentOrdersData, isLoading: recentLoading } = useQuery({
  queryKey: ['orders', 'recent-preview'],
- queryFn: async () => {
- const { data } = await api.get('/orders/admin/list', {
- params: { limit: 5 }
- });
- return data.data; // { orders }
- }
+ queryFn: async () => fetchRecentOrdersPreview({ limit: 5 })
  });
 
  const breakdown = statsData?.statusBreakdown || {};

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchStaff, revokeStaffAccess } from './api/staff';
 import toast from 'react-hot-toast';
-import { TrashIcon, KeyIcon, PaperAirplaneIcon, MagnifyingGlassIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, KeyIcon, PaperAirplaneIcon, MagnifyingGlassIcon, LockClosedIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { EditStaffAccessModal } from './EditStaffAccessModal';
+import { RemoveAdminDialog } from './RemoveAdminDialog';
 import { Link } from 'react-router-dom';
 import { useMyPermissions } from '@/admin/hooks/useMyPermissions';
 import { useAdminSession } from '@/admin/hooks/useAdminSession';
@@ -18,20 +19,16 @@ export default function StaffList() {
  const [page, setPage] = useState(1);
  const [search, setSearch] = useState('');
  const [editingStaff, setEditingStaff] = useState<{ id: string, name: string } | null>(null);
+ const [removingStaff, setRemovingStaff] = useState<{ id: string, name: string } | null>(null);
 
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-staff', page, search],
- queryFn: async () => {
- const { data } = await api.get('/admin', {
- params: { page, limit: 20, search }
- });
- return data.data; // { admins, total }
- }
+ queryFn: async () => fetchStaff({ page, limit: 20, search })
  });
 
  const revokeMutation = useMutation({
  mutationFn: async (id: string) => {
- return api.delete(`/admin/${id}`);
+ return revokeStaffAccess(id);
  },
  onSuccess: () => {
  toast.success('Admin access revoked');
@@ -204,6 +201,16 @@ export default function StaffList() {
  <TrashIcon className="w-4 h-4" />
  </button>
  )}
+
+ {isOwner(perms) && !isSelf && (
+ <button
+ onClick={() => setRemovingStaff({ id: admin.id, name: displayName })}
+ className="py-2 px-3 bg-danger/20 hover:bg-danger/40 text-danger rounded-xl transition-all duration-200 flex items-center justify-center border border-danger/30"
+ title="Permanently Remove Administrator"
+ >
+ <ExclamationTriangleIcon className="w-4 h-4" />
+ </button>
+ )}
  </div>
  </div>
  );
@@ -234,11 +241,18 @@ export default function StaffList() {
  </div>
  )}
 
- <EditStaffAccessModal 
+ <EditStaffAccessModal
  isOpen={!!editingStaff}
  onClose={() => setEditingStaff(null)}
  staffId={editingStaff?.id || null}
  staffName={editingStaff?.name || ''}
+ />
+
+ <RemoveAdminDialog
+ isOpen={!!removingStaff}
+ onClose={() => setRemovingStaff(null)}
+ targetId={removingStaff?.id || null}
+ targetName={removingStaff?.name || ''}
  />
 
  </div>

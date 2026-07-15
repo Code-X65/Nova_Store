@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchCategoryAttributes } from '../api/attributes';
 import {
  PlusIcon,
  PencilIcon,
@@ -11,6 +11,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { AttributeForm, type AttributeTemplate } from './AttributeForm';
 import { DeleteAttributeModal } from './DeleteAttributeModal';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
+
+const attributeColumnHelper = createColumnHelper<AttributeTemplate>();
 
 interface AttributeManagerProps {
  categoryId: string;
@@ -45,8 +49,7 @@ export function AttributeManager({ categoryId, categoryName, onClose }: Attribut
  const { data: attrs = [], isLoading } = useQuery<AttributeTemplate[]>({
  queryKey: ['attributes', categoryId],
  queryFn: async () => {
- const { data } = await api.get(`/categories/${categoryId}/attributes`);
- return data.data.attributes ?? [];
+ return fetchCategoryAttributes(categoryId);
  },
  staleTime: 15_000,
  enabled: Boolean(categoryId),
@@ -192,51 +195,42 @@ interface AttributeTableProps {
 function AttributeTable({ attributes, onEdit, onDelete, isOwn }: AttributeTableProps) {
  const sorted = [...attributes].sort((a, b) => a.display_order - b.display_order || a.attribute_name.localeCompare(b.attribute_name));
 
- return (
- <div className="table-wrapper overflow-x-auto">
- <table className="table w-full text-xs">
- <thead>
- <tr>
- <th className="text-left">Name</th>
- <th>Type</th>
- <th>Req.</th>
- <th>Unit</th>
- <th>Values</th>
- {!isOwn && <th>From</th>}
- {isOwn && <th className="text-right">Actions</th>}
- </tr>
- </thead>
- <tbody>
- {sorted.map(attr => {
- const tm = TYPE_META[attr.attribute_type] ?? TYPE_META.text;
- return (
- <tr key={attr.id} className={!isOwn ? 'opacity-60' : ''}>
- {/* Name */}
- <td className="font-semibold text-white max-w-[120px] truncate">
- {attr.attribute_name}
- </td>
-
- {/* Type badge */}
- <td className="text-center">
- <span className={`${tm.cls} py-0 px-1.5 text-[10px]`}>{tm.label}</span>
- </td>
-
- {/* Required */}
- <td className="text-center">
- {attr.is_required
+ const columns = useMemo(() => {
+ const base = [
+ attributeColumnHelper.accessor('attribute_name', {
+ header: 'Name',
+ cell: (info) => (
+ <span className="font-semibold text-white max-w-[120px] truncate block">{info.getValue()}</span>
+ ),
+ }),
+ attributeColumnHelper.accessor('attribute_type', {
+ header: 'Type',
+ cell: (info) => {
+ const tm = TYPE_META[info.getValue()] ?? TYPE_META.text;
+ return <span className={`${tm.cls} py-0 px-1.5 text-[10px]`}>{tm.label}</span>;
+ },
+ }),
+ attributeColumnHelper.accessor('is_required', {
+ header: 'Req.',
+ cell: (info) => (
+ info.getValue()
  ? <LockClosedIcon className="w-3 h-3 text-[var(--neu-accent)]" />
- : <span className="text-[var(--neu-text)]">–</span>}
- </td>
-
- {/* Unit */}
- <td className="text-center text-[var(--neu-text)]">
- {attr.unit || <span className="opacity-30">–</span>}
- </td>
-
- {/* Allowed values (enum chips) */}
- <td className="max-w-[140px]">
- {attr.attribute_type === 'enum' && attr.allowed_values?.length ? (
- <div className="flex flex-wrap gap-1">
+ : <span className="text-[var(--neu-text)]">–</span>
+ ),
+ }),
+ attributeColumnHelper.accessor('unit', {
+ header: 'Unit',
+ cell: (info) => (
+ info.getValue() ? <span className="text-[var(--neu-text)]">{info.getValue()}</span> : <span className="opacity-30">–</span>
+ ),
+ }),
+ attributeColumnHelper.display({
+ id: 'values',
+ header: 'Values',
+ cell: (info) => {
+ const attr = info.row.original;
+ return attr.attribute_type === 'enum' && attr.allowed_values?.length ? (
+ <div className="flex flex-wrap gap-1 max-w-[140px]">
  {attr.allowed_values.slice(0, 3).map(v => (
  <span key={v} className="badge-muted py-0 px-1.5 text-[9px]">{v}</span>
  ))}
@@ -246,44 +240,61 @@ function AttributeTable({ attributes, onEdit, onDelete, isOwn }: AttributeTableP
  </div>
  ) : (
  <span className="text-[var(--neu-text)] opacity-30">–</span>
- )}
- </td>
+ );
+ },
+ }),
+ ];
 
- {/* Inherited from */}
- {!isOwn && (
- <td className="text-[var(--neu-text)] max-w-[80px] truncate">
- <span className="badge-muted py-0 px-1.5 text-[9px]">
- {attr.inherited_from ?? 'Ancestor'}
+ if (!isOwn) {
+ base.push(
+ attributeColumnHelper.display({
+ id: 'inherited_from',
+ header: 'From',
+ cell: (info) => (
+ <span className="badge-muted py-0 px-1.5 text-[9px] max-w-[80px] truncate">
+ {info.row.original.inherited_from ?? 'Ancestor'}
  </span>
- </td>
- )}
+ ),
+ })
+ );
+ }
 
- {/* Actions (own only) */}
- {isOwn && (
- <td className="text-right">
+ if (isOwn) {
+ base.push(
+ attributeColumnHelper.display({
+ id: 'actions',
+ header: '',
+ cell: (info) => {
+ const attr = info.row.original;
+ return (
  <div className="flex items-center justify-end gap-1">
  <button
- onClick={() => onEdit(attr)}
+ onClick={(e) => { e.stopPropagation(); onEdit(attr); }}
  className="p-1.5 text-[var(--neu-text)] hover:text-white hover:bg-white/10 rounded-lg transition-colors"
  title="Edit attribute"
  >
  <PencilIcon className="w-3 h-3" />
  </button>
  <button
- onClick={() => onDelete(attr)}
+ onClick={(e) => { e.stopPropagation(); onDelete(attr); }}
  className="p-1.5 text-[var(--neu-text)] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
  title="Delete attribute"
  >
  <TrashIcon className="w-3 h-3" />
  </button>
  </div>
- </td>
- )}
- </tr>
  );
- })}
- </tbody>
- </table>
+ },
+ })
+ );
+ }
+
+ return base;
+ }, [isOwn, onEdit, onDelete]);
+
+ return (
+ <div className={`table-wrapper overflow-x-auto ${!isOwn ? 'opacity-60' : ''}`}>
+ <DataTable columns={columns} data={sorted} disablePagination />
  </div>
  );
 }

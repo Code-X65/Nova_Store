@@ -35,9 +35,10 @@ class RiderTrackingController {
   async recordPod(req, res, next) {
     try {
       const { podPhotoUrl, podSignatureUrl, lat, lng, geofenceEtaAt } = req.body;
+      const actorId = req.admin?.id || req.user?.id || null;
       const dispatch = await RiderTrackingService.recordPod(req.params.id, {
         podPhotoUrl, podSignatureUrl, lat, lng, geofenceEtaAt
-      });
+      }, actorId);
       res.status(200).json({ success: true, data: { dispatch }, message: 'Proof of delivery recorded' });
     } catch (err) {
       next(err);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { fetchCategoryById, createCategory, updateCategory } from '../api/categories';
 import { XMarkIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { CategorySelect } from './CategorySelect';
 import { ImageUploadInput } from '@/admin/components/ui/ImageUploadInput';
@@ -69,8 +69,7 @@ export function CategoryForm({ mode, onClose }: CategoryFormProps) {
  const { data: editData, isLoading: editLoading } = useQuery({
  queryKey: ['category', editId],
  queryFn: async () => {
- const { data } = await api.get(`/categories/${editId}`);
- return data.data.category as CategoryNode;
+ return fetchCategoryById(editId as string) as Promise<CategoryNode>;
  },
  enabled: isEditing,
  staleTime: 0,
@@ -134,9 +133,9 @@ export function CategoryForm({ mode, onClose }: CategoryFormProps) {
  : undefined,
  };
  if (isEditing && editId) {
- return api.patch(`/categories/${editId}`, payload);
+ return updateCategory(editId, payload);
  }
- return api.post('/categories', payload);
+ return createCategory(payload);
  },
  onMutate: async () => {
  await qc.cancelQueries({ queryKey: ['categories', 'tree'] });

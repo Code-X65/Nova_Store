@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchTopProducts } from './api/sales';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 
@@ -9,12 +9,7 @@ export default function TopProducts() {
 
  const { data: response, isLoading } = useQuery({
  queryKey: ['admin-top-products', period],
- queryFn: async () => {
- const { data } = await api.get('/admin/sales/top-products', {
- params: { period }
- });
- return data.data; // { products: [] }
- }
+ queryFn: async () => fetchTopProducts({ period })
  });
 
  const products = response?.products || [];

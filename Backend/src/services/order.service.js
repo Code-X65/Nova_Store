@@ -6,6 +6,9 @@ const CartService = require('./cart.service');
 const InventoryService = require('./inventory.service');
 const NotificationService = require('./notification.service');
 const PaymentService = require('./payment.service');
+const CouponService = require('./coupon.service');
+const CouponModel = require('../models/coupon.model');
+const OrderStateMachine = require('./order-state-machine.service');
 const NotificationTemplateModel = require('../models/notification-template.model');
 const logger = require('../utils/logger');
 const AuditService = require('./audit.service');
@@ -103,23 +106,39 @@ class OrderService {
       }
     }
 
-    const nonCancellableStates = ['shipped', 'delivered', 'cancelled', 'returned', 'refunded'];
-    if (nonCancellableStates.includes(order.status)) {
-      throw new Error(`Order cannot be cancelled in current status: ${order.status}`);
-    }
+    await OrderStateMachine.assertAllowed(order.status, 'cancelled');
 
     const cancelNote = isAdmin ? `Cancelled by admin: ${reason}` : `Cancelled by user: ${reason}`;
     const updatedOrder = await OrderModel.updateStatus(orderId, 'cancelled', null, cancelNote, userId);
 
-    // Restore inventory
-    for (const item of order.items) {
-      await InventoryService.addStock(
-        item.product_id,
-        item.quantity,
-        userId,
-        `Order ${order.order_number} cancelled`,
-        item.variant_id
-      );
+    // Restore inventory. Only orders that reached 'paid' ever had stock_quantity
+    // actually decremented (via commit_reserved_stock on successful payment) —
+    // for those, add the stock back. An unpaid order only ever held a
+    // reserved_quantity hold, never touched stock_quantity, so it must be
+    // released instead of restocked — calling addStock here would inflate
+    // stock_quantity with units that were never actually deducted.
+    if (order.payment_status === 'paid') {
+      for (const item of order.items) {
+        await InventoryService.addStock(
+          item.product_id,
+          item.quantity,
+          userId,
+          `Order ${order.order_number} cancelled`,
+          item.variant_id
+        );
+      }
+    } else if (order.checkout_session_id) {
+      await PaymentService.releaseReservations(order.checkout_session_id);
+    }
+
+    // Release any coupon usage claimed at checkout — the order was never paid,
+    // so this claim must not permanently consume the coupon's usage slot.
+    if (order.coupon_id && order.payment_status !== 'paid') {
+      try {
+        await CouponService.releaseCouponUsage(order.coupon_id, order.id);
+      } catch (couponErr) {
+        logger.warn(`[OrderService] Failed to release coupon usage for order ${order.id}: ${couponErr.message}`);
+      }
     }
 
     const userName = await resolveUserName(order.user_id);
@@ -179,6 +198,11 @@ class OrderService {
 
     const currentOrder = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!currentOrder) throw new Error('Order not found');
+
+    // Universal legality check — applies to every role, including STORE_OWNER/
+    // MANAGER, who previously had zero transition validation on this generic
+    // endpoint and could set status to anything (e.g. reviving a cancelled order).
+    await OrderStateMachine.assertAllowed(currentOrder.status, status);
 
     const { roles } = await UserModel.getUserRolesAndPermissions(adminId);
     const isOrderStaffOnly = roles.includes('ORDER_STAFF') && !roles.some(r => ['STORE_OWNER', 'MANAGER'].includes(r));
@@ -248,10 +272,7 @@ class OrderService {
     const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
-    const allowed = ['pending', 'confirmed', 'processing'];
-    if (!allowed.includes(order.status)) {
-      throw new Error(`Cannot mark as ready_for_dispatch from status: ${order.status}`);
-    }
+    await OrderStateMachine.assertAllowed(order.status, 'ready_for_dispatch');
 
     const updatedOrder = await OrderModel.update(orderId, {
       status: 'ready_for_dispatch',
@@ -277,8 +298,7 @@ class OrderService {
 
     if (!driverName) throw new Error('Driver name is required to dispatch');
 
-    const allowed = ['ready_for_dispatch'];
-    if (!allowed.includes(order.status)) {
+    if (!await OrderStateMachine.isAllowed(order.status, 'dispatched')) {
       throw new Error(`Cannot dispatch order unless it is ready for dispatch (current status: ${order.status}). Please mark the order as ready first.`);
     }
 
@@ -293,7 +313,7 @@ class OrderService {
 
     const now = new Date().toISOString();
 
-    const resolvedRiderName = riderName || (riderId ? null : null);
+    let resolvedRiderName = riderName || null;
     const resolvedRiderPhone = riderPhone || null;
 
     if (riderId && !resolvedRiderName) {
@@ -383,10 +403,7 @@ class OrderService {
     const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
-    const allowedStatuses = ['dispatched', 'delivery_attempted'];
-    if (!allowedStatuses.includes(order.status)) {
-      throw new Error(`Cannot mark as out_for_delivery from status: ${order.status}`);
-    }
+    await OrderStateMachine.assertAllowed(order.status, 'out_for_delivery');
 
     const allowedDeliveryStatuses = {
       'dispatched': 'picked_up',
@@ -420,9 +437,7 @@ class OrderService {
   async markDeliveryAttempted(orderId, note, adminId) {
     const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
-    if (order.status !== 'out_for_delivery') {
-      throw new Error(`Cannot mark delivery_attempted from status: ${order.status}`);
-    }
+    await OrderStateMachine.assertAllowed(order.status, 'delivery_attempted');
 
     const now = new Date().toISOString();
 
@@ -450,10 +465,7 @@ class OrderService {
     const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
-    const allowed = ['out_for_delivery', 'delivery_attempted', 'dispatched'];
-    if (!allowed.includes(order.status)) {
-      throw new Error(`Cannot mark as delivered from status: ${order.status}`);
-    }
+    await OrderStateMachine.assertAllowed(order.status, 'delivered');
 
     const now = new Date();
     const returnExpiry = new Date(now);
@@ -501,6 +513,10 @@ class OrderService {
     const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
+    // Previously had no transition guard at all — could re-queue an order as
+    // 'processing' from any status.
+    await OrderStateMachine.assertAllowed(order.status, 'processing');
+
     const now = new Date().toISOString();
 
     await DeliveryDispatchModel.updateStatusByOrderId(orderId, 'returned_to_store');
@@ -524,7 +540,7 @@ class OrderService {
     const order = await OrderModel.findById(orderId, SINGLE_STORE_ID);
     if (!order) throw new Error('Order not found');
 
-    if (!['delivered'].includes(order.status)) {
+    if (!await OrderStateMachine.isAllowed(order.status, 'completed')) {
       throw new Error(`Cannot complete order unless it has been delivered (current status: ${order.status})`);
     }
 
@@ -749,7 +765,23 @@ class OrderService {
 
     // 2. Perform database update
     const claimedOrders = await OrderModel.claimGuestOrders(userId, email, SINGLE_STORE_ID);
-    
+
+    // 2b. Backfill user_coupons for any coupon usage from the claimed guest
+    // orders. Guest checkouts are only tracked in the per-customer abuse
+    // check by email against `orders`, never in `user_coupons` — without
+    // this backfill, the same coupon usage becomes invisible to the
+    // registered-user check (user_coupons) once the account is claimed,
+    // allowing the same coupon to be effectively redeemed twice across the
+    // guest -> registered transition.
+    const paidCouponOrders = claimedOrders.filter(o => o.coupon_id && o.payment_status === 'paid');
+    for (const paidOrder of paidCouponOrders) {
+      try {
+        await CouponModel.logUserUsage(userId, paidOrder.coupon_id, paidOrder.id);
+      } catch (backfillErr) {
+        logger.warn(`[OrderService] Failed to backfill coupon usage for claimed order ${paidOrder.id}: ${backfillErr.message}`);
+      }
+    }
+
     // 3. Log audit event
     if (claimedOrders.length > 0) {
       await AuditService.log(reqContext, 'orders.guest_claimed', 'user', userId, null, {

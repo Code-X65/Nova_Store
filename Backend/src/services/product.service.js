@@ -6,10 +6,34 @@ const slugify                = require('../utils/slug-generator');
 const attributeService       = require('./attribute.service');
 const { SINGLE_STORE_ID }    = require('../config/store');
 
+// Only a positive sale_price strictly below price counts as a real discount —
+// otherwise (sale_price cleared, or >= price) the discount is 0, not stale/negative.
+function computeDiscountPercentage(price, salePrice) {
+  if (!price || !salePrice || salePrice >= price) return 0;
+  return ((price - salePrice) / price) * 100;
+}
+
+// products.dimensions is a JSONB {length,width,height} column; the admin UI submits
+// flat dimensions_length/width/height fields instead, so fold them in before persisting.
+function foldDimensions(baseData) {
+  const { dimensions_length, dimensions_width, dimensions_height, ...rest } = baseData;
+  if (dimensions_length === undefined && dimensions_width === undefined && dimensions_height === undefined) {
+    return rest;
+  }
+  rest.dimensions = {
+    ...(rest.dimensions || {}),
+    ...(dimensions_length !== undefined && { length: dimensions_length }),
+    ...(dimensions_width !== undefined && { width: dimensions_width }),
+    ...(dimensions_height !== undefined && { height: dimensions_height })
+  };
+  return rest;
+}
+
 class ProductService {
   async createProduct(adminId, productData) {
-    const { variants, attributes, ...baseData } = productData;
-    
+    const { variants, attributes, ...rawBaseData } = productData;
+    const baseData = foldDimensions(rawBaseData);
+
     // Validate category existence
     if (baseData.category_id) {
       const category = await productCategoryModel.findById(baseData.category_id);
@@ -77,9 +101,7 @@ class ProductService {
     baseData.slug = slug;
 
     // 2. Calculate Discount
-    if (baseData.price && baseData.sale_price) {
-      baseData.discount_percentage = ((baseData.price - baseData.sale_price) / baseData.price) * 100;
-    }
+    baseData.discount_percentage = computeDiscountPercentage(baseData.price, baseData.sale_price);
 
     // 3. Create Product row
     baseData.store_id = SINGLE_STORE_ID;
@@ -212,7 +234,8 @@ class ProductService {
   }
 
   async updateProduct(productId, updateData) {
-    const { attributes, ...baseUpdate } = updateData;
+    const { attributes, ...rawBaseUpdate } = updateData;
+    const baseUpdate = foldDimensions(rawBaseUpdate);
 
     // Resolve the effective category_id (from update payload or existing product)
     const existing = await productModel.findById(productId, SINGLE_STORE_ID);
@@ -221,6 +244,21 @@ class ProductService {
       error.statusCode = 404;
       throw error;
     }
+
+    // A direct stock_quantity edit bypasses the atomic reservation RPCs
+    // (reserve_stock_increment/commit_reserved_stock) entirely — the DB CHECK
+    // constraint only guards stock_quantity >= 0 individually, not against
+    // outstanding reserved_quantity, so this could otherwise set stock below
+    // what's already held for pending checkouts (negative "available" stock).
+    if (baseUpdate.stock_quantity !== undefined) {
+      const reserved = existing.reserved_quantity || 0;
+      if (baseUpdate.stock_quantity < reserved) {
+        const error = new Error(`Cannot set stock_quantity (${baseUpdate.stock_quantity}) below the ${reserved} unit(s) already reserved for pending checkouts.`);
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
     let effectiveCategoryId = baseUpdate.category_id || existing?.category_id;
 
     if (baseUpdate.category_id) {
@@ -292,8 +330,14 @@ class ProductService {
       baseUpdate.slug = slug;
     }
     
-    if (baseUpdate.price && baseUpdate.sale_price) {
-      baseUpdate.discount_percentage = ((baseUpdate.price - baseUpdate.sale_price) / baseUpdate.price) * 100;
+    // Recalculate whenever EITHER price or sale_price changes — not just when both
+    // are present in the same payload — using the existing row as fallback for
+    // whichever field wasn't submitted. This also correctly zeroes the discount
+    // back out when a sale ends (sale_price cleared to null).
+    if (baseUpdate.price !== undefined || baseUpdate.sale_price !== undefined) {
+      const effectivePrice = baseUpdate.price !== undefined ? baseUpdate.price : existing?.price;
+      const effectiveSalePrice = baseUpdate.sale_price !== undefined ? baseUpdate.sale_price : existing?.sale_price;
+      baseUpdate.discount_percentage = computeDiscountPercentage(effectivePrice, effectiveSalePrice);
     }
 
     const product = await productModel.update(productId, baseUpdate);
@@ -328,6 +372,20 @@ class ProductService {
   }
 
   async updateVariant(variantId, updateData) {
+    if (updateData.stock_quantity !== undefined) {
+      const existingVariant = await variantModel.findById(variantId);
+      if (!existingVariant) {
+        const error = new Error('Variant not found');
+        error.statusCode = 404;
+        throw error;
+      }
+      const reserved = existingVariant.reserved_quantity || 0;
+      if (updateData.stock_quantity < reserved) {
+        const error = new Error(`Cannot set stock_quantity (${updateData.stock_quantity}) below the ${reserved} unit(s) already reserved for pending checkouts.`);
+        error.statusCode = 400;
+        throw error;
+      }
+    }
     return await variantModel.update(variantId, updateData);
   }
 
@@ -418,3 +476,4 @@ class ProductService {
 }
 
 module.exports = new ProductService();
+module.exports.computeDiscountPercentage = computeDiscountPercentage;

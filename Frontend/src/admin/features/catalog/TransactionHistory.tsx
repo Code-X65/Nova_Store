@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchCatalogAuditLogs, exportCatalogAuditLogs } from './api/products';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
@@ -50,8 +50,7 @@ export default function TransactionHistory() {
   const { data: response, isLoading, refetch } = useQuery({
     queryKey: ['catalog-audit', filters],
     queryFn: async () => {
-      const { data } = await api.get(`/admin/audit/catalog?${filters}`);
-      return data.data;
+      return fetchCatalogAuditLogs(filters);
     },
   });
 
@@ -172,7 +171,7 @@ export default function TransactionHistory() {
             onClick={() => {
               const p = new URLSearchParams(filters);
               p.set('format', 'csv');
-              api.get(`/admin/audit/catalog/export?${p.toString()}`, { responseType: 'blob' }).then(({ data }) => {
+              exportCatalogAuditLogs(p.toString()).then((data) => {
                 const url = URL.createObjectURL(new Blob([data]));
                 const a = document.createElement('a');
                 a.href = url;

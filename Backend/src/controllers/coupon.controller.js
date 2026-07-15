@@ -25,9 +25,10 @@ exports.getMyCoupons = async (req, res, next) => {
 exports.validateCoupon = async (req, res, next) => {
   try {
     const userId = req.user ? req.user.id : null;
+    const sessionId = req.headers['x-session-id'];
     const { code, cartTotal, email } = req.body;
-    
-    const result = await CouponService.validateAndApplyCoupon(userId, null, code, cartTotal, email);
+
+    const result = await CouponService.validateAndApplyCoupon(userId, sessionId, code, cartTotal, email);
     
     // We return the same response as apply but didn't modify cart or order state (since it's just validation)
     res.status(200).json({ success: true, data: result });

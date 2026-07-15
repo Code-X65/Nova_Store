@@ -1,4 +1,6 @@
 const RiderTrackingModel = require('../models/rider-tracking.model');
+const OrderModel = require('../models/order.model');
+const OrderService = require('./order.service');
 const logger = require('../utils/logger');
 
 /**
@@ -28,16 +30,42 @@ class RiderTrackingService {
   }
 
   /**
-   * Record proof-of-delivery with geofence + photo/signature pins.
+   * Record proof-of-delivery with geofence + photo/signature pins, and drive
+   * the order through the actual delivered transition — previously this only
+   * wrote directly to delivery_dispatches with no status change, no
+   * precondition check, no order sync, and no customer notification, as a
+   * second delivery-completion path fully disconnected from
+   * OrderService.markDelivered.
    */
-  async recordPod(dispatchId, { podPhotoUrl, podSignatureUrl, lat, lng, geofenceEtaAt } = {}) {
+  async recordPod(dispatchId, { podPhotoUrl, podSignatureUrl, lat, lng, geofenceEtaAt } = {}, actorId = null) {
     const patch = {};
     if (podPhotoUrl != null) patch.pod_photo_url = podPhotoUrl;
     if (podSignatureUrl != null) patch.pod_signature_url = podSignatureUrl;
     if (lat != null) patch.delivered_lat = lat;
     if (lng != null) patch.delivered_lng = lng;
     if (geofenceEtaAt != null) patch.geofence_eta_at = geofenceEtaAt;
-    return await RiderTrackingModel.recordPod(dispatchId, patch);
+    const dispatch = await RiderTrackingModel.recordPod(dispatchId, patch);
+
+    if (dispatch?.order_id) {
+      const order = await OrderModel.findById(dispatch.order_id);
+      // Idempotent: if the order is already delivered (or further along),
+      // don't re-run markDelivered's notifications/event-emit — the POD
+      // fields above are still recorded either way.
+      if (order && order.status !== 'delivered') {
+        try {
+          await OrderService.markDelivered(dispatch.order_id, {
+            podType: podPhotoUrl ? 'photo' : (podSignatureUrl ? 'signature' : 'geofence'),
+            podValue: podPhotoUrl || podSignatureUrl || null,
+            note: 'Proof of delivery recorded via rider app'
+          }, actorId);
+        } catch (err) {
+          logger.error(`[RiderTrackingService] Failed to sync order ${dispatch.order_id} to delivered after POD:`, err.message);
+          throw err;
+        }
+      }
+    }
+
+    return dispatch;
   }
 }
 

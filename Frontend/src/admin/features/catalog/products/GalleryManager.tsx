@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
 import toast from 'react-hot-toast';
+import { addProductImage, removeProductImage } from '../api/products';
 import { XMarkIcon, PlusIcon, StarIcon as StarOutline } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { ImageUploadInput } from '@/admin/components/ui/ImageUploadInput';
@@ -22,7 +22,7 @@ export function GalleryManager({ productId, images, primaryImageUrl, onChange }:
  mutationFn: async (urls: string[]) => {
  if (!productId) return urls; // create mode: skip backend call
  for (const url of urls) {
- await api.post(`/products/${productId}/images`, { imageUrl: url });
+ await addProductImage(productId, url);
  }
  return urls;
  },
@@ -50,7 +50,7 @@ export function GalleryManager({ productId, images, primaryImageUrl, onChange }:
  const removeMutation = useMutation({
  mutationFn: async (index: number) => {
  if (!productId) return index; // create mode
- await api.delete(`/products/${productId}/images/${index}`);
+ await removeProductImage(productId, index);
  return index;
  },
  onSuccess: (index) => {

@@ -24,6 +24,10 @@ jest.mock('../../../src/models/store.model');
 const StoreModel = require('../../../src/models/store.model');
 const PaymentService = require('../../../src/services/payment.service');
 jest.mock('../../../src/services/payment.service');
+const CouponService = require('../../../src/services/coupon.service');
+jest.mock('../../../src/services/coupon.service');
+const OrderStateMachine = require('../../../src/services/order-state-machine.service');
+jest.mock('../../../src/services/order-state-machine.service');
 
 describe('OrderService', () => {
   const mockUserId = 'user-uuid-123';
@@ -33,6 +37,8 @@ describe('OrderService', () => {
     user_id: mockUserId,
     order_number: 'NS-10001',
     status: 'pending',
+    payment_status: 'pending',
+    checkout_session_id: 'checkout-session-abc',
     return_status: null,
     total_amount: 5500,
     items: [
@@ -56,6 +62,10 @@ describe('OrderService', () => {
     AuditService.log.mockResolvedValue(undefined);
     StoreModel.findById.mockResolvedValue({ id: 'store-1', name: 'Nova Store' });
     StoreModel.getSettings.mockResolvedValue([]);
+    // Default: every transition is legal — individual tests that need to
+    // exercise a rejected transition override these per-call.
+    OrderStateMachine.assertAllowed.mockResolvedValue(undefined);
+    OrderStateMachine.isAllowed.mockResolvedValue(true);
   });
 
   describe('getUserOrders', () => {
@@ -108,7 +118,9 @@ describe('OrderService', () => {
   });
 
   describe('cancelOrder', () => {
-    it('should successfully cancel a pending order, restock inventory, and send notifications', async () => {
+    it('should cancel an unpaid pending order by releasing its stock reservation (not restocking)', async () => {
+      // Unpaid orders never had stock_quantity decremented — only reserved_quantity
+      // was held via checkout — so cancelling must release the reservation, not addStock.
       OrderModel.findById.mockResolvedValue(mockOrder);
       OrderModel.updateStatus.mockResolvedValue({ ...mockOrder, status: 'cancelled' });
       NotificationTemplateModel.findByKey.mockResolvedValue({ id: 'tmpl-1' });
@@ -117,10 +129,9 @@ describe('OrderService', () => {
       expect(result.status).toBe('cancelled');
       expect(OrderModel.updateStatus).toHaveBeenCalledWith(mockOrder.id, 'cancelled', null, expect.stringContaining('Changed mind'), mockUserId);
 
-      // Verify inventory restocked
-      expect(InventoryService.addStock).toHaveBeenCalledTimes(2);
-      expect(InventoryService.addStock).toHaveBeenNthCalledWith(1, 'prod-1', 2, mockUserId, 'Order NS-10001 cancelled', undefined);
-      expect(InventoryService.addStock).toHaveBeenNthCalledWith(2, 'prod-2', 1, mockUserId, 'Order NS-10001 cancelled', undefined);
+      // Verify the stock reservation was released, not restocked
+      expect(PaymentService.releaseReservations).toHaveBeenCalledWith(mockOrder.checkout_session_id);
+      expect(InventoryService.addStock).not.toHaveBeenCalled();
 
       // Verify notification sent
       expect(NotificationService.sendToUser).toHaveBeenCalledWith(mockUserId, 'order_cancelled', {
@@ -130,11 +141,30 @@ describe('OrderService', () => {
       }, null, null, { async: true });
     });
 
+    it('should restock inventory when cancelling an order that was already paid', async () => {
+      // A paid order already had stock_quantity decremented via commit_reserved_stock,
+      // so cancelling it must add real stock back.
+      const paidOrder = { ...mockOrder, payment_status: 'paid' };
+      OrderModel.findById.mockResolvedValue(paidOrder);
+      OrderModel.updateStatus.mockResolvedValue({ ...paidOrder, status: 'cancelled' });
+      NotificationTemplateModel.findByKey.mockResolvedValue({ id: 'tmpl-1' });
+
+      await orderService.cancelOrder(paidOrder.id, mockUserId, 'Changed mind');
+
+      expect(InventoryService.addStock).toHaveBeenCalledTimes(2);
+      expect(InventoryService.addStock).toHaveBeenNthCalledWith(1, 'prod-1', 2, mockUserId, 'Order NS-10001 cancelled', undefined);
+      expect(InventoryService.addStock).toHaveBeenNthCalledWith(2, 'prod-2', 1, mockUserId, 'Order NS-10001 cancelled', undefined);
+      expect(PaymentService.releaseReservations).not.toHaveBeenCalled();
+    });
+
     it('should throw an error if order is in a non-cancellable state', async () => {
       const shippedOrder = { ...mockOrder, status: 'shipped' };
       OrderModel.findById.mockResolvedValue(shippedOrder);
+      OrderStateMachine.assertAllowed.mockRejectedValueOnce(
+        Object.assign(new Error('Invalid order transition: shipped → cancelled'), { statusCode: 422 })
+      );
 
-      await expect(orderService.cancelOrder(shippedOrder.id, mockUserId, 'Reason')).rejects.toThrow('Order cannot be cancelled in current status: shipped');
+      await expect(orderService.cancelOrder(shippedOrder.id, mockUserId, 'Reason')).rejects.toThrow('Invalid order transition: shipped → cancelled');
     });
 
     it('should reject cancelOrder as admin if caller has ORDER_STAFF role only', async () => {
@@ -405,10 +435,13 @@ describe('OrderService', () => {
       it('should fail if order is in a status not allowed for dispatch prep', async () => {
         const localOrder = { ...mockOrder, status: 'shipped' };
         OrderModel.findById.mockResolvedValue(localOrder);
+        OrderStateMachine.assertAllowed.mockRejectedValueOnce(
+          Object.assign(new Error('Invalid order transition: shipped → ready_for_dispatch'), { statusCode: 422 })
+        );
 
         await expect(
           orderService.markReadyForDispatch(localOrder.id, 'Packed', mockAdminId)
-        ).rejects.toThrow('Cannot mark as ready_for_dispatch from status: shipped');
+        ).rejects.toThrow('Invalid order transition: shipped → ready_for_dispatch');
       });
     });
 
@@ -477,6 +510,7 @@ describe('OrderService', () => {
       it('should throw if order status is invalid for dispatch', async () => {
         const localOrder = { ...mockOrder, status: 'cancelled' };
         OrderModel.findById.mockResolvedValue(localOrder);
+        OrderStateMachine.isAllowed.mockResolvedValueOnce(false);
 
         await expect(
           orderService.dispatchOrder(localOrder.id, { driverName: 'Dave' }, mockAdminId)
@@ -548,10 +582,13 @@ describe('OrderService', () => {
       it('should throw if order state is invalid for out_for_delivery', async () => {
         const localOrder = { ...mockOrder, status: 'pending', delivery_status: 'not_dispatched' };
         OrderModel.findById.mockResolvedValue(localOrder);
+        OrderStateMachine.assertAllowed.mockRejectedValueOnce(
+          Object.assign(new Error('Invalid order transition: pending → out_for_delivery'), { statusCode: 422 })
+        );
 
         await expect(
           orderService.markOutForDelivery(localOrder.id, 'En route', mockAdminId)
-        ).rejects.toThrow('Cannot mark as out_for_delivery from status: pending');
+        ).rejects.toThrow('Invalid order transition: pending → out_for_delivery');
       });
 
       it('should throw if delivery_status does not match status in markOutForDelivery', async () => {
@@ -597,10 +634,13 @@ describe('OrderService', () => {
       it('should throw if order is not out_for_delivery', async () => {
         const localOrder = { ...mockOrder, status: 'dispatched' };
         OrderModel.findById.mockResolvedValue(localOrder);
+        OrderStateMachine.assertAllowed.mockRejectedValueOnce(
+          Object.assign(new Error('Invalid order transition: dispatched → delivery_attempted'), { statusCode: 422 })
+        );
 
         await expect(
           orderService.markDeliveryAttempted(localOrder.id, 'Gate locked', mockAdminId)
-        ).rejects.toThrow('Cannot mark delivery_attempted from status: dispatched');
+        ).rejects.toThrow('Invalid order transition: dispatched → delivery_attempted');
       });
     });
 
@@ -832,7 +872,10 @@ describe('OrderService', () => {
         failures: []
       });
 
-      expect(InventoryService.addStock).toHaveBeenCalledTimes(4); // 2 items * 2 orders
+      // Both orders are unpaid (mockOrder default), so cancelling releases their
+      // reservations rather than restocking (see cancelOrder tests above).
+      expect(PaymentService.releaseReservations).toHaveBeenCalledTimes(2);
+      expect(InventoryService.addStock).not.toHaveBeenCalled();
     });
   });
 });

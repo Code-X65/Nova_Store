@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useMyPermissions } from '@/admin/hooks/useMyPermissions';
 import { hasPermission } from '@/admin/lib/permissions';
+import { DataTable } from '@/shared/ui/DataTable';
+import { createColumnHelper } from '@tanstack/react-table';
 import { fetchReturns, createRma, transitionRma, generateReturnLabel, labelUrl, type RmaReturn } from './api/returns';
 
 const ACTIONS = ['review', 'approve', 'reject', 'schedule_pickup', 'mark_collected', 'complete_qc', 'process_refund', 'complete'];
+
+const columnHelper = createColumnHelper<RmaReturn>();
 
 export default function Returns() {
   const qc = useQueryClient();
@@ -42,6 +46,44 @@ export default function Returns() {
 
   const returns: RmaReturn[] = data?.returns || [];
 
+  const columns = useMemo(() => [
+    columnHelper.accessor('rma_number', {
+      header: 'RMA',
+      cell: (info) => <span className="text-gray-200">{info.getValue()}</span>,
+    }),
+    columnHelper.display({
+      id: 'order',
+      header: 'Order',
+      cell: (info) => <span className="text-gray-300">{info.row.original.order?.order_number || info.row.original.order_id.slice(0, 8)}</span>,
+    }),
+    columnHelper.accessor('refund_amount', {
+      header: 'Refund',
+      cell: (info) => <span className="text-right text-gray-300 block">₦{Number(info.getValue() || 0).toFixed(2)}</span>,
+    }),
+    columnHelper.accessor('status', {
+      header: 'Status',
+      cell: (info) => <span className="text-gray-400">{info.getValue().replace(/_/g, ' ')}</span>,
+    }),
+    columnHelper.display({
+      id: 'actions',
+      header: '',
+      cell: (info) => {
+        const r = info.row.original;
+        return canWrite ? (
+          <div className="text-right">
+            <button onClick={() => labelMut.mutate(r.id)} className="text-nova-500 hover:underline mr-2">Label</button>
+            <button
+              onClick={() => setActionFor({ id: r.id, action: '' })}
+              className="text-indigo-400 hover:underline"
+            >
+              Advance
+            </button>
+          </div>
+        ) : null;
+      },
+    }),
+  ], [canWrite, labelMut]);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-white tracking-tight">Returns (RMA)</h1>
@@ -58,40 +100,7 @@ export default function Returns() {
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-gray-500 border-b border-white/10">
-              <tr>
-                <th className="text-left p-3">RMA</th>
-                <th className="text-left p-3">Order</th>
-                <th className="text-right p-3">Refund</th>
-                <th className="text-left p-3">Status</th>
-                <th className="text-right p-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {returns.map((r) => (
-                <tr key={r.id} className="border-b border-white/5">
-                  <td className="p-3 text-gray-200">{r.rma_number}</td>
-                  <td className="p-3 text-gray-300">{r.order?.order_number || r.order_id.slice(0, 8)}</td>
-                  <td className="p-3 text-right text-gray-300">₦{Number(r.refund_amount || 0).toFixed(2)}</td>
-                  <td className="p-3 text-gray-400">{r.status.replace(/_/g, ' ')}</td>
-                  <td className="p-3 text-right">
-                    {canWrite && (
-                      <>
-                        <button onClick={() => labelMut.mutate(r.id)} className="text-nova-500 hover:underline mr-2">Label</button>
-                        <button
-                          onClick={() => setActionFor({ id: r.id, action: '' })}
-                          className="text-indigo-400 hover:underline"
-                        >
-                          Advance
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable columns={columns} data={returns} />
         )}
       </div>
 

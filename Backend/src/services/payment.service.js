@@ -1,9 +1,12 @@
 const OrderModel = require('../models/order.model');
 const PaymentModel = require('../models/payment.model');
+const RefundModel = require('../models/refund.model');
+const OrderStateMachine = require('./order-state-machine.service');
 const InventoryService = require('./inventory.service');
 const CartService = require('./cart.service');
 const CouponService = require('./coupon.service');
 const InventoryReservationService = require('./inventory-reservation.service');
+const InventoryAlertService = require('./inventory-alert.service');
 const AuditService = require('./audit.service');
 const eventBus = require('../realtime/event-bus');
 const SettingModel = require('../models/setting.model');
@@ -41,6 +44,22 @@ class PaymentService {
       if (!order) return;
 
       await PaymentModel.updateStatus(payment.id, 'failed', rawResponse);
+
+      // Release the stock held for this checkout — otherwise it stays "reserved"
+      // forever since the order will never be paid through this reference.
+      if (order.checkout_session_id) {
+        await this.releaseReservations(order.checkout_session_id);
+      }
+
+      // Same for any coupon usage claimed at checkout — it must not permanently
+      // consume the coupon's usage slot for a payment that never went through.
+      if (order.coupon_id) {
+        try {
+          await CouponService.releaseCouponUsage(order.coupon_id, order.id);
+        } catch (couponErr) {
+          console.error(`[Payment] Failed to release coupon usage for order ${order.id}:`, couponErr.message);
+        }
+      }
 
       AuditService.log(null, 'payment.failed', 'order', order.id, null, {
         reference, provider, orderNumber: order.order_number
@@ -111,6 +130,36 @@ class PaymentService {
       const order = await OrderModel.findById(orderId);
       if (order.payment_status === 'paid') return;
 
+      // A late/retried gateway webhook must not resurrect an order that was
+      // already cancelled or refunded — that would re-commit stock and put a
+      // dead order back into the fulfillment pipeline. The payment itself was
+      // already marked 'success' above (money was genuinely received), so this
+      // is surfaced as a critical event for manual finance/ops reconciliation
+      // rather than silently discarded or silently applied.
+      const BLOCKED_STATUSES = ['cancelled', 'refunded', 'returned'];
+      if (BLOCKED_STATUSES.includes(order.status)) {
+        console.error(`[Payment] Payment ${reference} succeeded for order ${order.order_number} which is already '${order.status}' — order NOT resurrected. Needs manual reconciliation.`);
+        AuditService.log(null, 'payment.succeeded_on_blocked_order', 'order', orderId, null, {
+          reference, provider, orderStatus: order.status, total: order.total_amount, orderNumber: order.order_number
+        });
+        eventBus.emit('payment.reconciliation_required', {
+          actor: { id: null, fullName: 'Payment Gateway', role: 'system' },
+          resourceType: 'order',
+          resourceId: orderId,
+          actionType: 'STATUS_CHANGE',
+          severity: 'critical',
+          title: 'Payment received for a closed order',
+          message: `Payment of ${order.total_amount} for order #${order.order_number} succeeded, but the order is already '${order.status}'. Manual reconciliation required.`,
+          data: { orderId, orderNumber: order.order_number, reference, provider, total: order.total_amount, orderStatus: order.status },
+          deepLink: `/orders/${orderId}`,
+        });
+        return;
+      }
+
+      // Route through the shared state machine so any status this webhook
+      // wasn't already explicitly aware of (not just the BLOCKED_STATUSES
+      // above) is still validated, rather than blindly overwriting status.
+      await OrderStateMachine.assertAllowed(order.status, 'processing');
       await OrderModel.updateStatus(orderId, 'processing', 'paid');
 
       // 3. Commit reserved stock → real stock reduction
@@ -118,6 +167,16 @@ class PaymentService {
         await InventoryReservationService.commitReservedStock(orderId);
       } catch (commitErr) {
         console.error(`[Payment] commitReservedStock warning for order ${orderId}:`, commitErr.message);
+      }
+
+      // 3b. Check for low-stock breaches now that real stock was decremented.
+      const checkedProductIds = new Set();
+      for (const item of order.items || []) {
+        if (checkedProductIds.has(item.product_id)) continue;
+        checkedProductIds.add(item.product_id);
+        InventoryAlertService.checkProductStock(item.product_id).catch((alertErr) => {
+          console.error(`[Payment] Low-stock check failed for product ${item.product_id}:`, alertErr.message);
+        });
       }
 
       // 4. Audit log: payment confirmed
@@ -140,10 +199,18 @@ class PaymentService {
       // 5. Clear Cart
       await CartService.clearCart(order.user_id, null);
 
-      // Record Coupon Usage — delegated to CouponService (single source of truth)
+      // 5b. Mark any pending abandoned-cart reminders as recovered (best-effort)
+      try {
+        const CartRecoveryService = require('./cart-recovery.service');
+        await CartRecoveryService.markRecovered(order.user_id);
+      } catch (recoveryErr) {
+        console.error(`Failed to mark cart recovery for order ${orderId}:`, recoveryErr.message);
+      }
+
+      // Confirm the coupon usage claimed at checkout — delegated to CouponService (single source of truth)
       if (order.coupon_id) {
         try {
-          await CouponService.recordCouponUsage(order.user_id, order.coupon_id);
+          await CouponService.recordCouponUsage(order.user_id, order.coupon_id, orderId);
         } catch (couponErr) {
           console.error(`Failed to record coupon usage for order ${orderId}:`, couponErr.message);
         }
@@ -167,6 +234,38 @@ class PaymentService {
    */
   async refundPayment(orderId, refundAmount, reason) {
     try {
+      const order = await OrderModel.findById(orderId);
+      if (!order) {
+        throw new Error(`Order ${orderId} not found`);
+      }
+
+      // Cap the refund against what's actually left to refund on this order.
+      // Two independent refund systems both eventually call this method
+      // (RefundService's `refunds` table, and OrderService.processReturn's
+      // legacy `orders.refund_amount` field) — enforcing the cap here, at
+      // their shared choke point, is what actually closes the gap where
+      // either path (or both) could refund more than the customer paid.
+      // Note: if the same order were ever refunded through BOTH systems, this
+      // could still under-count already-refunded totals from one system while
+      // reading the other — there's no unified refund ledger — but this is
+      // strictly safer than the previous zero-cap behavior.
+      const priorRefunds = await RefundModel.listByOrder(orderId);
+      const refundedViaRefundsTable = priorRefunds
+        .filter((r) => ['completed', 'processing'].includes(r.status))
+        .reduce((sum, r) => sum + Number(r.amount), 0);
+      const refundedViaOrderField = ['completed', 'pending', 'processing'].includes(order.refund_status)
+        ? Number(order.refund_amount || 0)
+        : 0;
+      const alreadyRefunded = refundedViaRefundsTable + refundedViaOrderField;
+      const remaining = Number(order.total_amount) - alreadyRefunded;
+
+      if (Number(refundAmount) > remaining + 0.01) { // small epsilon for float rounding
+        throw new Error(
+          `Refund amount ${refundAmount} exceeds the remaining refundable balance of ${remaining.toFixed(2)} ` +
+          `for order ${orderId} (already refunded ${alreadyRefunded.toFixed(2)} of ${Number(order.total_amount).toFixed(2)}).`
+        );
+      }
+
       const payment = await PaymentModel.findSuccessfulByOrderId(orderId);
       if (!payment) {
         throw new Error(`No successful payment record found for order ${orderId}`);

@@ -1,5 +1,6 @@
 const AuditLogModel = require('../../models/audit-log.model');
 const auditExporter = require('../../utils/audit-exporter');
+const AuditService = require('../../services/audit.service');
 
 class AdminAuditController {
   /**

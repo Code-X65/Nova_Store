@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { updateGuarantor, deleteGuarantor } from '../api/riders';
-import type { Guarantor } from '../api/riders';
+import { updateGuarantor, deleteGuarantor } from './api/riders';
+import type { Guarantor } from './api/riders';
 
 interface GuarantorCardProps {
   guarantor: Guarantor;

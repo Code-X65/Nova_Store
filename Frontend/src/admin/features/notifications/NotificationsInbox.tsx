@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchNotificationsInbox, markNotificationRead, markAllNotificationsRead, dismissNotification } from './api/notifications';
 import { DataTable } from '@/shared/ui/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
@@ -16,10 +16,7 @@ export default function NotificationsInbox() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['notifications', 'inbox', filter, page],
-    queryFn: async () => {
-      const { data } = await api.get(`/notifications?isRead=${filter === 'unread' ? 'false' : 'true'}&page=${page}&limit=${limit}`);
-      return data.data;
-    },
+    queryFn: async () => fetchNotificationsInbox({ isRead: filter !== 'unread', page, limit }),
   });
 
   const notifications: Notification[] = data?.notifications || [];
@@ -27,17 +24,17 @@ export default function NotificationsInbox() {
   const totalPages = data?.pagination?.totalPages || 1;
 
   const markReadMutation = useMutation({
-    mutationFn: (id: string) => api.put(`/notifications/${id}/read`),
+    mutationFn: (id: string) => markNotificationRead(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
   const markAllReadMutation = useMutation({
-    mutationFn: () => api.post('/notifications/mark-all-read'),
+    mutationFn: () => markAllNotificationsRead(),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
   const dismissMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/notifications/${id}`),
+    mutationFn: (id: string) => dismissNotification(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 

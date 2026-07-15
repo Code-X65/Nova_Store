@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/admin/lib/api';
+import { fetchNotificationTemplates, createNotificationTemplate, updateNotificationTemplate, deleteNotificationTemplate } from './api/notifications';
 import toast from 'react-hot-toast';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react';
@@ -17,18 +17,15 @@ export default function Templates() {
 
   const { data: templatesData, isLoading } = useQuery({
     queryKey: ['admin-notification-templates'],
-    queryFn: async () => {
-      const { data } = await api.get('/admin/notifications/templates');
-      return data.data;
-    }
+    queryFn: fetchNotificationTemplates
   });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (editingId) {
-        return api.patch(`/admin/notifications/templates/${editingId}`, formData);
+        return updateNotificationTemplate(editingId, formData);
       } else {
-        return api.post('/admin/notifications/templates', formData);
+        return createNotificationTemplate(formData);
       }
     },
     onSuccess: () => {
@@ -40,7 +37,7 @@ export default function Templates() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => api.delete(`/admin/notifications/templates/${id}`),
+    mutationFn: async (id: string) => deleteNotificationTemplate(id),
     onSuccess: () => {
       toast.success('Template deleted');
       qc.invalidateQueries({ queryKey: ['admin-notification-templates'] });

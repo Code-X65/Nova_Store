@@ -12,6 +12,8 @@ const RegistrationService = require('./registration.service');
 const RoleModel = require('../models/role.model');
 const UserRoleModel = require('../models/user-role.model');
 const securityConfig = require('../config/security');
+const twoFactorService = require('./two-factor.service');
+const ipAllowlistMiddleware = require('../middlewares/ip-allowlist.middleware');
 
 const { OAuth2Client } = require('google-auth-library');
 const { redisClient } = require('../config/redis');
@@ -267,7 +269,7 @@ class AuthService {
      return { user, tokens };
    }
 
-    async adminLogin(email, password, ip = null) {
+    async adminLogin(email, password, ip = null, twoFactorToken = null, recoveryCode = null) {
       // Multi-admin login: query users table (no hardcoded single-email restriction)
       const user = await userModel.findByEmail(email);
 
@@ -296,6 +298,22 @@ class AuthService {
         })).catch(() => {});
         const error = new Error('Invalid email or password');
         error.statusCode = 401;
+        throw error;
+      }
+
+      // IP allowlist — previously only enforced on requests *after* login
+      // (via ip-allowlist.middleware.js), meaning a disallowed IP could still
+      // authenticate freely; only subsequent API calls were blocked.
+      const normalizedIp = ipAllowlistMiddleware.normalizeIp(ip);
+      const ipAllowed = await ipAllowlistMiddleware.isIpAllowed(roles, normalizedIp);
+      if (!ipAllowed) {
+        Promise.resolve(AuditService.logRaw('security.ip_denied', 'user', user.id, {
+          ip: normalizedIp,
+          userId: user.id,
+          newValues: { reason: 'login_ip_denied', emailAttempted: email },
+        })).catch(() => {});
+        const error = new Error('Access denied: your IP address is not in the allowlist.');
+        error.statusCode = 403;
         throw error;
       }
 
@@ -335,7 +353,16 @@ class AuthService {
 
       const isMatch = await userModel.comparePassword(password, user.password_hash);
       if (!isMatch) {
-        await userModel.incrementAdminFailedAttempts(user);
+        const updatedUser = await userModel.incrementAdminFailedAttempts(user);
+        // Auto-lockout must actually cut off access, not just block new logins —
+        // otherwise a session/refresh token issued before the lockout keeps
+        // working for up to its remaining lifetime (previously only the manual
+        // STORE_OWNER "lock" action revoked sessions).
+        if (updatedUser?.is_locked) {
+          await sessionModel.revokeAllAdminSessionsForUser(user.id).catch((revokeErr) => {
+            logger.error(`Failed to revoke sessions after auto-lockout for user ${user.id}:`, revokeErr.message);
+          });
+        }
         logger.warn(`Failed admin login attempt for email: ${email}`);
         Promise.resolve(AuditService.logRaw('admin.login.failed', 'user', user.id, {
           ip,
@@ -350,6 +377,35 @@ class AuthService {
       // Reset failed attempts on success
       if (user.failed_login_attempts > 0 || ip) {
         await userModel.resetFailedAttempts(user, ip);
+      }
+
+      // Enforce 2FA if enabled for this account — password alone is not sufficient.
+      const securityRecord = await twoFactorService.getSecurityRecord(user.id);
+      if (securityRecord?.two_factor_enabled) {
+        if (!twoFactorToken && !recoveryCode) {
+          Promise.resolve(AuditService.logRaw('admin.login.2fa_required', 'user', user.id, {
+            ip,
+            userId: user.id,
+          })).catch(() => {});
+          const error = new Error('Two-factor authentication code required');
+          error.statusCode = 401;
+          error.code = 'TWO_FACTOR_REQUIRED';
+          throw error;
+        }
+
+        const twoFactorResult = twoFactorToken
+          ? await twoFactorService.verify(user.id, twoFactorToken)
+          : await twoFactorService.useRecoveryCode(user.id, recoveryCode);
+
+        if (!twoFactorResult.verified && !twoFactorResult.success) {
+          Promise.resolve(AuditService.logRaw('admin.login.2fa_failed', 'user', user.id, {
+            ip,
+            userId: user.id,
+          })).catch(() => {});
+          const error = new Error('Invalid two-factor authentication code');
+          error.statusCode = 401;
+          throw error;
+        }
       }
 
       logger.info(`Admin logged in successfully: ${email}`);

@@ -23,46 +23,88 @@ class InventoryAlertService {
       .select('id, product_id, variant_id, warehouse_id, quantity, reserved, low_stock_threshold')
       .eq('product_id', productId);
     if (error) throw error;
-    if (!levels || levels.length === 0) return triggered;
 
-    const variantIds = levels.map((l) => l.variant_id).filter(Boolean);
-    const warehouseIds = levels.map((l) => l.warehouse_id).filter(Boolean);
+    if (levels && levels.length > 0) {
+      const variantIds = levels.map((l) => l.variant_id).filter(Boolean);
+      const warehouseIds = levels.map((l) => l.warehouse_id).filter(Boolean);
+
+      const { data: rules, error: rErr } = await supabaseAdmin
+        .from('stock_alert_rules')
+        .select('*')
+        .eq('is_active', true)
+        .or(`scope.eq.global,scope.eq.product,and(scope.eq.variant,variant_id.in.(${variantIds.join(',')})),and(scope.eq.warehouse,warehouse_id.in.(${warehouseIds.join(',')}))`);
+      if (rErr) throw rErr;
+      const applicable = rules || [];
+
+      for (const level of levels) {
+        const threshold = level.low_stock_threshold ?? 10;
+        const available = level.quantity - level.reserved;
+        if (available > threshold) continue;
+
+        const rule = applicable.find((r) => {
+          if (r.scope === 'global') return true;
+          if (r.scope === 'product') return r.product_id === level.product_id;
+          if (r.scope === 'variant') return r.variant_id === level.variant_id;
+          if (r.scope === 'warehouse') return r.warehouse_id === level.warehouse_id;
+          return false;
+        });
+        if (!rule) continue;
+
+        const payload = {
+          productId: level.product_id,
+          variantId: level.variant_id,
+          warehouseId: level.warehouse_id,
+          available,
+          threshold,
+          ruleId: rule.id,
+          channels: rule.channels || ['in_app'],
+          recipientRole: rule.recipient_role,
+        };
+        triggered.push(payload);
+        eventBus.emit('inventory.low_stock', payload);
+      }
+
+      return triggered;
+    }
+
+    // No per-warehouse tracking for this product — fall back to the legacy
+    // products-table stock/threshold columns, since that's what the primary
+    // checkout/order flow (commit_reserved_stock) actually decrements. Without
+    // this fallback, low-stock alerts would never fire for the common case of
+    // a store not using the multi-warehouse feature.
+    const { data: product, error: pErr } = await supabaseAdmin
+      .from('products')
+      .select('id, stock_quantity, reserved_quantity, low_stock_threshold')
+      .eq('id', productId)
+      .maybeSingle();
+    if (pErr) throw pErr;
+    if (!product) return triggered;
+
+    const threshold = product.low_stock_threshold ?? 10;
+    const available = (product.stock_quantity || 0) - (product.reserved_quantity || 0);
+    if (available > threshold) return triggered;
 
     const { data: rules, error: rErr } = await supabaseAdmin
       .from('stock_alert_rules')
       .select('*')
       .eq('is_active', true)
-      .or(`scope.eq.global,scope.eq.product,and(scope.eq.variant,variant_id.in.(${variantIds.join(',')})),and(scope.eq.warehouse,warehouse_id.in.(${warehouseIds.join(',')}))`);
+      .or(`scope.eq.global,and(scope.eq.product,product_id.eq.${productId})`);
     if (rErr) throw rErr;
-    const applicable = rules || [];
+    const rule = (rules || []).find((r) => r.scope === 'global' || (r.scope === 'product' && r.product_id === productId));
+    if (!rule) return triggered;
 
-    for (const level of levels) {
-      const threshold = level.low_stock_threshold ?? 10;
-      const available = level.quantity - level.reserved;
-      if (available > threshold) continue;
-
-      const rule = applicable.find((r) => {
-        if (r.scope === 'global') return true;
-        if (r.scope === 'product') return r.product_id === level.product_id;
-        if (r.scope === 'variant') return r.variant_id === level.variant_id;
-        if (r.scope === 'warehouse') return r.warehouse_id === level.warehouse_id;
-        return false;
-      });
-      if (!rule) continue;
-
-      const payload = {
-        productId: level.product_id,
-        variantId: level.variant_id,
-        warehouseId: level.warehouse_id,
-        available,
-        threshold,
-        ruleId: rule.id,
-        channels: rule.channels || ['in_app'],
-        recipientRole: rule.recipient_role,
-      };
-      triggered.push(payload);
-      eventBus.emit('inventory.stock_low', payload);
-    }
+    const payload = {
+      productId,
+      variantId: null,
+      warehouseId: null,
+      available,
+      threshold,
+      ruleId: rule.id,
+      channels: rule.channels || ['in_app'],
+      recipientRole: rule.recipient_role,
+    };
+    triggered.push(payload);
+    eventBus.emit('inventory.low_stock', payload);
 
     return triggered;
   }

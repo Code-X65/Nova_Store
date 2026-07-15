@@ -49,6 +49,16 @@ class CartModel {
     if (error) throw error;
     return true;
   }
+
+  async touch(id) {
+    const { error } = await supabase
+      .from('carts')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  }
 }
 
 module.exports = new CartModel();
